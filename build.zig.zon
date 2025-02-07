@@ -1,0 +1,18 @@
+.{
+    .name = "zxg-example-zgui",
+    .version = "0.0.0",
+    .dependencies = .{
+        .zxg = .{
+            .path = "../zxg",
+        },
+        .@"nfd-zig" = .{
+            .url = "https://github.com/fabioarnold/nfd-zig/archive/ad81729d33da30d5f4fd23718debec48245121ca.zip",
+            .hash = "1220a679380847513262c8c5c474d4a415f9ecc4921c8c6aefbdbdce66cf2aa19ceb",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
