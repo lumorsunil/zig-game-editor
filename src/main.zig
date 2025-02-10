@@ -25,10 +25,5 @@ pub fn main() !void {
     defer rl.unloadTexture(texture);
     try context.textures.put(tileset, texture);
 
-    context.currentTool.?.impl.brush.source = .{
-        .tileset = tileset,
-        .gridPosition = .{ 0, 0 },
-    };
-
     try app.run(layout, &context);
 }

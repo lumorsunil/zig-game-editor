@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const rl = @import("raylib");
 const Tool = @import("tool.zig").Tool;
-const BrushTool = @import("tool.zig").BrushTool;
+const BrushTool = @import("tools/brush.zig").BrushTool;
 const FileData = @import("file-data.zig").FileData;
 const Vector = @import("vector.zig").Vector;
 const VectorInt = @import("vector.zig").VectorInt;
@@ -67,13 +67,15 @@ pub const Context = struct {
         return cwd;
     }
 
+    const fileFilter = "tilemap.json";
+
     pub fn saveFile(self: *Context) !void {
         if (self.currentFileName) |fileName| {
             try self.saveFileTo(fileName);
             return;
         }
 
-        const fileName = try nfd.saveFileDialog("json", self.defaultPath) orelse return;
+        const fileName = try nfd.saveFileDialog(fileFilter, self.defaultPath) orelse return;
         defer nfd.freePath(fileName);
 
         if (!std.mem.eql(u8, std.fs.path.extension(fileName), ".json")) {
@@ -94,7 +96,7 @@ pub const Context = struct {
     }
 
     pub fn openFile(self: *Context) !void {
-        const maybeFileName = try nfd.openFileDialog("json", self.defaultPath);
+        const maybeFileName = try nfd.openFileDialog(fileFilter, self.defaultPath);
 
         if (maybeFileName) |fileName| {
             defer nfd.freePath(fileName);

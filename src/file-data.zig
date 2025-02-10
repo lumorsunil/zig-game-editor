@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
+const ArrayList = std.ArrayListUnmanaged;
 const Vector = @import("vector.zig").Vector;
 const VectorInt = @import("vector.zig").VectorInt;
 const rl = @import("raylib");
@@ -31,18 +31,23 @@ pub const FileData = struct {
 pub const Tilemap = struct {
     size: Vector,
     tileSize: Vector,
-    tiles: JsonArrayList(Tile),
+    tiles: ArrayList(Tile),
 
     pub fn init(allocator: Allocator, size: Vector, tileSize: Vector) Tilemap {
         return Tilemap{
             .size = size,
             .tileSize = tileSize,
-            .tiles = JsonArrayList(Tile).initWith(allocator, Tile{}, @intCast(size[0] * size[1])),
+            .tiles = brk: {
+                const len: usize = @intCast(size[0] * size[1]);
+                var arrayList = ArrayList(Tile).initCapacity(allocator, len) catch unreachable;
+                arrayList.appendNTimes(allocator, Tile{}, len) catch unreachable;
+                break :brk arrayList;
+            },
         };
     }
 
     pub fn deinit(self: *Tilemap, allocator: Allocator) void {
-        for (self.tiles.slice()) |tile| {
+        for (self.tiles.items) |tile| {
             if (tile.source) |source| {
                 allocator.free(source.tileset);
             }
@@ -67,11 +72,11 @@ pub const Tilemap = struct {
     }
 
     pub fn getTileByIndex(self: *Tilemap, i: usize) *Tile {
-        return &self.tiles.arrayList.items[i];
+        return &self.tiles.items[i];
     }
 
     pub fn getTileV(self: *Tilemap, gridPosition: Vector) *Tile {
-        return &self.tiles.arrayList.items[self.getIndexV(gridPosition)];
+        return &self.tiles.items[self.getIndexV(gridPosition)];
     }
 
     pub fn isOutOfBounds(self: *const Tilemap, gridPosition: Vector) bool {

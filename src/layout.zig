@@ -7,7 +7,7 @@ const c = @cImport({
 const rl = @import("raylib");
 const nfd = @import("nfd");
 const Context = @import("context.zig").Context;
-const BrushTool = @import("tool.zig").BrushTool;
+const BrushTool = @import("tools/brush.zig").BrushTool;
 const drawTilemap = @import("draw-tilemap.zig").drawTilemap;
 const Vector = @import("vector.zig").Vector;
 const TileSource = @import("file-data.zig").TileSource;
@@ -114,18 +114,14 @@ fn toolDetailsMenu(context: *Context) !void {
 }
 
 fn brushToolDetailsMenu(context: *Context, brush: *BrushTool) !void {
-    //c.BeginTextureMode(brush.currentSourceTexture);
+    if (z.button("Set Tile", .{})) {
+        brush.isSelectingTileSource = true;
+    }
     if (brush.source) |source| {
         const texture = context.textures.getPtr(source.tileset).?;
         const sourceRect = source.getSourceRect(context.fileData.tilemap.tileSize);
-        if (z.button("Set Tile", .{})) {
-            brush.isSelectingTileSource = true;
-        }
         c.rlImGuiImageRect(@ptrCast(texture), 64, 64, @bitCast(sourceRect));
-    } else {
-        // Draw empty rectangle
     }
-    //c.EndTextureMode();
 }
 
 fn getMouseGridPosition(context: *Context) ?Vector {
@@ -182,8 +178,8 @@ fn selectTileSourceMenu(context: *Context, brush: *BrushTool) !void {
     const scrollPos: @Vector(2, f32) = .{ z.getScrollX(), z.getScrollY() };
     const mouseWindowPos: @Vector(2, f32) = mousePos + scrollPos;
     const scaledWidth = tileWidth * context.scale;
-    const fScaledWidth: f32 = @floatFromInt(scaledWidth);
-    const fScaledSize: @Vector(2, f32) = .{ fScaledWidth, fScaledWidth };
+    //const fScaledWidth: f32 = @floatFromInt(scaledWidth);
+    //const fScaledSize: @Vector(2, f32) = .{ fScaledWidth, fScaledWidth };
 
     if (rl.isMouseButtonDown(.mouse_button_middle)) {
         const delta = rl.getMouseDelta();
@@ -193,27 +189,44 @@ fn selectTileSourceMenu(context: *Context, brush: *BrushTool) !void {
 
     for (0..gridWidth) |y| {
         for (0..gridWidth) |x| {
-            const cursorPos: @Vector(2, f32) = z.getCursorPos();
-            const cursorEnd = cursorPos + fScaledSize;
-
-            const gridPosition: Vector = Vector{ @intCast(x), @intCast(y) };
+            const gridPosition: Vector = @intCast(@Vector(2, usize){ x, y });
             const sourceRect = TileSource.getSourceRectEx(gridPosition, context.fileData.tilemap.tileSize);
 
+            _ = z.selectable(" ", .{
+                .selected = brush.selectedSourceTiles.isSelected(gridPosition),
+                .w = @floatFromInt(scaledWidth),
+                .h = @floatFromInt(scaledWidth),
+                .flags = .{ .allow_overlap = true },
+            });
+            const zmin: @Vector(2, f32) = z.getWindowContentRegionMin();
+            const min: @Vector(2, i32) = @intFromFloat(zmin);
+            const scaledSize: Vector = @splat(scaledWidth + 8);
+            const cursorPos = min + gridPosition * scaledSize;
+            const cursorEnd = cursorPos + scaledSize;
+            const fCursorPos: @Vector(2, f32) = @floatFromInt(cursorPos);
+            const fCursorEnd: @Vector(2, f32) = @floatFromInt(cursorEnd);
+            z.setCursorPos(fCursorPos);
             c.rlImGuiImageRect(@ptrCast(texture), scaledWidth, scaledWidth, @bitCast(sourceRect));
 
-            const isMouseWithinCursor = @reduce(.And, mouseWindowPos >= cursorPos) and @reduce(.And, mouseWindowPos <= cursorEnd);
+            const isMouseWithinCursor = @reduce(.And, mouseWindowPos >= fCursorPos) and @reduce(.And, mouseWindowPos <= fCursorEnd);
 
             if (rl.isMouseButtonPressed(.mouse_button_left) and isMouseWithinCursor) {
-                brush.source = TileSource{
-                    .tileset = brush.tileset,
-                    .gridPosition = gridPosition,
-                };
-                brush.isSelectingTileSource = false;
+                if (rl.isKeyDown(.key_left_shift)) {
+                    brush.selectedSourceTiles.togglePoint(context.allocator, gridPosition);
+                } else {
+                    TileSource.set(&brush.source, context.allocator, &TileSource{
+                        .tileset = brush.tileset,
+                        .gridPosition = gridPosition,
+                    });
+                    brush.isSelectingTileSource = false;
+                }
             }
             z.sameLine(.{});
         }
         z.newLine();
     }
+
+    if (rl.isKeyDown(.key_enter)) brush.isSelectingTileSource = false;
 
     z.end();
 }

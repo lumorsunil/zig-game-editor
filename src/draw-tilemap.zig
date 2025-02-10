@@ -9,7 +9,7 @@ pub fn drawTilemap(position: Vector, context: *const Context) void {
     for (0..@intCast(tilemap.size[0])) |x| {
         for (0..@intCast(tilemap.size[1])) |y| {
             const i = tilemap.getIndex(x, y);
-            const tile = tilemap.tiles.slice()[i];
+            const tile = tilemap.tiles.items[i];
 
             if (tile.source == null) continue;
             const tileSource = tile.source.?;
