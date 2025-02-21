@@ -25,5 +25,9 @@ pub fn main() !void {
     defer rl.unloadTexture(texture);
     try context.textures.put(tileset, texture);
 
+    try context.restoreSession();
+
     try app.run(layout, &context);
+
+    try context.storeSession();
 }

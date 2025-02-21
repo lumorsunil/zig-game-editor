@@ -11,12 +11,13 @@ const BrushTool = @import("tools/brush.zig").BrushTool;
 const drawTilemap = @import("draw-tilemap.zig").drawTilemap;
 const Vector = @import("vector.zig").Vector;
 const TileSource = @import("file-data.zig").TileSource;
+const TilemapLayer = @import("file-data.zig").TilemapLayer;
 
 pub fn layout(context: *Context) !void {
     rl.clearBackground(context.backgroundColor);
     rl.beginMode2D(context.camera);
 
-    const size = context.fileData.tilemap.size * context.fileData.tilemap.tileSize * context.scaleV;
+    const size = context.fileData.tilemap.grid.size * context.fileData.tilemap.tileSize * context.scaleV;
     const rect = rl.Rectangle.init(0, 0, @floatFromInt(size[0]), @floatFromInt(size[1]));
     rl.drawRectangleLinesEx(rect, 4, rl.Color.black);
     drawTilemap(.{ 0, 0 }, context);
@@ -59,6 +60,16 @@ fn handleInput(context: *Context) !void {
             .brush => |*brush| handleBrush(context, brush),
         }
     }
+
+    try handleShortcuts(context);
+}
+
+fn handleShortcuts(context: *Context) !void {
+    if (rl.isKeyDown(.key_left_control)) {
+        if (rl.isKeyDown(.key_s)) return try context.saveFile();
+        if (rl.isKeyDown(.key_o)) return try context.openFile();
+        if (rl.isKeyDown(.key_n)) return try context.newFile();
+    }
 }
 
 fn mainMenu(context: *Context) !void {
@@ -72,9 +83,19 @@ fn mainMenu(context: *Context) !void {
     } });
     defer z.end();
 
-    if (z.button("Demo", .{})) {
-        context.isDemoWindowEnabled = !context.isDemoWindowEnabled;
+    if (context.currentFileName) |cfn| {
+        const baseName = std.fs.path.basename(cfn);
+        var it = std.mem.splitScalar(u8, baseName, '.');
+        const name = it.next().?;
+        z.text("{s}", .{name});
+        if (z.isItemHovered(.{ .delay_short = true })) {
+            if (z.beginTooltip()) {
+                z.text("{s}", .{cfn});
+            }
+            z.endTooltip();
+        }
     }
+
     z.separatorText("File");
     try fileMenu(context);
     z.separatorText("Tools");
@@ -84,6 +105,8 @@ fn mainMenu(context: *Context) !void {
         try toolDetailsMenu(context);
     }
     z.separatorText("Tilesets");
+    z.separatorText("Layers");
+    try layersMenu(context);
 }
 
 fn fileMenu(context: *Context) !void {
@@ -124,6 +147,76 @@ fn brushToolDetailsMenu(context: *Context, brush: *BrushTool) !void {
     }
 }
 
+fn layersMenu(context: *Context) !void {
+    const buttonSize = 24;
+    if (z.button("+", .{ .w = buttonSize, .h = buttonSize })) {
+        _ = context.fileData.tilemap.addLayer(context.tilemapArena.allocator(), "Layer");
+    }
+
+    for (context.fileData.tilemap.layers.items, 0..) |*layer_ptr, i| {
+        const layer = layer_ptr.*;
+        const isActiveLayer = layer.id.uuid == context.fileData.tilemap.activeLayer.uuid;
+
+        // Active layer highlighting
+        if (isActiveLayer) {
+            const x = z.getWindowContentRegionMin()[0] - 2;
+            const y = z.getCursorPosY() - 2;
+            const w = z.getWindowContentRegionMax()[0] - 2;
+            const h = 20 + 4;
+            z.getWindowDrawList().addRect(.{
+                .pmin = .{ x, y },
+                .pmax = .{ x + w, y + h },
+                .col = @bitCast(c.ColorToInt(c.WHITE)),
+                .rounding = 0.0,
+                .flags = .{ .closed = true },
+                .thickness = 1.0,
+            });
+        }
+
+        // Layer name
+        if (i == 0 or !isActiveLayer) {
+            z.text("{s}", .{layer.name});
+        } else {
+            z.pushPtrId(layer);
+            _ = z.inputText("", .{
+                .buf = layer.getNameBuffer(),
+                .flags = .{
+                    .callback_edit = true,
+                },
+                .callback = layerNameInputCallback,
+                .user_data = context,
+            });
+            z.popId();
+        }
+
+        if (z.isItemClicked(.left)) {
+            context.fileData.tilemap.activeLayer = layer.id;
+        }
+
+        // Remove layer button
+        if (i > 0) {
+            z.sameLine(.{ .offset_from_start_x = z.getWindowWidth() - buttonSize });
+            z.pushIntId(@intCast(i));
+            if (z.button("-", .{ .w = buttonSize, .h = buttonSize })) {
+                context.fileData.tilemap.removeLayer(context.tilemapArena.allocator(), layer.id);
+            }
+            z.popId();
+        }
+    }
+}
+
+fn layerNameInputCallback(data: *z.InputTextCallbackData) i32 {
+    const context: *Context = @ptrCast(@alignCast(data.user_data.?));
+    const layer = context.fileData.tilemap.getActiveLayer();
+
+    std.log.debug("data.buf[0..{d}]({d}): {s}", .{ data.buf_text_len, data.buf_size, data.buf[0..@intCast(data.buf_text_len)] });
+    std.log.debug("{d}", .{data.buf[0..@intCast(data.buf_size)]});
+
+    layer.setName(data.buf[0..@intCast(data.buf_text_len)]);
+
+    return 0;
+}
+
 fn getMouseGridPosition(context: *Context) ?Vector {
     const mp = rl.getMousePosition();
     const mtrx = rl.getCameraMatrix2D(context.camera);
@@ -154,13 +247,13 @@ fn handleBrush(context: *Context, brush: *BrushTool) void {
 
         if (gridPosition == null) return;
 
-        brush.onUse(context.allocator, &context.fileData.tilemap, gridPosition.?);
+        brush.onUse(context, &context.fileData.tilemap, gridPosition.?);
     } else if (rl.isMouseButtonDown(.mouse_button_right)) {
         const gridPosition = getMouseGridPosition(context);
 
         if (gridPosition == null) return;
 
-        brush.onAlternateUse(context.allocator, &context.fileData.tilemap, gridPosition.?);
+        brush.onAlternateUse(context, &context.fileData.tilemap, gridPosition.?);
     }
 }
 

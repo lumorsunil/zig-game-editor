@@ -3,11 +3,16 @@
     .version = "0.0.0",
     .dependencies = .{
         .zxg = .{
-            .path = "../zxg",
+            .url = "git+https://github.com/lumorsunil/zxg#d769810b06082f508a88021a6bca3ecaf7e5f459",
+            .hash = "122046389baf18f1083c7daa09d68b4b983802a8e9ef0e665458110261e9d747bf50",
         },
         .@"nfd-zig" = .{
             .url = "https://github.com/fabioarnold/nfd-zig/archive/ad81729d33da30d5f4fd23718debec48245121ca.zip",
             .hash = "1220a679380847513262c8c5c474d4a415f9ecc4921c8c6aefbdbdce66cf2aa19ceb",
+        },
+        .uuid = .{
+            .url = "git+https://github.com/r4gus/uuid-zig#17cdf2cf5adb9e85892b04e269d408db3578cff2",
+            .hash = "12207920ff3fce69398afc959b252b8cd72ab55a6dbb251d71fa046a43d9a85bffe6",
         },
     },
     .paths = .{

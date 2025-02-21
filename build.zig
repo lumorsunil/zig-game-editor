@@ -25,6 +25,12 @@ pub fn build(b: *std.Build) void {
         .backend = .Zgui,
     });
 
+    const uuidDep = b.dependency("uuid", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    exe.root_module.addImport("uuid", uuidDep.module("uuid"));
+
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);

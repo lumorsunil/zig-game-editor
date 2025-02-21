@@ -1,4 +1,6 @@
 zig-out
 .zig-cache
 session.vim
+session.json
 imgui.ini
+*.tilemap.json
