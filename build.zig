@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const exe = b.addExecutable(.{
-        .name = "zxg-example-zgui",
+        .name = "zxg-game-editor",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
