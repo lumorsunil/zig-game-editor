@@ -11,12 +11,12 @@
 
 ### Undo/redo
 
-- [ ] General structure
-- [ ] Adjust tools to support undo/redo
-  - [ ] Generic tool
-  - [ ] Brush tool
-- [ ] History per document
-- [ ] Save history in document?
+- [x] General structure
+- [x] Adjust tools to support undo/redo
+  - [x] Generic tool
+  - [x] Brush tool
+- [x] History per document
+- [x] Save history in document?
   - [ ] Binary format? Gzip? (jq can be used to query a document in a streaming manner [https://stackoverflow.com/questions/67414225/is-it-possible-to-read-gzip-file-directly-with-jq])
 
 ### Multiple documents opened
