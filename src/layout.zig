@@ -1,9 +1,6 @@
 const std = @import("std");
 const z = @import("zgui");
-const c = @cImport({
-    @cDefine("NO_FONT_AWESOME", "1");
-    @cInclude("rlImGui.h");
-});
+const c = @import("c");
 const rl = @import("raylib");
 const nfd = @import("nfd");
 const Context = @import("context.zig").Context;
@@ -14,6 +11,11 @@ const TileSource = @import("file-data.zig").TileSource;
 const TilemapLayer = @import("file-data.zig").TilemapLayer;
 
 pub fn layout(context: *Context) !void {
+    const screenSize: Vector = .{ rl.getScreenWidth(), rl.getScreenHeight() };
+    const screenW, const screenH = @as(@Vector(2, f32), @floatFromInt(screenSize));
+    context.camera.offset.x = screenW / 2;
+    context.camera.offset.y = screenH / 2;
+
     rl.clearBackground(context.backgroundColor);
     rl.beginMode2D(context.camera);
 
@@ -46,12 +48,13 @@ pub fn layout(context: *Context) !void {
 
 fn handleInput(context: *Context) !void {
     if (rl.isMouseButtonDown(.mouse_button_middle)) {
-        context.camera.offset.x += rl.getMouseDelta().x;
-        context.camera.offset.y += rl.getMouseDelta().y;
+        const delta = rl.getMouseDelta();
+        context.camera.target.x -= delta.x / context.camera.zoom;
+        context.camera.target.y -= delta.y / context.camera.zoom;
     }
 
     if (rl.isKeyDown(.key_left_control)) {
-        context.camera.zoom += rl.getMouseWheelMove() * 0.1;
+        context.camera.zoom *= 1 + rl.getMouseWheelMove() * 0.1;
         context.camera.zoom = std.math.clamp(context.camera.zoom, 0.1, 10);
     }
 

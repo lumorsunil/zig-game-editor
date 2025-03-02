@@ -3,8 +3,8 @@
     .version = "0.0.0",
     .dependencies = .{
         .zxg = .{
-            .url = "git+https://github.com/lumorsunil/zxg#d769810b06082f508a88021a6bca3ecaf7e5f459",
-            .hash = "122046389baf18f1083c7daa09d68b4b983802a8e9ef0e665458110261e9d747bf50",
+            .url = "git+https://github.com/lumorsunil/zxg#aa3deb5ce13cac993e0de32d4e01d9f765656c7b",
+            .hash = "12207e0b1001fe3579246c26addb13b82b136be327687a16c0693d20155876497aaa",
         },
         .@"nfd-zig" = .{
             .url = "https://github.com/fabioarnold/nfd-zig/archive/ad81729d33da30d5f4fd23718debec48245121ca.zip",
