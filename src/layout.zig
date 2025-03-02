@@ -7,8 +7,9 @@ const Context = @import("context.zig").Context;
 const BrushTool = @import("tools/brush.zig").BrushTool;
 const drawTilemap = @import("draw-tilemap.zig").drawTilemap;
 const Vector = @import("vector.zig").Vector;
-const TileSource = @import("file-data.zig").TileSource;
-const TilemapLayer = @import("file-data.zig").TilemapLayer;
+const TileSource = @import("tilemap.zig").TileSource;
+const TilemapLayer = @import("tilemap.zig").TilemapLayer;
+const Action = @import("action.zig").Action;
 
 pub fn layout(context: *Context) !void {
     const screenSize: Vector = .{ rl.getScreenWidth(), rl.getScreenHeight() };
@@ -72,6 +73,14 @@ fn handleShortcuts(context: *Context) !void {
         if (rl.isKeyDown(.key_s)) return try context.saveFile();
         if (rl.isKeyDown(.key_o)) return try context.openFile();
         if (rl.isKeyDown(.key_n)) return try context.newFile();
+        if (rl.isKeyPressed(.key_z)) {
+            if (rl.isKeyDown(.key_left_shift)) {
+                return context.redo();
+            } else {
+                return context.undo();
+            }
+        }
+        if (rl.isKeyPressed(.key_y)) return context.redo();
     }
 }
 
@@ -101,6 +110,10 @@ fn mainMenu(context: *Context) !void {
 
     z.separatorText("File");
     try fileMenu(context);
+    z.separatorText("Edit");
+    try editMenu(context);
+    z.separatorText("Tilemap");
+    try tilemapMenu(context);
     z.separatorText("Tools");
     try toolPickerMenu(context);
     if (context.currentTool != null) {
@@ -110,15 +123,41 @@ fn mainMenu(context: *Context) !void {
     z.separatorText("Tilesets");
     z.separatorText("Layers");
     try layersMenu(context);
+    z.separatorText("History");
+    try historyMenu(context);
 }
 
 fn fileMenu(context: *Context) !void {
+    if (z.button("New", .{})) {
+        try context.newFile();
+    }
+    z.sameLine(.{});
     if (z.button("Open", .{})) {
         try context.openFile();
     }
     z.sameLine(.{});
     if (z.button("Save", .{})) {
         try context.saveFile();
+    }
+}
+
+fn editMenu(context: *Context) !void {
+    z.beginDisabled(.{ .disabled = !context.canUndo() });
+    if (z.button("Undo", .{})) {
+        context.undo();
+    }
+    z.endDisabled();
+    z.sameLine(.{});
+    z.beginDisabled(.{ .disabled = !context.canRedo() });
+    if (z.button("Redo", .{})) {
+        context.redo();
+    }
+    z.endDisabled();
+}
+
+fn tilemapMenu(context: *Context) !void {
+    if (z.inputInt2("Size", .{ .v = &context.fileData.tilemap.grid.size })) {
+        // TODO: Resize tilemap
     }
 }
 
@@ -246,17 +285,27 @@ fn getMouseGridPosition(context: *Context) ?Vector {
 
 fn handleBrush(context: *Context, brush: *BrushTool) void {
     if (rl.isMouseButtonDown(.mouse_button_left)) {
+        context.startGenericAction(Action.BrushPaint);
+
         const gridPosition = getMouseGridPosition(context);
 
         if (gridPosition == null) return;
 
         brush.onUse(context, &context.fileData.tilemap, gridPosition.?);
-    } else if (rl.isMouseButtonDown(.mouse_button_right)) {
+    } else {
+        context.endGenericAction(Action.BrushPaint);
+    }
+
+    if (rl.isMouseButtonDown(.mouse_button_right)) {
+        context.startGenericAction(Action.BrushDelete);
+
         const gridPosition = getMouseGridPosition(context);
 
         if (gridPosition == null) return;
 
         brush.onAlternateUse(context, &context.fileData.tilemap, gridPosition.?);
+    } else {
+        context.endGenericAction(Action.BrushDelete);
     }
 }
 
@@ -325,4 +374,15 @@ fn selectTileSourceMenu(context: *Context, brush: *BrushTool) !void {
     if (rl.isKeyDown(.key_enter)) brush.isSelectingTileSource = false;
 
     z.end();
+}
+
+fn historyMenu(context: *Context) !void {
+    const items = context.fileData.history.actions.items;
+    const nextActionIndex = context.fileData.history.nextActionIndex;
+
+    for (items[0..nextActionIndex]) |item| {
+        switch (item) {
+            inline else => |action| z.text(@TypeOf(action).label, .{}),
+        }
+    }
 }

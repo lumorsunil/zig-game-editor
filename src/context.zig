@@ -9,6 +9,7 @@ const Vector = @import("vector.zig").Vector;
 const VectorInt = @import("vector.zig").VectorInt;
 const nfd = @import("nfd");
 const EditorSession = @import("editor-session.zig").EditorSession;
+const Action = @import("action.zig").Action;
 
 var __tools = [_]Tool{
     Tool.init("brush", .{ .brush = BrushTool.init() }),
@@ -35,6 +36,8 @@ pub const Context = struct {
     scale: VectorInt = 4,
     scaleV: Vector = .{ 4, 4 },
 
+    materializingAction: ?Action,
+
     const defaultSize: Vector = .{ 35, 17 };
     const defaultTileSize: Vector = .{ 16, 16 };
 
@@ -51,6 +54,7 @@ pub const Context = struct {
             },
             .textures = std.StringHashMap(rl.Texture2D).init(allocator),
             .fileData = undefined,
+            .materializingAction = null,
         };
     }
 
@@ -211,5 +215,59 @@ pub const Context = struct {
         rl.setWindowPosition(parsed.value.windowPos[0], parsed.value.windowPos[1]);
 
         self.camera = parsed.value.camera;
+    }
+
+    pub fn startAction(self: *Context, action: Action) void {
+        self.materializingAction = action;
+    }
+
+    pub fn endAction(self: *Context) void {
+        self.fileData.history.push(self.tilemapArena.allocator(), self.materializingAction.?);
+        self.materializingAction = null;
+    }
+
+    pub fn undo(self: *Context) void {
+        if (!self.canUndo()) return;
+        self.fileData.undo(self.tilemapArena.allocator());
+    }
+
+    pub fn redo(self: *Context) void {
+        if (!self.canRedo()) return;
+        self.fileData.redo(self.tilemapArena.allocator());
+    }
+
+    pub fn canUndo(self: *Context) bool {
+        return self.fileData.history.canUndo();
+    }
+
+    pub fn canRedo(self: *Context) bool {
+        return self.fileData.history.canRedo();
+    }
+
+    pub fn startGenericAction(self: *Context, comptime GenericActionType: type) void {
+        if (self.materializingAction) |_| return;
+
+        const snapshotBefore = self.fileData.tilemap;
+        const fieldName = comptime brk: {
+            for (std.meta.fields(Action)) |field| {
+                if (field.type == GenericActionType) break :brk field.name;
+            } else {
+                @compileError("Type " ++ @typeName(GenericActionType) ++ " not a valid Action");
+            }
+        };
+        self.materializingAction = @unionInit(
+            Action,
+            fieldName,
+            GenericActionType.init(snapshotBefore, self.tilemapArena.allocator()),
+        );
+    }
+
+    pub fn endGenericAction(self: *Context, comptime ActionType: type) void {
+        if (self.materializingAction) |*action| switch (action.*) {
+            inline else => |*generic| if (ActionType == @TypeOf(generic.*)) {
+                generic.materialize(self.tilemapArena.allocator(), self.fileData.tilemap);
+                self.endAction();
+            },
+        };
     }
 };
