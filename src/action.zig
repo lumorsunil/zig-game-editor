@@ -5,6 +5,7 @@ const Tilemap = @import("tilemap.zig").Tilemap;
 pub const Action = union(enum) {
     brushPaint: BrushPaint,
     brushDelete: BrushDelete,
+    resize: ResizeTilemap,
 
     pub fn deinit(self: *Action, allocator: Allocator) void {
         switch (self.*) {
@@ -65,4 +66,5 @@ pub const Action = union(enum) {
 
     pub const BrushPaint = Generic("Paint");
     pub const BrushDelete = Generic("Delete");
+    pub const ResizeTilemap = Generic("Resize");
 };

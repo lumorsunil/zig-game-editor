@@ -164,8 +164,15 @@ fn editMenu(context: *Context) !void {
 }
 
 fn tilemapMenu(context: *Context) !void {
-    if (z.inputInt2("Size", .{ .v = &context.fileData.tilemap.grid.size })) {
-        // TODO: Resize tilemap
+    if (z.inputInt2("Size", .{
+        .v = &context.inputTilemapSize,
+        .flags = .{
+            .enter_returns_true = true,
+        },
+    })) {
+        context.startGenericAction(Action.ResizeTilemap);
+        context.fileData.tilemap.resize(context.tilemapArena.allocator(), context.inputTilemapSize);
+        context.endGenericAction(Action.ResizeTilemap);
     }
 }
 

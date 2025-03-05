@@ -46,8 +46,8 @@
 - [x] Highlight hovered cell
 - [ ] Tile flip/rotate
 - [ ] Tile tint color
+- [x] Resize tilemap
 - [x] Layers
-- [ ] Backgrounds? (might move this to scenes in the future)
 - [x] Brush tool
   - [x] Randomize tile
     - [ ] (Bug) Randomize only when painting on next cell

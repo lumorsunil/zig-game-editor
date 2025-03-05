@@ -45,6 +45,8 @@ pub const Context = struct {
 
     currentProject: Project,
 
+    inputTilemapSize: Vector = .{ 0, 0 },
+
     const defaultSize: Vector = .{ 35, 17 };
     const defaultTileSize: Vector = .{ 16, 16 };
 
@@ -164,6 +166,7 @@ pub const Context = struct {
             std.log.err("Error reading file: {s} {}", .{ fileName, err });
             return self.newFile();
         };
+        self.inputTilemapSize = self.fileData.tilemap.grid.size;
         try self.setCurrentFileName(fileName);
     }
 
@@ -171,6 +174,7 @@ pub const Context = struct {
         try self.setCurrentFileName(null);
         self.freeFileData();
         self.fileData = self.createDefaultFileData();
+        self.inputTilemapSize = self.fileData.tilemap.grid.size;
     }
 
     fn createEditorSession(self: *Context) EditorSession {
@@ -232,16 +236,19 @@ pub const Context = struct {
     pub fn endAction(self: *Context) void {
         self.fileData.history.push(self.tilemapArena.allocator(), self.materializingAction.?);
         self.materializingAction = null;
+        self.inputTilemapSize = self.fileData.tilemap.grid.size;
     }
 
     pub fn undo(self: *Context) void {
         if (!self.canUndo()) return;
         self.fileData.undo(self.tilemapArena.allocator());
+        self.inputTilemapSize = self.fileData.tilemap.grid.size;
     }
 
     pub fn redo(self: *Context) void {
         if (!self.canRedo()) return;
         self.fileData.redo(self.tilemapArena.allocator());
+        self.inputTilemapSize = self.fileData.tilemap.grid.size;
     }
 
     pub fn canUndo(self: *Context) bool {
@@ -263,16 +270,19 @@ pub const Context = struct {
                 @compileError("Type " ++ @typeName(GenericActionType) ++ " not a valid Action");
             }
         };
-        self.materializingAction = @unionInit(
+
+        const action = @unionInit(
             Action,
             fieldName,
             GenericActionType.init(snapshotBefore, self.tilemapArena.allocator()),
         );
+
+        self.startAction(action);
     }
 
-    pub fn endGenericAction(self: *Context, comptime ActionType: type) void {
+    pub fn endGenericAction(self: *Context, comptime GenericActionType: type) void {
         if (self.materializingAction) |*action| switch (action.*) {
-            inline else => |*generic| if (ActionType == @TypeOf(generic.*)) {
+            inline else => |*generic| if (GenericActionType == @TypeOf(generic.*)) {
                 generic.materialize(self.tilemapArena.allocator(), self.fileData.tilemap);
                 self.endAction();
             },

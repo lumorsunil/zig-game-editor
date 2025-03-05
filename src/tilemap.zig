@@ -152,6 +152,60 @@ pub const Tilemap = struct {
         return tilemap;
     }
 
+    pub fn resize(self: *Tilemap, allocator: Allocator, newSize: Vector) void {
+        const zero: Vector = @splat(0);
+        std.debug.assert(@reduce(.And, newSize > zero));
+
+        var newTilemap = Tilemap.init(allocator, newSize, self.tileSize);
+
+        for (self.layers.items, 0..) |layer, i| {
+            if (i == 0) continue;
+            _ = newTilemap.addLayer(allocator, layer.name);
+        }
+
+        newTilemap.copyArea(allocator, self, .{ 0, 0 }, self.grid.size, .{ 0, 0 });
+
+        self.deinit(allocator);
+        self.* = newTilemap;
+    }
+
+    fn copyArea(
+        dst: *Tilemap,
+        allocator: Allocator,
+        src: *Tilemap,
+        srcPos: Vector,
+        srcSize: Vector,
+        dstPos: Vector,
+    ) void {
+        const zero: Vector = @splat(0);
+        std.debug.assert(@reduce(.And, srcSize > zero));
+        std.debug.assert(@reduce(.And, srcPos >= zero));
+        std.debug.assert(@reduce(.And, (srcSize + srcPos) <= src.grid.size));
+        std.debug.assert(@reduce(.And, dstPos >= zero));
+        std.debug.assert(@reduce(.And, dstPos < dst.grid.size));
+
+        const maxDstSize = dst.grid.size - dstPos;
+        const minWidth, const minHeight = @as(@Vector(2, usize), @intCast(@min(maxDstSize, srcSize)));
+
+        for (0..minWidth) |x| {
+            for (0..minHeight) |y| {
+                for (0..dst.layers.items.len) |i| {
+                    const dstX = x + @as(usize, @intCast(dstPos[0]));
+                    const dstY = y + @as(usize, @intCast(dstPos[1]));
+                    const srcX = x + @as(usize, @intCast(srcPos[0]));
+                    const srcY = y + @as(usize, @intCast(srcPos[1]));
+
+                    const srcLayer = src.layers.items[i];
+                    const srcTile = srcLayer.getTileByXY(srcX, srcY);
+                    const dstLayer = dst.layers.items[i];
+                    const dstTile = dstLayer.getTileByXY(dstX, dstY);
+
+                    dstTile.* = srcTile.clone(allocator);
+                }
+            }
+        }
+    }
+
     pub fn width(self: *const Tilemap) VectorInt {
         return self.grid.width();
     }
