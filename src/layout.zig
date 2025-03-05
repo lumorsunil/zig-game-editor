@@ -23,7 +23,7 @@ pub fn layout(context: *Context) !void {
     const size = context.fileData.tilemap.grid.size * context.fileData.tilemap.tileSize * context.scaleV;
     const rect = rl.Rectangle.init(0, 0, @floatFromInt(size[0]), @floatFromInt(size[1]));
     rl.drawRectangleLinesEx(rect, 4, rl.Color.black);
-    drawTilemap(.{ 0, 0 }, context);
+    drawTilemap(context, .{ 0, 0 });
 
     rl.endMode2D();
 
@@ -81,6 +81,10 @@ fn handleShortcuts(context: *Context) !void {
             }
         }
         if (rl.isKeyPressed(.key_y)) return context.redo();
+        if (rl.isKeyPressed(.key_f)) {
+            context.focusOnActiveLayer = !context.focusOnActiveLayer;
+            return;
+        }
     }
 }
 
@@ -95,18 +99,7 @@ fn mainMenu(context: *Context) !void {
     } });
     defer z.end();
 
-    if (context.currentFileName) |cfn| {
-        const baseName = std.fs.path.basename(cfn);
-        var it = std.mem.splitScalar(u8, baseName, '.');
-        const name = it.next().?;
-        z.text("{s}", .{name});
-        if (z.isItemHovered(.{ .delay_short = true })) {
-            if (z.beginTooltip()) {
-                z.text("{s}", .{cfn});
-            }
-            z.endTooltip();
-        }
-    }
+    activeDocumentLabel(context);
 
     z.separatorText("File");
     try fileMenu(context);
@@ -125,6 +118,21 @@ fn mainMenu(context: *Context) !void {
     try layersMenu(context);
     z.separatorText("History");
     try historyMenu(context);
+}
+
+fn activeDocumentLabel(context: *Context) void {
+    if (context.currentFileName) |cfn| {
+        const baseName = std.fs.path.basename(cfn);
+        var it = std.mem.splitScalar(u8, baseName, '.');
+        const name = it.next().?;
+        z.text("{s}", .{name});
+        if (z.isItemHovered(.{ .delay_short = true })) {
+            if (z.beginTooltip()) {
+                z.text("{s}", .{cfn});
+            }
+            z.endTooltip();
+        }
+    }
 }
 
 fn fileMenu(context: *Context) !void {
@@ -191,6 +199,7 @@ fn brushToolDetailsMenu(context: *Context, brush: *BrushTool) !void {
 
 fn layersMenu(context: *Context) !void {
     const buttonSize = 24;
+    _ = z.checkbox("Focus", .{ .v = &context.focusOnActiveLayer });
     if (z.button("+", .{ .w = buttonSize, .h = buttonSize })) {
         _ = context.fileData.tilemap.addLayer(context.tilemapArena.allocator(), "Layer");
     }
@@ -284,6 +293,8 @@ fn getMouseGridPosition(context: *Context) ?Vector {
 }
 
 fn handleBrush(context: *Context, brush: *BrushTool) void {
+    highlightHoveredCell(context);
+
     if (rl.isMouseButtonDown(.mouse_button_left)) {
         context.startGenericAction(Action.BrushPaint);
 
@@ -293,6 +304,7 @@ fn handleBrush(context: *Context, brush: *BrushTool) void {
 
         brush.onUse(context, &context.fileData.tilemap, gridPosition.?);
     } else {
+        brush.onUseEnd();
         context.endGenericAction(Action.BrushPaint);
     }
 
@@ -307,6 +319,20 @@ fn handleBrush(context: *Context, brush: *BrushTool) void {
     } else {
         context.endGenericAction(Action.BrushDelete);
     }
+}
+
+fn highlightHoveredCell(context: *Context) void {
+    const gridPosition = getMouseGridPosition(context);
+
+    if (gridPosition == null) return;
+
+    const tileSizeScaled = context.fileData.tilemap.tileSize * context.scaleV;
+    const x, const y = gridPosition.? * tileSizeScaled;
+    const w, const h = tileSizeScaled;
+
+    rl.beginMode2D(context.camera);
+    rl.drawRectangleLines(x, y, w, h, rl.Color.yellow);
+    rl.endMode2D();
 }
 
 fn selectTileSourceMenu(context: *Context, brush: *BrushTool) !void {

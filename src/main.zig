@@ -4,6 +4,8 @@ const Context = @import("context.zig").Context;
 const layout = @import("layout.zig").layout;
 const rl = @import("raylib");
 
+pub const lib = @import("lib.zig");
+
 const screenSize = .{ 1024, 800 };
 const assetsRootDir = "D:/studio/My Drive/Kottefolket/";
 const tilesetPath = "tileset-initial.png";

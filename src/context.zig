@@ -2,14 +2,17 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArenaAllocator = std.heap.ArenaAllocator;
 const rl = @import("raylib");
-const Tool = @import("tool.zig").Tool;
-const BrushTool = @import("tools/brush.zig").BrushTool;
-const FileData = @import("file-data.zig").FileData;
-const Vector = @import("vector.zig").Vector;
-const VectorInt = @import("vector.zig").VectorInt;
 const nfd = @import("nfd");
-const EditorSession = @import("editor-session.zig").EditorSession;
-const Action = @import("action.zig").Action;
+const lib = @import("root").lib;
+const Vector = lib.Vector;
+const VectorInt = lib.VectorInt;
+const Action = lib.Action;
+const Project = lib.Project;
+const Tool = lib.Tool;
+const BrushTool = lib.tools.BrushTool;
+const EditorSession = lib.EditorSession;
+
+const FileData = @import("documents/tilemap/document.zig").TilemapDocument;
 
 var __tools = [_]Tool{
     Tool.init("brush", .{ .brush = BrushTool.init() }),
@@ -38,6 +41,10 @@ pub const Context = struct {
 
     materializingAction: ?Action,
 
+    focusOnActiveLayer: bool = true,
+
+    currentProject: Project,
+
     const defaultSize: Vector = .{ 35, 17 };
     const defaultTileSize: Vector = .{ 16, 16 };
 
@@ -55,6 +62,7 @@ pub const Context = struct {
             .textures = std.StringHashMap(rl.Texture2D).init(allocator),
             .fileData = undefined,
             .materializingAction = null,
+            .currentProject = Project.init(allocator),
         };
     }
 

@@ -3,7 +3,7 @@ const Vector = @import("vector.zig").Vector;
 const VectorInt = @import("vector.zig").VectorInt;
 const Context = @import("context.zig").Context;
 
-pub fn drawTilemap(position: Vector, context: *const Context) void {
+pub fn drawTilemap(context: *const Context, position: Vector) void {
     const tilemap = context.fileData.tilemap;
 
     for (0..@intCast(tilemap.grid.size[0])) |x| {
@@ -32,7 +32,9 @@ pub fn drawTilemap(position: Vector, context: *const Context) void {
                 const fDestHeight: f32 = @floatFromInt(destSize[1]);
                 const dest = rl.Rectangle.init(fDestPositionX, fDestPositionY, fDestWidth, fDestHeight);
 
-                rl.drawTexturePro(texture, source, dest, origin, 0, rl.Color.white);
+                const color = if (context.focusOnActiveLayer and context.fileData.tilemap.activeLayer.uuid != layer.id.uuid) rl.Color.init(255, 255, 255, 50) else rl.Color.white;
+
+                rl.drawTexturePro(texture, source, dest, origin, 0, color);
             }
         }
     }

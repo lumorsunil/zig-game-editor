@@ -245,6 +245,12 @@ pub const TileSource = struct {
         }
     }
 
+    pub fn eql(a: ?TileSource, b: ?TileSource) bool {
+        if (a == null and b == null) return true;
+        if (a == null or b == null) return false;
+        return std.mem.eql(u8, a.?.tileset, b.?.tileset) and @reduce(.And, a.?.gridPosition == b.?.gridPosition);
+    }
+
     pub fn getSourceRect(self: *const TileSource, tileSize: Vector) rl.Rectangle {
         return getSourceRectEx(self.gridPosition, tileSize);
     }

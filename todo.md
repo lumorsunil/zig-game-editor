@@ -42,10 +42,15 @@
 
 ## Tilemap editor
 
+- [ ] Show/hide grid
+- [x] Highlight hovered cell
 - [ ] Tile flip/rotate
 - [ ] Tile tint color
-- [ ] Layers (might move this to scenes in the future)
+- [x] Layers
 - [ ] Backgrounds? (might move this to scenes in the future)
+- [x] Brush tool
+  - [x] Randomize tile
+    - [ ] (Bug) Randomize only when painting on next cell
 - [ ] Bucket tool
 - [ ] Select tool
   - [ ] Copy/paste tiles
