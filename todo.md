@@ -8,6 +8,8 @@
 - [x] Add label to show currently opened file
 - [x] Store editor state on quit
 - [x] Load editor state on startup
+- [ ] Quitting with changes dialog
+- [ ] Interruption handling
 
 ### Undo/redo
 
@@ -15,6 +17,9 @@
 - [x] Adjust tools to support undo/redo
   - [x] Generic tool
   - [x] Brush tool
+  - [x] Add layer
+  - [x] Remove layer
+  - [x] Rename layer
 - [x] History per document
 - [x] Save history in document?
   - [ ] Binary format? Gzip? (jq can be used to query a document in a streaming manner [https://stackoverflow.com/questions/67414225/is-it-possible-to-read-gzip-file-directly-with-jq])

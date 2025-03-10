@@ -15,6 +15,13 @@ pub const History = struct {
         };
     }
 
+    pub fn deinit(self: *History, allocator: Allocator) void {
+        for (self.actions.items) |*action| {
+            action.deinit(allocator);
+        }
+        self.actions.deinit(allocator);
+    }
+
     pub fn push(self: *History, allocator: Allocator, action: Action) void {
         if (self.canRedo()) {
             for (self.actions.items[self.nextActionIndex..]) |*nextAction| {

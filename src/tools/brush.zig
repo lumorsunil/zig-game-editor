@@ -45,7 +45,7 @@ pub const BrushTool = struct {
         if (self.currentPaintedCell) |cpc| if (@reduce(.And, cpc == gridPosition)) return;
 
         // Sets the brush source to one of the selected sources at random
-        if (self.selectedSourceTiles.selected.len > 1) {
+        if (self.selectedSourceTiles.hasSelected()) {
             TileSource.set(&self.source, context.allocator, &self.getRandomFromSelected(context));
         }
 

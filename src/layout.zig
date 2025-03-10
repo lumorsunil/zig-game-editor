@@ -147,6 +147,9 @@ fn fileMenu(context: *Context) !void {
     if (z.button("Save", .{})) {
         try context.saveFile();
     }
+    if (z.button("Squash History", .{})) {
+        context.squashHistory();
+    }
 }
 
 fn editMenu(context: *Context) !void {
@@ -208,7 +211,9 @@ fn layersMenu(context: *Context) !void {
     const buttonSize = 24;
     _ = z.checkbox("Focus", .{ .v = &context.focusOnActiveLayer });
     if (z.button("+", .{ .w = buttonSize, .h = buttonSize })) {
+        context.startGenericAction(Action.AddLayer);
         _ = context.fileData.tilemap.addLayer(context.tilemapArena.allocator(), "Layer");
+        context.endGenericAction(Action.AddLayer);
     }
 
     for (context.fileData.tilemap.layers.items, 0..) |*layer_ptr, i| {
@@ -236,14 +241,17 @@ fn layersMenu(context: *Context) !void {
             z.text("{s}", .{layer.name});
         } else {
             z.pushPtrId(layer);
-            _ = z.inputText("", .{
+            if (z.inputText("", .{
                 .buf = layer.getNameBuffer(),
                 .flags = .{
+                    .enter_returns_true = true,
                     .callback_edit = true,
                 },
                 .callback = layerNameInputCallback,
                 .user_data = context,
-            });
+            })) {
+                context.endGenericAction(Action.RenameLayer);
+            }
             z.popId();
         }
 
@@ -256,7 +264,9 @@ fn layersMenu(context: *Context) !void {
             z.sameLine(.{ .offset_from_start_x = z.getWindowWidth() - buttonSize });
             z.pushIntId(@intCast(i));
             if (z.button("-", .{ .w = buttonSize, .h = buttonSize })) {
+                context.startGenericAction(Action.RemoveLayer);
                 context.fileData.tilemap.removeLayer(context.tilemapArena.allocator(), layer.id);
+                context.endGenericAction(Action.RemoveLayer);
             }
             z.popId();
         }
@@ -267,9 +277,7 @@ fn layerNameInputCallback(data: *z.InputTextCallbackData) i32 {
     const context: *Context = @ptrCast(@alignCast(data.user_data.?));
     const layer = context.fileData.tilemap.getActiveLayer();
 
-    std.log.debug("data.buf[0..{d}]({d}): {s}", .{ data.buf_text_len, data.buf_size, data.buf[0..@intCast(data.buf_text_len)] });
-    std.log.debug("{d}", .{data.buf[0..@intCast(data.buf_size)]});
-
+    context.startGenericAction(Action.RenameLayer);
     layer.setName(data.buf[0..@intCast(data.buf_text_len)]);
 
     return 0;

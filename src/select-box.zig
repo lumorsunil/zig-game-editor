@@ -218,6 +218,10 @@ pub const SelectGrid = struct {
         std.debug.assert(self.isGridBoundsInsideMinMax(min, max));
     }
 
+    pub fn hasSelected(self: SelectGrid) bool {
+        return std.mem.indexOfScalar(u1, self.selected, 1) != null;
+    }
+
     /// Caller owns return pointer
     pub fn getSelected(self: SelectGrid, allocator: Allocator) []Vector {
         var result = std.ArrayList(Vector).init(allocator);

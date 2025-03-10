@@ -11,6 +11,7 @@ const Project = lib.Project;
 const Tool = lib.Tool;
 const BrushTool = lib.tools.BrushTool;
 const EditorSession = lib.EditorSession;
+const History = lib.History;
 
 const FileData = @import("documents/tilemap/document.zig").TilemapDocument;
 
@@ -287,5 +288,10 @@ pub const Context = struct {
                 self.endAction();
             },
         };
+    }
+
+    pub fn squashHistory(context: *Context) void {
+        context.fileData.history.deinit(context.tilemapArena.allocator());
+        context.fileData.history = History.init();
     }
 };
