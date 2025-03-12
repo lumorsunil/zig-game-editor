@@ -1,5 +1,5 @@
 .{
-    .name = "zxg-game-editor",
+    .name = "zig-game-editor",
     .version = "0.0.0",
     .dependencies = .{
         .zxg = .{
