@@ -9,7 +9,9 @@ const VectorInt = lib.VectorInt;
 const Action = lib.Action;
 const Project = lib.Project;
 const Tool = lib.Tool;
+const ImplTool = lib.ImplTool;
 const BrushTool = lib.tools.BrushTool;
+const SelectTool = lib.tools.SelectTool;
 const EditorSession = lib.EditorSession;
 const History = lib.History;
 
@@ -17,6 +19,7 @@ const FileData = @import("documents/tilemap/document.zig").TilemapDocument;
 
 var __tools = [_]Tool{
     Tool.init("brush", .{ .brush = BrushTool.init() }),
+    Tool.init("select", .{ .select = SelectTool.init() }),
 };
 
 pub const Context = struct {
@@ -76,6 +79,7 @@ pub const Context = struct {
         if (self.currentFileName) |fileName| {
             self.allocator.free(fileName);
         }
+        if (self.currentTool) |ct| ct.deinit(self.allocator);
     }
 
     fn createFileData(self: *Context, size: Vector, tileSize: Vector) *FileData {
@@ -187,7 +191,6 @@ pub const Context = struct {
                 const winPos = rl.getWindowPosition();
                 break :brk @intFromFloat(@Vector(2, f32){ winPos.x, winPos.y });
             },
-            .currentTool = self.currentTool,
         };
     }
 
@@ -214,7 +217,9 @@ pub const Context = struct {
         const reader = file.reader();
         var jsonReader = std.json.reader(self.allocator, reader);
         defer jsonReader.deinit();
-        const parsed = try std.json.parseFromTokenSource(EditorSession, self.allocator, &jsonReader, .{});
+        const parsed = try std.json.parseFromTokenSource(EditorSession, self.allocator, &jsonReader, .{
+            .ignore_unknown_fields = true,
+        });
         defer parsed.deinit();
 
         if (parsed.value.currentFileName) |cfn| {
@@ -293,5 +298,26 @@ pub const Context = struct {
     pub fn squashHistory(context: *Context) void {
         context.fileData.history.deinit(context.tilemapArena.allocator());
         context.fileData.history = History.init();
+    }
+
+    pub fn getTool(
+        self: *const Context,
+        comptime toolType: std.meta.FieldEnum(ImplTool),
+    ) *Tool {
+        for (self.tools) |*tool| {
+            switch (tool.impl) {
+                toolType => return tool,
+                else => {},
+            }
+        }
+
+        unreachable;
+    }
+
+    pub fn setTool(
+        self: *Context,
+        comptime toolType: std.meta.FieldEnum(ImplTool),
+    ) void {
+        self.currentTool = self.getTool(toolType);
     }
 };

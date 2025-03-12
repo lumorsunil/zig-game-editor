@@ -277,6 +277,10 @@ pub const TileSource = struct {
     tileset: []const u8,
     gridPosition: Vector,
 
+    pub fn deinit(self: TileSource, allocator: Allocator) void {
+        allocator.free(self.tileset);
+    }
+
     pub fn clone(self: *const ?TileSource, allocator: Allocator) ?TileSource {
         var tileSource = self.*;
 
@@ -289,13 +293,16 @@ pub const TileSource = struct {
 
     pub fn set(dest: *?TileSource, allocator: Allocator, source: *const ?TileSource) void {
         if (dest.*) |s| {
-            allocator.free(s.tileset);
+            s.deinit(allocator);
         }
 
-        dest.* = source.*;
+        dest.* = clone(source, allocator);
+    }
 
-        if (source.*) |s| {
-            dest.*.?.tileset = allocator.dupe(u8, s.tileset) catch unreachable;
+    pub fn clear(dest: *?TileSource, allocator: Allocator) void {
+        if (dest.*) |s| {
+            s.deinit(allocator);
+            dest.* = null;
         }
     }
 

@@ -7,5 +7,4 @@ pub const EditorSession = struct {
     camera: rl.Camera2D,
     windowSize: Vector,
     windowPos: Vector,
-    currentTool: ?*Tool,
 };

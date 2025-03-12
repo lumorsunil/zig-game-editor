@@ -2,6 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayListUnmanaged;
 const Vector = @import("vector.zig").Vector;
+const Rectangle = @import("rectangle.zig").Rectangle;
 
 pub const SelectGrid = struct {
     size: Vector,
@@ -74,7 +75,6 @@ pub const SelectGrid = struct {
     }
 
     pub fn selectPoint(self: *SelectGrid, allocator: Allocator, absolute: Vector) void {
-        std.log.debug("selectPoint({d})", .{absolute});
         self.setPoint(allocator, absolute, 1);
     }
 
@@ -93,6 +93,7 @@ pub const SelectGrid = struct {
 
     pub fn deselectRegion(self: *SelectGrid, allocator: Allocator, min: Vector, max: Vector) void {
         self.setAll(allocator, min, max, 0);
+        std.log.debug("size: {d}", .{self.size});
     }
 
     pub fn setPoint(self: *SelectGrid, allocator: Allocator, absolute: Vector, value: u1) void {
@@ -167,11 +168,11 @@ pub const SelectGrid = struct {
 
             const clampedMin = @max(self.offset, min);
             const clampedMax = @min(self.getMax(), max);
-            const size = clampedMax - clampedMin;
+            const size: @Vector(2, usize) = @intCast(clampedMax - clampedMin + Vector{ 1, 1 });
 
             for (0..size[0]) |x| {
                 for (0..size[1]) |y| {
-                    const sourceRel: Vector = @intCast(.{ x, y });
+                    const sourceRel: Vector = @intCast(@Vector(2, usize){ x, y });
                     const absolute = clampedMin + sourceRel;
                     const i = self.getIndexAbsolute(absolute);
                     self.selected[i] = value;
@@ -181,11 +182,13 @@ pub const SelectGrid = struct {
             // Candidate for shrinking grid
         } else {
             self.ensureContainsMinMax(allocator, min, max);
+            const rectSize: @Vector(2, usize) = @intCast((max - min) + Vector{ 1, 1 });
 
-            for (0..self.size[0]) |x| {
-                for (0..self.size[1]) |y| {
-                    const relative: Vector = @intCast(.{ x, y });
-                    const i = self.getIndex(relative);
+            for (0..rectSize[0]) |x| {
+                for (0..rectSize[1]) |y| {
+                    const relative: Vector = @intCast(@Vector(2, usize){ x, y });
+                    const absolute = relative + min;
+                    const i = self.getIndexAbsolute(absolute);
                     self.selected[i] = value;
                 }
             }
@@ -205,14 +208,14 @@ pub const SelectGrid = struct {
     ) void {
         const newMin = @min(self.offset, min);
         const newMax = @max(self.getMax(), max);
-        const newSize = newMax - newMin + @as(Vector, @splat(1));
+        const newSize = newMax - newMin + Vector{ 1, 1 };
 
         if (@reduce(.Or, newMin < self.offset) or @reduce(.Or, newSize > self.size)) {
             var newSelectGrid = initOwned(newSize, newMin, allocSelected(allocator, newSize));
+            @memset(newSelectGrid.selected, 0);
             newSelectGrid.setOrVolatile(self.*);
             self.deinit(allocator);
             self.* = newSelectGrid;
-            std.log.debug("newMin: {d}, newMax: {d}", .{ newMin, newMax });
         }
 
         std.debug.assert(self.isGridBoundsInsideMinMax(min, max));
@@ -248,4 +251,155 @@ pub const SelectGrid = struct {
             return false;
         }
     }
+
+    pub fn lineIterator(self: SelectGrid) LineIterator {
+        return LineIterator.init(self);
+    }
+
+    pub const LineIterator = struct {
+        cursor: ?Vector = null,
+        innerIterator: ?InnerLineIterator = null,
+        selectGrid: SelectGrid,
+
+        pub fn init(selectGrid: SelectGrid) LineIterator {
+            return LineIterator{
+                .selectGrid = selectGrid,
+            };
+        }
+
+        pub fn next(self: *LineIterator) ?Line {
+            if (self.innerIterator) |*it| if (it.next()) |line| return line;
+
+            while (true) {
+                self.incCursor();
+                self.cursor = self.findNextStart() orelse return null;
+                self.innerIterator = InnerLineIterator.init(self.selectGrid, self.cursor.?);
+
+                if (self.innerIterator.?.next()) |line| return line;
+            }
+        }
+
+        fn incCursor(self: *LineIterator) void {
+            if (self.cursor == null) {
+                self.cursor = Vector{ 0, 0 };
+                return;
+            }
+
+            const sizeX = self.selectGrid.size[0];
+
+            if (self.cursor.?[0] == sizeX - 1) {
+                self.cursor = Vector{ 0, self.cursor.?[1] + 1 };
+            } else {
+                self.cursor.? += Vector{ 1, 0 };
+            }
+        }
+
+        fn findNextStart(self: *LineIterator) ?Vector {
+            const min: @Vector(2, usize) = @intCast(self.cursor orelse Vector{ 0, 0 });
+            const max: @Vector(2, usize) = @intCast(self.selectGrid.size);
+            var minX, const minY = min;
+            const maxX, const maxY = max;
+
+            for (minY..maxY) |y| {
+                for (minX..maxX) |x| {
+                    const v: Vector = @intCast(@Vector(2, usize){ x, y });
+                    if (self.selectGrid.isSelected(v + self.selectGrid.offset)) {
+                        return v;
+                    }
+                }
+                minX = 0;
+            }
+
+            return null;
+        }
+    };
+
+    pub const Line = struct {
+        position: Vector,
+        cover: Cover,
+
+        pub fn init(position: Vector, cover: Cover) Line {
+            return Line{
+                .position = position,
+                .cover = cover,
+            };
+        }
+
+        pub fn lineCoordinates(self: Line) struct { min: Vector, max: Vector } {
+            return switch (self.cover) {
+                .right => .{
+                    .min = self.position + Vector{ 1, 0 },
+                    .max = self.position + Vector{ 1, 1 },
+                },
+                .up => .{
+                    .min = self.position + Vector{ 0, 0 },
+                    .max = self.position + Vector{ 1, 0 },
+                },
+                .left => .{
+                    .min = self.position + Vector{ 0, 0 },
+                    .max = self.position + Vector{ 0, 1 },
+                },
+                .down => .{
+                    .min = self.position + Vector{ 0, 1 },
+                    .max = self.position + Vector{ 1, 1 },
+                },
+            };
+        }
+
+        pub const Cover = enum {
+            right,
+            up,
+            left,
+            down,
+
+            pub fn toAdjacentCoordinate(self: Cover) Vector {
+                return switch (self) {
+                    .right => .{ 1, 0 },
+                    .up => .{ 0, -1 },
+                    .left => .{ -1, 0 },
+                    .down => .{ 0, 1 },
+                };
+            }
+        };
+    };
+
+    const InnerLineIterator = struct {
+        cursor: Vector,
+        selectGrid: SelectGrid,
+        coveredLines: struct {
+            current: ?Line.Cover = null,
+
+            pub fn next(self: *@This()) ?Line.Cover {
+                const nextCover: ?Line.Cover = if (self.current == null)
+                    .right
+                else switch (self.current.?) {
+                    .right => .up,
+                    .up => .left,
+                    .left => .down,
+                    else => null,
+                };
+
+                self.current = nextCover;
+                return self.current;
+            }
+        } = .{},
+
+        pub fn init(selectGrid: SelectGrid, cursor: Vector) InnerLineIterator {
+            return InnerLineIterator{
+                .cursor = cursor,
+                .selectGrid = selectGrid,
+            };
+        }
+
+        pub fn next(self: *InnerLineIterator) ?Line {
+            const cover = self.coveredLines.next() orelse return null;
+            const adjacentPosition = cover.toAdjacentCoordinate() + self.cursor + self.selectGrid.offset;
+
+            if (self.selectGrid.isSelected(adjacentPosition)) {
+                return self.next();
+            } else {
+                return Line.init(self.cursor, cover);
+            }
+        }
+    };
 };

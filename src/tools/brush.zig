@@ -18,6 +18,10 @@ pub const BrushTool = struct {
         return BrushTool{};
     }
 
+    pub fn deinit(self: BrushTool, allocator: Allocator) void {
+        self.selectedSourceTiles.deinit(allocator);
+    }
+
     pub fn onUse(
         self: *BrushTool,
         context: *Context,

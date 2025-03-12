@@ -30,7 +30,7 @@ pub fn build(b: *Build) void {
     utils.addRunExe(b, generateUvTool, "generate-uv", "Run generate-uv tool");
 
     const exe = b.addExecutable(.{
-        .name = "zxg-game-editor",
+        .name = "zig-game-editor",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,

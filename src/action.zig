@@ -5,6 +5,11 @@ const Tilemap = @import("tilemap.zig").Tilemap;
 pub const Action = union(enum) {
     brushPaint: BrushPaint,
     brushDelete: BrushDelete,
+    select: Select,
+    selectAdd: SelectAdd,
+    selectSubtract: SelectSubtract,
+    createFloatingSelection: CreateFloatingSelection,
+    mergeFloatingSelection: MergeFloatingSelection,
     resize: ResizeTilemap,
     addLayer: AddLayer,
     removeLayer: RemoveLayer,
@@ -69,6 +74,11 @@ pub const Action = union(enum) {
 
     pub const BrushPaint = Generic("Paint");
     pub const BrushDelete = Generic("Delete");
+    pub const Select = Generic("Select");
+    pub const SelectAdd = Generic("SelectAdd");
+    pub const SelectSubtract = Generic("SelectSubtract");
+    pub const CreateFloatingSelection = Generic("CreateFloatingSelection");
+    pub const MergeFloatingSelection = Generic("MergeFloatingSelection");
     pub const ResizeTilemap = Generic("Resize");
     pub const AddLayer = Generic("Add Layer");
     pub const RemoveLayer = Generic("Remove Layer");

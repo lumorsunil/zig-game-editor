@@ -5,6 +5,7 @@ const rl = @import("raylib");
 const nfd = @import("nfd");
 const Context = @import("context.zig").Context;
 const BrushTool = @import("tools/brush.zig").BrushTool;
+const SelectTool = @import("tools/select.zig").SelectTool;
 const drawTilemap = @import("draw-tilemap.zig").drawTilemap;
 const Vector = @import("vector.zig").Vector;
 const TileSource = @import("tilemap.zig").TileSource;
@@ -24,6 +25,13 @@ pub fn layout(context: *Context) !void {
     const rect = rl.Rectangle.init(0, 0, @floatFromInt(size[0]), @floatFromInt(size[1]));
     rl.drawRectangleLinesEx(rect, 4, rl.Color.black);
     drawTilemap(context, .{ 0, 0 });
+
+    if (context.currentTool) |currentTool| {
+        switch (currentTool.impl) {
+            .select => |*select| select.draw(context),
+            else => {},
+        }
+    }
 
     rl.endMode2D();
 
@@ -62,6 +70,7 @@ fn handleInput(context: *Context) !void {
     if (context.currentTool) |tool| {
         switch (tool.impl) {
             .brush => |*brush| handleBrush(context, brush),
+            .select => |*select| handleSelect(context, select),
         }
     }
 
@@ -85,6 +94,10 @@ fn handleShortcuts(context: *Context) !void {
             context.focusOnActiveLayer = !context.focusOnActiveLayer;
             return;
         }
+    } else if (rl.isKeyPressed(.key_n)) {
+        context.setTool(.brush);
+    } else if (rl.isKeyPressed(.key_r)) {
+        context.setTool(.select);
     }
 }
 
@@ -193,6 +206,7 @@ fn toolDetailsMenu(context: *Context) !void {
 
     switch (tool.impl) {
         .brush => |*brush| try brushToolDetailsMenu(context, brush),
+        .select => |*select| try selectToolDetailsMenu(context, select),
     }
 }
 
@@ -205,6 +219,11 @@ fn brushToolDetailsMenu(context: *Context, brush: *BrushTool) !void {
         const sourceRect = source.getSourceRect(context.fileData.tilemap.tileSize);
         c.rlImGuiImageRect(@ptrCast(texture), 64, 64, @bitCast(sourceRect));
     }
+}
+
+fn selectToolDetailsMenu(context: *Context, select: *SelectTool) !void {
+    _ = select; // autofix
+    _ = context; // autofix
 }
 
 fn layersMenu(context: *Context) !void {
@@ -333,6 +352,32 @@ fn handleBrush(context: *Context, brush: *BrushTool) void {
         brush.onAlternateUse(context, &context.fileData.tilemap, gridPosition.?);
     } else {
         context.endGenericAction(Action.BrushDelete);
+    }
+}
+
+fn handleSelect(context: *Context, select: *SelectTool) void {
+    highlightHoveredCell(context);
+
+    if (rl.isMouseButtonDown(.mouse_button_left)) {
+        const gridPosition = getMouseGridPosition(context);
+        if (gridPosition == null) return;
+        select.onUse(context, &context.fileData.tilemap, gridPosition.?);
+    } else if (select.pendingSelection) |selectionType| {
+        switch (selectionType) {
+            .select => context.startGenericAction(Action.Select),
+            .add => context.startGenericAction(Action.SelectAdd),
+            .subtract => context.startGenericAction(Action.SelectSubtract),
+            .floatingMove => context.startGenericAction(Action.CreateFloatingSelection),
+            .mergeFloating => context.startGenericAction(Action.MergeFloatingSelection),
+        }
+        select.onUseEnd(context);
+        switch (selectionType) {
+            .select => context.endGenericAction(Action.Select),
+            .add => context.endGenericAction(Action.SelectAdd),
+            .subtract => context.endGenericAction(Action.SelectSubtract),
+            .floatingMove => context.endGenericAction(Action.CreateFloatingSelection),
+            .mergeFloating => context.endGenericAction(Action.MergeFloatingSelection),
+        }
     }
 }
 

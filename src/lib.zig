@@ -8,6 +8,7 @@ pub usingnamespace @import("document.zig");
 pub usingnamespace @import("tool.zig");
 pub const tools = struct {
     pub usingnamespace @import("tools/brush.zig");
+    pub usingnamespace @import("tools/select.zig");
 };
 pub usingnamespace @import("editor-session.zig");
 pub usingnamespace @import("serializer.zig");

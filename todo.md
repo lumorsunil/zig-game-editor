@@ -57,8 +57,9 @@
   - [x] Randomize tile
     - [ ] (Bug) Randomize only when painting on next cell
 - [ ] Bucket tool
-- [ ] Select tool
+- [x] Select tool
   - [ ] Copy/paste tiles
+  - [ ] Move tiles
 
 ## Tilesheet editor
 

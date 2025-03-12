@@ -30,7 +30,9 @@ pub fn main() !void {
     defer rl.unloadTexture(texture);
     try context.textures.put(tilesetName, texture);
 
-    try context.restoreSession();
+    context.restoreSession() catch |err| {
+        std.log.err("Could not restore session: {}", .{err});
+    };
 
     try app.run(layout, &context);
 
