@@ -55,11 +55,11 @@
 - [x] Layers
 - [x] Brush tool
   - [x] Randomize tile
-    - [ ] (Bug) Randomize only when painting on next cell
+    - [x] (Bug) Randomize only when painting on next cell
 - [ ] Bucket tool
 - [x] Select tool
   - [ ] Copy/paste tiles
-  - [ ] Move tiles
+  - [x] Move tiles
 
 ## Tilesheet editor
 
