@@ -17,6 +17,8 @@ pub const SelectTool = struct {
     pendingSelection: ?SelectionType = null,
     floatingLayer: ?TilemapLayer = null,
     floatingSelectionDragPoint: ?Vector = null,
+    copiedLayer: ?TilemapLayer = null,
+    copiedSelectedTiles: SelectBox = SelectBox.init(),
 
     pub const SelectionType = enum {
         select,
@@ -33,6 +35,8 @@ pub const SelectTool = struct {
     pub fn deinit(self: *SelectTool, allocator: Allocator) void {
         self.selectedTiles.deinit(allocator);
         if (self.floatingLayer) |*layer| layer.deinit(allocator);
+        self.copiedSelectedTiles.deinit(allocator);
+        if (self.copiedLayer) |*copiedLayer| copiedLayer.deinit(allocator);
     }
 
     pub fn draw(
@@ -103,7 +107,7 @@ pub const SelectTool = struct {
             // Start floating selection
             if (self.selectedTiles.hasSelected() and rl.isKeyDown(.key_left_control) and rl.isKeyDown(.key_left_alt)) {
                 self.pendingSelection = .floatingMove;
-                self.floatingLayer = self.initFloatingLayer(context, tilemap);
+                self.floatingLayer = self.cloneSelectedTiles(context, tilemap.getActiveLayer(), true);
                 self.floatingSelectionDragPoint = gridPosition;
                 return;
             }
@@ -153,13 +157,17 @@ pub const SelectTool = struct {
         self.pendingSelection = null;
     }
 
-    fn initFloatingLayer(self: *SelectTool, context: *Context, tilemap: *Tilemap) TilemapLayer {
+    fn cloneSelectedTiles(
+        self: *SelectTool,
+        context: *Context,
+        sourceLayer: *TilemapLayer,
+        clearSource: bool,
+    ) TilemapLayer {
         const start: @Vector(2, usize) = @intCast(self.selectedTiles.offset);
         const startX, const startY = start;
         const size: @Vector(2, usize) = @intCast(self.selectedTiles.size);
         const sizeX, const sizeY = size;
 
-        const activeLayer = tilemap.getActiveLayer();
         var newLayer = TilemapLayer.init(context.allocator, "Floating Selection", self.selectedTiles.size);
 
         for (0..sizeX) |rx| {
@@ -170,10 +178,10 @@ pub const SelectTool = struct {
                 const v: Vector = @intCast(@Vector(2, usize){ x, y });
 
                 if (self.selectedTiles.isSelected(v)) {
-                    const tile = activeLayer.getTileByV(v);
+                    const tile = sourceLayer.getTileByV(v);
                     const newTile = newLayer.getTileByV(rv);
                     TileSource.set(&newTile.source, context.allocator, &tile.source);
-                    TileSource.clear(&tile.source, context.tilemapArena.allocator());
+                    if (clearSource) TileSource.clear(&tile.source, context.tilemapArena.allocator());
                 }
             }
         }
@@ -216,6 +224,34 @@ pub const SelectTool = struct {
                     TileSource.set(&destTile.source, context.tilemapArena.allocator(), &sourceTile.source);
                 }
             }
+        }
+    }
+
+    pub fn copy(self: *SelectTool, context: *Context) void {
+        if (self.copiedLayer) |*layer| layer.deinit(context.allocator);
+        const tilemap = &context.fileData.tilemap;
+        self.copiedLayer = self.cloneSelectedTiles(context, tilemap.getActiveLayer(), false);
+        self.copiedSelectedTiles.clear(context.allocator);
+        self.copiedSelectedTiles = self.selectedTiles.clone(context.allocator);
+    }
+
+    pub fn paste(self: *SelectTool, context: *Context) void {
+        const copiedLayer = self.copiedLayer orelse return;
+        self.pendingSelection = .floatingMove;
+        self.floatingLayer = copiedLayer.clone(context.allocator);
+        self.selectedTiles.clear(context.allocator);
+        self.selectedTiles = self.copiedSelectedTiles.clone(context.allocator);
+    }
+
+    pub fn delete(self: *SelectTool, context: *Context) void {
+        const selectedTiles = self.selectedTiles.getSelected(context.allocator);
+        defer context.allocator.free(selectedTiles);
+
+        const sourceLayer = context.fileData.tilemap.getActiveLayer();
+
+        for (selectedTiles) |v| {
+            const tile = sourceLayer.getTileByV(v);
+            TileSource.clear(&tile.source, context.tilemapArena.allocator());
         }
     }
 };

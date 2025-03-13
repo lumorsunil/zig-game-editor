@@ -378,6 +378,14 @@ fn handleSelect(context: *Context, select: *SelectTool) void {
             .floatingMove => context.endGenericAction(Action.CreateFloatingSelection),
             .mergeFloating => context.endGenericAction(Action.MergeFloatingSelection),
         }
+    } else if (rl.isKeyDown(.key_left_control)) {
+        if (rl.isKeyPressed(.key_c)) {
+            select.copy(context);
+        } else if (rl.isKeyPressed(.key_v)) {
+            select.paste(context);
+        }
+    } else if (rl.isKeyPressed(.key_delete)) {
+        select.delete(context);
     }
 }
 

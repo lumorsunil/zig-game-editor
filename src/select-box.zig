@@ -43,6 +43,14 @@ pub const SelectGrid = struct {
         }
     }
 
+    pub fn clone(self: SelectGrid, allocator: Allocator) SelectGrid {
+        return SelectGrid{
+            .size = self.size,
+            .offset = self.offset,
+            .selected = allocator.dupe(u1, self.selected) catch unreachable,
+        };
+    }
+
     pub fn clear(self: *SelectGrid, allocator: Allocator) void {
         self.deinit(allocator);
         self.* = init();

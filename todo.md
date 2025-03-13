@@ -14,12 +14,25 @@
 ### Undo/redo
 
 - [x] General structure
-- [x] Adjust tools to support undo/redo
-  - [x] Generic tool
-  - [x] Brush tool
-  - [x] Add layer
-  - [x] Remove layer
-  - [x] Rename layer
+- [x] Tilemap Editor
+  - [x] Adjust tools to support undo/redo
+    - [x] Generic tool
+    - [x] Brush tool
+      - [ ] Optimize action
+    - [x] Add layer
+      - [ ] Optimize action
+    - [x] Remove layer
+      - [ ] Optimize action
+    - [x] Rename layer
+      - [ ] Optimize action
+    - [ ] Select
+    - [ ] Select add
+    - [ ] Select subtract
+    - [ ] Create floating selection
+    - [ ] Move floating selection
+    - [ ] Merge floating selection
+    - [ ] Copy selection
+    - [ ] Paste
 - [x] History per document
 - [x] Save history in document?
   - [ ] Binary format? Gzip? (jq can be used to query a document in a streaming manner [https://stackoverflow.com/questions/67414225/is-it-possible-to-read-gzip-file-directly-with-jq])
@@ -58,8 +71,9 @@
     - [x] (Bug) Randomize only when painting on next cell
 - [ ] Bucket tool
 - [x] Select tool
-  - [ ] Copy/paste tiles
+  - [x] Copy/paste tiles
   - [x] Move tiles
+  - [x] Delete tiles
 
 ## Tilesheet editor
 
