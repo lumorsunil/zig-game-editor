@@ -102,3 +102,18 @@
 
 - [ ] Entities
 - [ ] Fill this space out
+- [ ] Preview scene in game (run command with arguments --scene etc)
+
+### Scene editor initial version
+
+- [x] Scene document
+- [x] Create entities
+  - [x] Drag and drop entites to create them
+  - [x] Position
+  - [x] Type
+    - [x] String ("klet", "player", "npc", "tilemap")
+  - [x] Graphic
+    - [x] "klet" => "klet sprite"
+    - [x] "player" => "player sprite"
+    - [x] "npc" => "npc sprite"
+    - [x] "tilemap" => "draw tilemap"

@@ -7,7 +7,7 @@ const Tilemap = @import("tilemap.zig").Tilemap;
 const TilemapLayer = @import("tilemap.zig").TilemapLayer;
 
 pub fn drawTilemap(context: *const Context, position: Vector) void {
-    const tilemap = context.fileData.tilemap;
+    const tilemap = context.tilemapDocument.tilemap;
 
     for (tilemap.layers.items) |layer| {
         drawLayer(context, layer, tilemap.tileSize, position, false);
@@ -45,7 +45,7 @@ pub fn drawLayer(
             const fDestHeight: f32 = @floatFromInt(destSize[1]);
             const dest = rl.Rectangle.init(fDestPositionX, fDestPositionY, fDestWidth, fDestHeight);
 
-            const color = if (!overrideFocus and context.focusOnActiveLayer and context.fileData.tilemap.activeLayer.uuid != layer.id.uuid) rl.Color.init(255, 255, 255, 50) else rl.Color.white;
+            const color = if (!overrideFocus and context.focusOnActiveLayer and context.tilemapDocument.tilemap.activeLayer.uuid != layer.id.uuid) rl.Color.init(255, 255, 255, 50) else rl.Color.white;
 
             rl.drawTexturePro(texture, source, dest, origin, 0, color);
         }

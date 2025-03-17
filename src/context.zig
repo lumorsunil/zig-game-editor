@@ -14,8 +14,11 @@ const BrushTool = lib.tools.BrushTool;
 const SelectTool = lib.tools.SelectTool;
 const EditorSession = lib.EditorSession;
 const History = lib.History;
+const UUID = lib.UUIDSerializable;
 
-const FileData = @import("documents/tilemap/document.zig").TilemapDocument;
+const SceneDocument = @import("documents/scene/document.zig").SceneDocument;
+const SceneEntity = @import("documents/scene/document.zig").SceneEntity;
+const TilemapDocument = @import("documents/tilemap/document.zig").TilemapDocument;
 
 var __tools = [_]Tool{
     Tool.init("brush", .{ .brush = BrushTool.init() }),
@@ -39,7 +42,8 @@ pub const Context = struct {
     tools: []Tool = &__tools,
 
     textures: std.StringHashMap(rl.Texture2D),
-    fileData: *FileData,
+    tilemapDocument: *TilemapDocument,
+    sceneDocument: SceneDocument,
     scale: VectorInt = 4,
     scaleV: Vector = .{ 4, 4 },
 
@@ -50,6 +54,13 @@ pub const Context = struct {
     currentProject: Project,
 
     inputTilemapSize: Vector = .{ 0, 0 },
+
+    mode: EditorMode = .scene,
+
+    pub const EditorMode = enum {
+        scene,
+        tilemap,
+    };
 
     const defaultSize: Vector = .{ 35, 17 };
     const defaultTileSize: Vector = .{ 16, 16 };
@@ -66,7 +77,8 @@ pub const Context = struct {
                 .zoom = 1,
             },
             .textures = std.StringHashMap(rl.Texture2D).init(allocator),
-            .fileData = undefined,
+            .tilemapDocument = undefined,
+            .sceneDocument = SceneDocument.init(),
             .materializingAction = null,
             .currentProject = Project.init(allocator),
         };
@@ -80,16 +92,17 @@ pub const Context = struct {
             self.allocator.free(fileName);
         }
         if (self.currentTool) |ct| ct.deinit(self.allocator);
+        self.sceneDocument.deinit();
     }
 
-    fn createFileData(self: *Context, size: Vector, tileSize: Vector) *FileData {
+    fn createFileData(self: *Context, size: Vector, tileSize: Vector) *TilemapDocument {
         const allocator = self.tilemapArena.allocator();
-        const ptr = allocator.create(FileData) catch unreachable;
-        ptr.* = FileData.init(allocator, size, tileSize);
+        const ptr = allocator.create(TilemapDocument) catch unreachable;
+        ptr.* = TilemapDocument.init(allocator, size, tileSize);
         return ptr;
     }
 
-    fn createDefaultFileData(self: *Context) *FileData {
+    fn createDefaultFileData(self: *Context) *TilemapDocument {
         return self.createFileData(defaultSize, defaultTileSize);
     }
 
@@ -140,7 +153,7 @@ pub const Context = struct {
         const file = try std.fs.createFileAbsolute(fileName, .{});
         defer file.close();
         const writer = file.writer();
-        try self.fileData.serialize(writer);
+        try self.tilemapDocument.serialize(writer);
     }
 
     pub fn openFile(self: *Context) !void {
@@ -167,19 +180,19 @@ pub const Context = struct {
         var reader = std.json.reader(self.allocator, fileReader);
         defer reader.deinit();
         self.freeFileData();
-        self.fileData = FileData.deserialize(self.tilemapArena.allocator(), &reader) catch |err| {
+        self.tilemapDocument = TilemapDocument.deserialize(self.tilemapArena.allocator(), &reader) catch |err| {
             std.log.err("Error reading file: {s} {}", .{ fileName, err });
             return self.newFile();
         };
-        self.inputTilemapSize = self.fileData.tilemap.grid.size;
+        self.inputTilemapSize = self.tilemapDocument.tilemap.grid.size;
         try self.setCurrentFileName(fileName);
     }
 
     pub fn newFile(self: *Context) !void {
         try self.setCurrentFileName(null);
         self.freeFileData();
-        self.fileData = self.createDefaultFileData();
-        self.inputTilemapSize = self.fileData.tilemap.grid.size;
+        self.tilemapDocument = self.createDefaultFileData();
+        self.inputTilemapSize = self.tilemapDocument.tilemap.grid.size;
     }
 
     fn createEditorSession(self: *Context) EditorSession {
@@ -204,6 +217,29 @@ pub const Context = struct {
     }
 
     pub fn restoreSession(self: *Context) !void {
+        self.sceneDocument.load();
+        const entity = self.allocator.create(SceneEntity) catch unreachable;
+        entity.* = .{
+            .id = UUID.init(),
+            .position = .{ 0, 0 },
+            .type = .tilemap,
+        };
+        self.sceneDocument.scene.entities.append(self.allocator, entity) catch unreachable;
+        const player = self.allocator.create(SceneEntity) catch unreachable;
+        player.* = .{
+            .id = UUID.init(),
+            .position = .{ 0, 0 },
+            .type = .player,
+        };
+        self.sceneDocument.scene.entities.append(self.allocator, player) catch unreachable;
+        const klet = self.allocator.create(SceneEntity) catch unreachable;
+        klet.* = .{
+            .id = UUID.init(),
+            .position = .{ 16 * 8, 16 * 4 },
+            .type = .klet,
+        };
+        self.sceneDocument.scene.entities.append(self.allocator, klet) catch unreachable;
+
         const file = std.fs.cwd().openFile(sessionFileName, .{}) catch |err| {
             switch (err) {
                 error{FileNotFound}.FileNotFound => {
@@ -240,35 +276,35 @@ pub const Context = struct {
     }
 
     pub fn endAction(self: *Context) void {
-        self.fileData.history.push(self.tilemapArena.allocator(), self.materializingAction.?);
+        self.tilemapDocument.history.push(self.tilemapArena.allocator(), self.materializingAction.?);
         self.materializingAction = null;
-        self.inputTilemapSize = self.fileData.tilemap.grid.size;
+        self.inputTilemapSize = self.tilemapDocument.tilemap.grid.size;
     }
 
     pub fn undo(self: *Context) void {
         if (!self.canUndo()) return;
-        self.fileData.undo(self.tilemapArena.allocator());
-        self.inputTilemapSize = self.fileData.tilemap.grid.size;
+        self.tilemapDocument.undo(self.tilemapArena.allocator());
+        self.inputTilemapSize = self.tilemapDocument.tilemap.grid.size;
     }
 
     pub fn redo(self: *Context) void {
         if (!self.canRedo()) return;
-        self.fileData.redo(self.tilemapArena.allocator());
-        self.inputTilemapSize = self.fileData.tilemap.grid.size;
+        self.tilemapDocument.redo(self.tilemapArena.allocator());
+        self.inputTilemapSize = self.tilemapDocument.tilemap.grid.size;
     }
 
     pub fn canUndo(self: *Context) bool {
-        return self.fileData.history.canUndo();
+        return self.tilemapDocument.history.canUndo();
     }
 
     pub fn canRedo(self: *Context) bool {
-        return self.fileData.history.canRedo();
+        return self.tilemapDocument.history.canRedo();
     }
 
     pub fn startGenericAction(self: *Context, comptime GenericActionType: type) void {
         if (self.materializingAction) |_| return;
 
-        const snapshotBefore = self.fileData.tilemap;
+        const snapshotBefore = self.tilemapDocument.tilemap;
         const fieldName = comptime brk: {
             for (std.meta.fields(Action)) |field| {
                 if (field.type == GenericActionType) break :brk field.name;
@@ -289,15 +325,15 @@ pub const Context = struct {
     pub fn endGenericAction(self: *Context, comptime GenericActionType: type) void {
         if (self.materializingAction) |*action| switch (action.*) {
             inline else => |*generic| if (GenericActionType == @TypeOf(generic.*)) {
-                generic.materialize(self.tilemapArena.allocator(), self.fileData.tilemap);
+                generic.materialize(self.tilemapArena.allocator(), self.tilemapDocument.tilemap);
                 self.endAction();
             },
         };
     }
 
     pub fn squashHistory(context: *Context) void {
-        context.fileData.history.deinit(context.tilemapArena.allocator());
-        context.fileData.history = History.init();
+        context.tilemapDocument.history.deinit(context.tilemapArena.allocator());
+        context.tilemapDocument.history = History.init();
     }
 
     pub fn getTool(

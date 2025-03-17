@@ -5,30 +5,24 @@ const layout = @import("layout.zig").layout;
 const rl = @import("raylib");
 
 pub const lib = @import("lib.zig");
-
-const screenSize = .{ 1024, 800 };
-const assetsRootDir = "D:/studio/My Drive/Kottefolket/";
-const tilesetPath = "tileset-initial.png";
-const tilesetName = "tileset-initial";
-const fontPath = "C:/Windows/Fonts/calibri.ttf";
-const fontSize = 20;
+pub const config = @import("config.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{ .safety = true }){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var app = zxg.ZXGApp.init(screenSize[0], screenSize[1], "Zig Game Editor");
+    var app = zxg.ZXGApp.init(config.screenSize[0], config.screenSize[1], "Zig Game Editor");
     defer app.deinit();
-    try app.loadFont(fontPath, fontSize);
+    try app.loadFont(config.fontPath, config.fontSize);
     var context = Context.init(allocator);
     defer context.deinit();
 
     // Load example tilemap
-    const tilesetFileName = assetsRootDir ++ tilesetPath;
+    const tilesetFileName = config.assetsRootDir ++ config.tilesetPath;
     const texture = rl.loadTexture(tilesetFileName);
     defer rl.unloadTexture(texture);
-    try context.textures.put(tilesetName, texture);
+    try context.textures.put(config.tilesetName, texture);
 
     context.restoreSession() catch |err| {
         std.log.err("Could not restore session: {}", .{err});

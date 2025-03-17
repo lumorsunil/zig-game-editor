@@ -47,7 +47,7 @@ pub const SelectTool = struct {
             drawSelectionBox(context, rect);
         }
 
-        const tileSize = context.fileData.tilemap.tileSize;
+        const tileSize = context.tilemapDocument.tilemap.tileSize;
         const scale = context.scaleV * tileSize;
 
         if (self.floatingLayer) |*layer| {
@@ -67,7 +67,7 @@ pub const SelectTool = struct {
     }
 
     fn drawSelectionBox(context: *Context, rectangle: Rectangle) void {
-        const s = context.scaleV * context.fileData.tilemap.tileSize;
+        const s = context.scaleV * context.tilemapDocument.tilemap.tileSize;
         const position = rectangle.min * s;
         const size = rectangle.size() * s;
         const rect = rl.Rectangle.init(
@@ -203,7 +203,7 @@ pub const SelectTool = struct {
     }
 
     fn mergeFloatingLayer(self: *SelectTool, context: *Context) void {
-        const tilemap = &context.fileData.tilemap;
+        const tilemap = &context.tilemapDocument.tilemap;
 
         const size: @Vector(2, usize) = @intCast(self.selectedTiles.size);
         const sizeX, const sizeY = size;
@@ -229,7 +229,7 @@ pub const SelectTool = struct {
 
     pub fn copy(self: *SelectTool, context: *Context) void {
         if (self.copiedLayer) |*layer| layer.deinit(context.allocator);
-        const tilemap = &context.fileData.tilemap;
+        const tilemap = &context.tilemapDocument.tilemap;
         self.copiedLayer = self.cloneSelectedTiles(context, tilemap.getActiveLayer(), false);
         self.copiedSelectedTiles.clear(context.allocator);
         self.copiedSelectedTiles = self.selectedTiles.clone(context.allocator);
@@ -247,7 +247,7 @@ pub const SelectTool = struct {
         const selectedTiles = self.selectedTiles.getSelected(context.allocator);
         defer context.allocator.free(selectedTiles);
 
-        const sourceLayer = context.fileData.tilemap.getActiveLayer();
+        const sourceLayer = context.tilemapDocument.tilemap.getActiveLayer();
 
         for (selectedTiles) |v| {
             const tile = sourceLayer.getTileByV(v);
