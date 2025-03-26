@@ -18,7 +18,7 @@ pub fn main() !void {
     var context = Context.init(allocator);
     defer context.deinit();
 
-    // Load example tilemap
+    // Load tileset
     const tilesetFileName = config.assetsRootDir ++ config.tilesetPath;
     const texture = rl.loadTexture(tilesetFileName);
     defer rl.unloadTexture(texture);

@@ -100,11 +100,19 @@
 
 ## Scene editor
 
-- [ ] Entities
+- [x] Entities
+  - [x] Add metadata
+  - [x] Exit entities
+    - [x] Set target scene
+    - [x] Open target scene
+  - [x] Entrance entities
+    - [x] Set key
+- [x] Add Play button
+  - [x] Preview scene in game (run command with arguments --scene etc)
+  - [x] F5 shortcut
 - [ ] Fill this space out
-- [ ] Preview scene in game (run command with arguments --scene etc)
 
-### Scene editor initial version
+### Scene editor initial version 0.0.1
 
 - [x] Scene document
 - [x] Create entities
@@ -117,3 +125,11 @@
     - [x] "player" => "player sprite"
     - [x] "npc" => "npc sprite"
     - [x] "tilemap" => "draw tilemap"
+
+### Scene editor version 0.0.2
+
+- [x] Select entity
+- [x] Move entity
+- [x] Delete entity
+- [x] Save to file
+- [x] Load from file

@@ -14,6 +14,8 @@ const TilemapLayer = lib.TilemapLayer;
 const Action = lib.Action;
 const SceneEntity = lib.documents.SceneEntity;
 const SceneEntityType = lib.documents.SceneEntityType;
+const SceneEntityExit = lib.documents.SceneEntityExit;
+const SceneEntityEntrance = lib.documents.SceneEntityEntrance;
 
 pub fn layout(context: *Context) !void {
     const screenSize: Vector = .{ rl.getScreenWidth(), rl.getScreenHeight() };
@@ -48,7 +50,7 @@ pub fn layout(context: *Context) !void {
     }
 }
 
-fn sceneDocumentMenu(context: *Context) void {
+fn sceneDocumentMenu(context: *Context) !void {
     z.setNextWindowPos(.{ .x = 0, .y = 0 });
     z.setNextWindowSize(.{ .w = 200, .h = 800 });
     _ = z.begin("Scene Menu", .{ .flags = .{
@@ -59,21 +61,145 @@ fn sceneDocumentMenu(context: *Context) void {
     } });
     defer z.end();
 
-    inline for (std.meta.tags(SceneEntityType)) |tag| {
-        if (tag != .tilemap) {
-            const texture = context.sceneDocument.getTextureFromEntityType(tag);
-            const source = context.sceneDocument.getSourceRectFromEntityType(tag);
-            const size = context.sceneDocument.getSizeFromEntityType(tag);
-            const scaledSize = Vector{
-                @intFromFloat(size.x),
-                @intFromFloat(size.y),
-            } * context.scaleV;
-            c.rlImGuiImageRect(@ptrCast(texture), scaledSize[0], scaledSize[1], @bitCast(source));
-            if (z.beginDragDropSource(.{ .source_allow_null_id = true })) {
-                context.sceneDocument.dragPayload = tag;
-                c.rlImGuiImageRect(@ptrCast(texture), scaledSize[0], scaledSize[1], @bitCast(source));
-                z.endDragDropSource();
+    if (z.button("New", .{})) {
+        try context.newFileScene();
+    }
+    if (z.button("Save", .{})) {
+        try context.saveFileScene();
+    }
+    if (z.button("Open", .{})) {
+        try context.openFileScene();
+    }
+    if (z.button("Set Tilemap", .{})) {
+        try context.openFileTilemap();
+        if (context.currentTilemapFileName) |cfn| {
+            for (context.sceneDocument.scene.entities.items) |entity| {
+                if (entity.type == .tilemap) {
+                    entity.type.tilemap.setSceneFileName(context.allocator, cfn);
+                }
             }
+        }
+    }
+    if (z.button("Play", .{})) {
+        context.play();
+    } else if (context.playState != .notRunning) {
+        z.sameLine(.{});
+
+        switch (context.playState) {
+            .starting => z.text("Starting...", .{}),
+            .errorStarting => z.textColored(.{ 1, 0, 0, 1 }, "Error Starting", .{}),
+            .running => z.textColored(.{ 0, 1, 0, 1 }, "Running", .{}),
+            .crash => z.textColored(.{ 1, 0, 0, 1 }, "Crashed", .{}),
+            .notRunning => {},
+        }
+    }
+
+    if (context.sceneDocument.selectedEntities.items.len > 0) {
+        const selectedEntity = context.sceneDocument.selectedEntities.items[0];
+
+        // Entity details menu
+        switch (selectedEntity.type) {
+            .exit => |*exit| {
+                if (z.button("Set Target", .{})) {
+                    const maybeFileName = try nfd.openFileDialog(Context.sceneFileFilter, context.defaultPath);
+
+                    if (maybeFileName) |fileName| {
+                        defer nfd.freePath(fileName);
+                        exit.setSceneFileName(context.allocator, fileName);
+                    }
+                }
+
+                if (exit.sceneFileName) |scf| {
+                    const baseName = std.fs.path.basename(scf);
+                    var it = std.mem.splitScalar(u8, baseName, '.');
+                    const name = it.next().?;
+                    z.text("{s}", .{name});
+                    if (z.button("Open Target Scene", .{})) {
+                        try context.openFileSceneEx(scf);
+                        return;
+                    }
+                }
+            },
+            .entrance => |*entrance| {
+                _ = z.inputText("Key", .{
+                    .buf = entrance.key,
+                });
+            },
+            else => {},
+        }
+        z.text("Metadata:", .{});
+        z.pushPtrId(selectedEntity.metadata.ptr);
+        _ = z.inputTextMultiline("", .{
+            .buf = selectedEntity.metadata,
+        });
+        z.popId();
+    }
+
+    const entities: []const std.meta.FieldEnum(SceneEntityType) = &.{
+        .player,
+        .npc,
+        .klet,
+        .exit,
+        .entrance,
+    };
+
+    inline for (entities) |tag| {
+        switch (tag) {
+            .player, .npc, .klet => {
+                const texture = context.sceneDocument.getTextureFromEntityType(tag);
+                const source = context.sceneDocument.getSourceRectFromEntityType(tag);
+                const size = context.sceneDocument.getSizeFromEntityType(tag);
+                const scaledSize = Vector{
+                    @intFromFloat(size.x),
+                    @intFromFloat(size.y),
+                } * context.scaleV;
+                c.rlImGuiImageRect(@ptrCast(texture), scaledSize[0], scaledSize[1], @bitCast(source));
+                if (z.beginDragDropSource(.{ .source_allow_null_id = true })) {
+                    context.sceneDocument.dragPayload = tag;
+                    z.endDragDropSource();
+                }
+            },
+            .exit => {
+                const pos: @Vector(2, f32) = z.getCursorPos();
+                const size: @Vector(2, f32) = @floatFromInt(context.tilemapDocument.tilemap.tileSize * context.scaleV);
+
+                c.rlImGuiImageRect(
+                    @ptrCast(&context.exitTexture),
+                    @intFromFloat(size[0]),
+                    @intFromFloat(size[1]),
+                    .{
+                        .x = pos[0],
+                        .y = pos[1],
+                        .width = 1,
+                        .height = 1,
+                    },
+                );
+                if (z.beginDragDropSource(.{ .source_allow_null_id = true })) {
+                    context.sceneDocument.dragPayload = .{ .exit = SceneEntityExit.init() };
+                    z.endDragDropSource();
+                }
+            },
+            .entrance => {
+                const pos: @Vector(2, f32) = z.getCursorPos();
+                const size: @Vector(2, f32) = @floatFromInt(context.tilemapDocument.tilemap.tileSize * context.scaleV);
+
+                c.rlImGuiImageRect(
+                    @ptrCast(&context.entranceTexture),
+                    @intFromFloat(size[0]),
+                    @intFromFloat(size[1]),
+                    .{
+                        .x = pos[0],
+                        .y = pos[1],
+                        .width = 1,
+                        .height = 1,
+                    },
+                );
+                if (z.beginDragDropSource(.{ .source_allow_null_id = true })) {
+                    context.sceneDocument.dragPayload = .{ .entrance = SceneEntityEntrance.init(context.allocator) };
+                    z.endDragDropSource();
+                }
+            },
+            else => {},
         }
     }
 }
@@ -93,8 +219,14 @@ fn tilemapDocumentMenu(context: *Context) !void {
 
 fn drawTilemapDocument(context: *Context) void {
     const size = context.tilemapDocument.tilemap.grid.size * context.tilemapDocument.tilemap.tileSize * context.scaleV;
-    const rect = rl.Rectangle.init(0, 0, @floatFromInt(size[0]), @floatFromInt(size[1]));
-    rl.drawRectangleLinesEx(rect, 4, rl.Color.black);
+    const thickness = 2;
+    const rect = rl.Rectangle.init(
+        -thickness,
+        -thickness,
+        @floatFromInt(size[0] + thickness * 2),
+        @floatFromInt(size[1] + thickness * 2),
+    );
+    rl.drawRectangleLinesEx(rect, thickness / context.camera.zoom, rl.Color.black);
     drawTilemap(context, .{ 0, 0 });
 
     if (context.currentTool) |currentTool| {
@@ -110,23 +242,95 @@ fn drawSceneDocument(context: *Context) void {
         context.sceneDocument.drawEntity(context, entity.*);
     }
 
+    for (context.sceneDocument.selectedEntities.items) |selectedEntity| {
+        const rect = getEntityRectScaled(context, selectedEntity.*);
+        rl.drawRectangleLinesEx(rect, 1 / context.camera.zoom, rl.Color.white);
+    }
+
     if (context.sceneDocument.dragPayload) |payload| {
-        const position = if (rl.isKeyDown(.key_left_shift)) getMousePosition(context) else gridPositionToEntityPosition(context, getMouseGridPosition(context));
-        context.sceneDocument.drawEntity(context, SceneEntity.init(position, payload));
+        const position = if (rl.isKeyDown(.key_left_shift)) getMousePosition(context) else gridPositionToEntityPosition(context, getMouseSceneGridPosition(context), payload);
+        context.sceneDocument.drawEntity(context, SceneEntity.init(context.allocator, position, payload));
     }
 }
 
 fn sceneDocumentHandleInput(context: *Context) void {
     cameraControls(context);
+    sceneDocumentHandleInputCreateEntity(context);
+    sceneDocumentHandleInputSelectEntity(context);
+    sceneDocumentHandleInputMoveEntity(context);
+    sceneDocumentHandleInputDeleteEntity(context);
 
+    if (rl.isKeyPressed(.key_f5)) {
+        context.play();
+    }
+}
+
+fn sceneDocumentHandleInputCreateEntity(context: *Context) void {
     if (context.sceneDocument.dragPayload) |payload| {
         if (rl.isMouseButtonReleased(.mouse_button_left)) {
             const entity = context.allocator.create(SceneEntity) catch unreachable;
-            const position = if (rl.isKeyDown(.key_left_shift)) getMousePosition(context) else gridPositionToEntityPosition(context, getMouseGridPosition(context));
-            entity.* = SceneEntity.init(position, payload);
+            const position = if (rl.isKeyDown(.key_left_shift)) getMousePosition(context) else gridPositionToEntityPosition(context, getMouseSceneGridPosition(context), payload);
+            entity.* = SceneEntity.init(context.allocator, position, payload);
             context.sceneDocument.scene.entities.append(context.allocator, entity) catch unreachable;
             context.sceneDocument.dragPayload = null;
         }
+    }
+}
+
+fn sceneDocumentHandleInputSelectEntity(context: *Context) void {
+    if (context.sceneDocument.dragPayload != null) return;
+
+    if (rl.isMouseButtonPressed(.mouse_button_left)) {
+        for (context.sceneDocument.scene.entities.items) |entity| {
+            if (entity.type == .tilemap) continue;
+
+            if (isMousePositionInsideEntityRect(context, entity.*)) {
+                context.sceneDocument.selectEntity(entity, context.allocator);
+                context.sceneDocument.dragStartPoint = getMousePosition(context);
+                break;
+            }
+        }
+    }
+}
+
+fn sceneDocumentHandleInputMoveEntity(context: *Context) void {
+    if (context.sceneDocument.dragPayload != null) return;
+    if (context.sceneDocument.selectedEntities.items.len == 0) return;
+
+    if (context.sceneDocument.dragStartPoint) |dragStartPoint| {
+        if (context.sceneDocument.isDragging) {
+            if (rl.isMouseButtonDown(.mouse_button_left)) {
+                const entity = context.sceneDocument.selectedEntities.items[0];
+                const position = if (rl.isKeyDown(.key_left_shift)) getMousePosition(context) else gridPositionToEntityPosition(context, getMouseSceneGridPosition(context), entity.type);
+                entity.position = position;
+            } else {
+                context.sceneDocument.isDragging = false;
+                context.sceneDocument.dragStartPoint = null;
+            }
+        } else {
+            const dsp = rl.Vector2.init(
+                @floatFromInt(dragStartPoint[0]),
+                @floatFromInt(dragStartPoint[1]),
+            );
+            const mousePosition = getMousePosition(context);
+            const mp = rl.Vector2.init(
+                @floatFromInt(mousePosition[0]),
+                @floatFromInt(mousePosition[1]),
+            );
+
+            if (dsp.distanceSqr(mp) >= 25) {
+                context.sceneDocument.isDragging = true;
+            }
+        }
+    }
+}
+
+fn sceneDocumentHandleInputDeleteEntity(context: *Context) void {
+    if (context.sceneDocument.selectedEntities.items.len == 0) return;
+
+    const selectedEntity = context.sceneDocument.selectedEntities.items[0];
+    if (rl.isKeyPressed(.key_delete)) {
+        context.sceneDocument.deleteEntity(selectedEntity);
     }
 }
 
@@ -158,9 +362,9 @@ fn cameraControls(context: *Context) void {
 
 fn handleShortcuts(context: *Context) !void {
     if (rl.isKeyDown(.key_left_control)) {
-        if (rl.isKeyDown(.key_s)) return try context.saveFile();
-        if (rl.isKeyDown(.key_o)) return try context.openFile();
-        if (rl.isKeyDown(.key_n)) return try context.newFile();
+        if (rl.isKeyDown(.key_s)) return try context.saveFileTilemap();
+        if (rl.isKeyDown(.key_o)) return try context.openFileTilemap();
+        if (rl.isKeyDown(.key_n)) return try context.newFileTilemap();
         if (rl.isKeyPressed(.key_z)) {
             if (rl.isKeyDown(.key_left_shift)) {
                 return context.redo();
@@ -213,7 +417,7 @@ fn mainMenu(context: *Context) !void {
 }
 
 fn activeDocumentLabel(context: *Context) void {
-    if (context.currentFileName) |cfn| {
+    if (context.currentTilemapFileName) |cfn| {
         const baseName = std.fs.path.basename(cfn);
         var it = std.mem.splitScalar(u8, baseName, '.');
         const name = it.next().?;
@@ -229,15 +433,15 @@ fn activeDocumentLabel(context: *Context) void {
 
 fn fileMenu(context: *Context) !void {
     if (z.button("New", .{})) {
-        try context.newFile();
+        try context.newFileTilemap();
     }
     z.sameLine(.{});
     if (z.button("Open", .{})) {
-        try context.openFile();
+        try context.openFileTilemap();
     }
     z.sameLine(.{});
     if (z.button("Save", .{})) {
-        try context.saveFile();
+        try context.saveFileTilemap();
     }
     if (z.button("Squash History", .{})) {
         context.squashHistory();
@@ -400,6 +604,17 @@ fn getMousePosition(context: *Context) Vector {
     return @intFromFloat(fp);
 }
 
+fn getMouseSceneGridPosition(context: *Context) Vector {
+    const mp = getMousePosition(context);
+    const ftr: @Vector(2, f32) = @floatFromInt(mp);
+    const tilemap = context.tilemapDocument.tilemap;
+    const fDivisor: @Vector(2, f32) = @floatFromInt(tilemap.tileSize);
+
+    const fp = (ftr + fDivisor / @Vector(2, f32){ -2, 2 }) / fDivisor;
+
+    return @intFromFloat(fp);
+}
+
 fn getMouseGridPosition(context: *Context) Vector {
     const mp = getMousePosition(context);
     const ftr: @Vector(2, f32) = @floatFromInt(mp);
@@ -411,9 +626,41 @@ fn getMouseGridPosition(context: *Context) Vector {
     return @intFromFloat(fp);
 }
 
-fn gridPositionToEntityPosition(context: *Context, gridPosition: Vector) Vector {
-    const s = context.tilemapDocument.tilemap.tileSize;
-    return s * gridPosition;
+fn gridPositionToEntityPosition(context: *Context, gridPosition: Vector, entityType: SceneEntityType) Vector {
+    const tileSize: @Vector(2, f32) = @floatFromInt(context.tilemapDocument.tilemap.tileSize);
+    const rlEntitySize = context.sceneDocument.getSizeFromEntityType(entityType);
+    const entitySize = @Vector(2, f32){ rlEntitySize.x, rlEntitySize.y };
+    const half = @Vector(2, f32){ 0.5, 0.5 };
+    return @intFromFloat(tileSize * @as(@Vector(2, f32), @floatFromInt(gridPosition)) - tileSize * half + entitySize * half);
+}
+
+fn getEntityRect(context: *Context, entity: SceneEntity) rl.Rectangle {
+    const entityPosition: @Vector(2, f32) = @floatFromInt(entity.position);
+    const size = context.sceneDocument.getSizeFromEntityType(entity.type);
+    var rect = rl.Rectangle.init(entityPosition[0], entityPosition[1], size.x, size.y);
+    rect.x -= rect.width / 2;
+    rect.y -= rect.height / 2;
+
+    return rect;
+}
+
+fn getEntityRectScaled(context: *Context, entity: SceneEntity) rl.Rectangle {
+    var rect = getEntityRect(context, entity);
+    const scale: f32 = @floatFromInt(context.scale);
+    rect.width *= scale;
+    rect.height *= scale;
+    rect.x *= scale;
+    rect.y *= scale;
+
+    return rect;
+}
+
+fn isMousePositionInsideEntityRect(context: *Context, entity: SceneEntity) bool {
+    const point: @Vector(2, f32) = @floatFromInt(getMousePosition(context));
+    const rlPoint = rl.Vector2.init(point[0], point[1]);
+    const rect = getEntityRect(context, entity);
+
+    return rl.checkCollisionPointRec(rlPoint, rect);
 }
 
 fn handleBrush(context: *Context, brush: *BrushTool) void {
