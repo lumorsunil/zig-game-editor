@@ -13,6 +13,7 @@ pub const BrushTool = struct {
     selectedSourceTiles: SelectBox = SelectBox.init(),
     tileset: []const u8 = "tileset-initial",
     currentPaintedCell: ?Vector = null,
+    lastPaintedCell: ?Vector = null,
 
     pub fn init() BrushTool {
         return BrushTool{};
@@ -33,10 +34,11 @@ pub const BrushTool = struct {
 
         if (rl.isKeyDown(.key_left_control)) {
             return self.copySource(context, &tile.source);
+        } else if (rl.isMouseButtonPressed(.mouse_button_left) and rl.isKeyDown(.key_left_shift) and self.lastPaintedCell != null) {
+            return self.paintLine(context, self.lastPaintedCell.?, gridPosition);
         }
 
-        self.paint(context, &tile.source, gridPosition);
-        self.currentPaintedCell = gridPosition;
+        self.paint(context, gridPosition);
     }
 
     fn copySource(self: *BrushTool, context: *Context, tileSource: *?TileSource) void {
@@ -44,7 +46,7 @@ pub const BrushTool = struct {
         TileSource.set(&self.source, context.allocator, tileSource);
     }
 
-    fn paint(self: *BrushTool, context: *Context, tileSource: *?TileSource, gridPosition: Vector) void {
+    fn paint(self: *BrushTool, context: *Context, gridPosition: Vector) void {
         // Check if we need to paint
         if (self.currentPaintedCell) |cpc| if (@reduce(.And, cpc == gridPosition)) return;
 
@@ -54,7 +56,42 @@ pub const BrushTool = struct {
         }
 
         // Paint from the brush source
-        TileSource.set(tileSource, context.tilemapArena.allocator(), &self.source);
+        const tilemap = &context.tilemapDocument.tilemap;
+        const layer = tilemap.getActiveLayer();
+        const tile = layer.getTileByV(gridPosition);
+        TileSource.set(&tile.source, context.tilemapArena.allocator(), &self.source);
+
+        self.currentPaintedCell = gridPosition;
+        self.lastPaintedCell = gridPosition;
+    }
+
+    fn paintLine(self: *BrushTool, context: *Context, startPosition: Vector, endPosition: Vector) void {
+        if (@reduce(.And, startPosition == endPosition)) {
+            self.paint(context, startPosition);
+            return;
+        }
+
+        const tilemap = &context.tilemapDocument.tilemap;
+        const layer = tilemap.getActiveLayer();
+
+        const fStartPosition: @Vector(2, f32) = @floatFromInt(startPosition);
+        const fEndPosition: @Vector(2, f32) = @floatFromInt(endPosition);
+        const relative = fEndPosition - fStartPosition;
+        const length: @Vector(2, f32) = @splat(@sqrt(@reduce(.Add, relative * relative)));
+        const step = relative / length;
+        var currentPosition = fStartPosition;
+
+        while (true) {
+            const currentGridPosition: Vector = @intFromFloat(currentPosition);
+            if (layer.grid.isOutOfBounds(currentGridPosition) or @reduce(.And, currentGridPosition == endPosition)) break;
+
+            self.paint(context, currentGridPosition);
+
+            currentPosition += step;
+        }
+
+        const maxGridPosition: Vector = @intFromFloat(fEndPosition);
+        self.paint(context, maxGridPosition);
     }
 
     pub fn onUseEnd(self: *BrushTool) void {

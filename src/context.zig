@@ -87,7 +87,7 @@ pub const Context = struct {
         const exitImage = rl.genImageColor(1, 1, rl.Color.white);
         const entranceImage = rl.genImageColor(1, 1, rl.Color.yellow);
 
-        const mode: EditorMode = .scene;
+        const mode: EditorMode = .tilemap;
         const focusOnActiveLayer: bool = mode == .tilemap;
 
         return Context{
@@ -271,6 +271,7 @@ pub const Context = struct {
 
     pub fn openFileSceneEx(self: *Context, sceneFileName: []const u8) !void {
         const fileName = self.allocator.dupe(u8, sceneFileName) catch unreachable;
+        defer self.allocator.free(fileName);
         const file = std.fs.cwd().openFile(fileName, .{}) catch |err| {
             std.log.err("Could not open file {s}: {}", .{ fileName, err });
             try self.newFileScene();
@@ -486,7 +487,25 @@ pub const Context = struct {
     }
 
     pub fn play(self: *Context) void {
+        if (self.currentTilemapFileName == null or self.currentSceneFileName == null) {
+            self.playState = .errorStarting;
+            return;
+        }
+
         self.playState = .starting;
+
+        self.saveFileTilemapTo(self.currentTilemapFileName.?) catch |err| {
+            std.log.err("Error saving tilemap: {}", .{err});
+            self.playState = .errorStarting;
+            return;
+        };
+
+        self.saveFileSceneTo(self.currentSceneFileName.?) catch |err| {
+            std.log.err("Error saving scene: {}", .{err});
+            self.playState = .errorStarting;
+            return;
+        };
+
         const zigCommand = std.fmt.allocPrint(self.allocator, "zig build run -- --scene \"{s}\"", .{self.currentSceneFileName.?}) catch unreachable;
         defer self.allocator.free(zigCommand);
         const command = &.{
@@ -497,11 +516,6 @@ pub const Context = struct {
         var child = std.process.Child.init(command, self.allocator);
         child.cwd = std.fs.cwd().realpathAlloc(self.allocator, "../kottefolket") catch unreachable;
         defer self.allocator.free(child.cwd.?);
-        self.saveFileSceneTo(self.currentSceneFileName.?) catch |err| {
-            std.log.err("Error saving scene: {}", .{err});
-            self.playState = .errorStarting;
-            return;
-        };
 
         const term = child.spawnAndWait() catch |err| {
             std.log.err("Error spawning game: {}", .{err});

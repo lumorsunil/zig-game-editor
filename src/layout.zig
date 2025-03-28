@@ -61,6 +61,12 @@ fn sceneDocumentMenu(context: *Context) !void {
     } });
     defer z.end();
 
+    activeDocumentLabel(context);
+
+    if (z.button("Tilemap Editor", .{})) {
+        context.mode = .tilemap;
+        return;
+    }
     if (z.button("New", .{})) {
         try context.newFileScene();
     }
@@ -122,16 +128,18 @@ fn sceneDocumentMenu(context: *Context) !void {
             },
             .entrance => |*entrance| {
                 _ = z.inputText("Key", .{
-                    .buf = entrance.key,
+                    .buf = entrance.keyImguiBuffer(),
                 });
+                entrance.imguiCommit();
             },
             else => {},
         }
         z.text("Metadata:", .{});
         z.pushPtrId(selectedEntity.metadata.ptr);
         _ = z.inputTextMultiline("", .{
-            .buf = selectedEntity.metadata,
+            .buf = selectedEntity.metadataBuffer(),
         });
+        selectedEntity.imguiCommit();
         z.popId();
     }
 
@@ -397,6 +405,10 @@ fn mainMenu(context: *Context) !void {
 
     activeDocumentLabel(context);
 
+    if (z.button("Scene Editor", .{})) {
+        context.mode = .scene;
+        return;
+    }
     z.separatorText("File");
     try fileMenu(context);
     z.separatorText("Edit");
@@ -421,7 +433,19 @@ fn activeDocumentLabel(context: *Context) void {
         const baseName = std.fs.path.basename(cfn);
         var it = std.mem.splitScalar(u8, baseName, '.');
         const name = it.next().?;
-        z.text("{s}", .{name});
+        z.text("Tilemap: {s}", .{name});
+        if (z.isItemHovered(.{ .delay_short = true })) {
+            if (z.beginTooltip()) {
+                z.text("{s}", .{cfn});
+            }
+            z.endTooltip();
+        }
+    }
+    if (context.currentSceneFileName) |cfn| {
+        const baseName = std.fs.path.basename(cfn);
+        var it = std.mem.splitScalar(u8, baseName, '.');
+        const name = it.next().?;
+        z.text("Scene: {s}", .{name});
         if (z.isItemHovered(.{ .delay_short = true })) {
             if (z.beginTooltip()) {
                 z.text("{s}", .{cfn});

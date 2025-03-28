@@ -16,58 +16,48 @@ pub const SceneEntity = struct {
     type: SceneEntityType,
     metadata: [:0]u8,
 
+    pub const MAX_METADATA_LENGTH = 1024;
+
     pub fn init(
         allocator: Allocator,
         position: Vector,
         entityType: SceneEntityType,
     ) SceneEntity {
-        const metadata = allocator.allocSentinel(u8, 1024, 0) catch unreachable;
-        @memset(metadata, ' ');
+        const metadata = allocator.allocSentinel(u8, MAX_METADATA_LENGTH, 0) catch unreachable;
         metadata[0] = 0;
 
         return SceneEntity{
             .id = UUID.init(),
             .position = position,
             .type = entityType,
-            .metadata = metadata,
+            .metadata = metadata[0..0 :0],
         };
     }
 
+    pub fn deinit(self: *SceneEntity, allocator: Allocator) void {
+        allocator.free(self.metadataBuffer());
+        self.type.deinit(allocator);
+    }
+
     pub fn clone(self: SceneEntity, allocator: Allocator) SceneEntity {
-        const metadata = allocator.allocSentinel(u8, 1024, 0) catch unreachable;
-        @memset(metadata, ' ');
+        const metadata = allocator.allocSentinel(u8, MAX_METADATA_LENGTH, 0) catch unreachable;
         std.mem.copyForwards(u8, metadata, self.metadata);
         metadata[self.metadata.len] = 0;
 
         return SceneEntity{
             .id = self.id,
             .position = self.position,
-            .metadata = metadata,
+            .metadata = std.mem.span(metadata.ptr),
             .type = self.type.clone(allocator),
         };
     }
 
-    pub fn deinit(self: SceneEntity, allocator: Allocator) void {
-        allocator.free(self.metadata);
-        switch (self.type) {
-            .exit => |exit| exit.deinit(allocator),
-            .tilemap => |tilemap| tilemap.deinit(allocator),
-            else => {},
-        }
+    pub fn metadataBuffer(self: *SceneEntity) [:0]u8 {
+        return @ptrCast(self.metadata.ptr[0..MAX_METADATA_LENGTH]);
     }
 
-    pub fn jsonStringify(self: *const SceneEntity, jw: anytype) !void {
-        try jw.beginObject();
-        inline for (std.meta.fields(SceneEntity)) |field| {
-            try jw.objectField(field.name);
-
-            if (std.mem.eql(u8, field.name, "metadata")) {
-                try jw.write(@as([*:0]u8, @ptrCast(self.metadata)));
-            } else {
-                try jw.write(@field(self, field.name));
-            }
-        }
-        try jw.endObject();
+    pub fn imguiCommit(self: *SceneEntity) void {
+        self.metadata = std.mem.span(self.metadata.ptr);
     }
 };
 
@@ -78,6 +68,13 @@ pub const SceneEntityType = union(enum) {
     exit: SceneEntityExit,
     entrance: SceneEntityEntrance,
     tilemap: SceneEntityTilemap,
+
+    pub fn deinit(self: SceneEntityType, allocator: Allocator) void {
+        switch (self) {
+            .klet, .player, .npc => {},
+            inline else => |e| e.deinit(allocator),
+        }
+    }
 
     pub fn clone(self: SceneEntityType, allocator: Allocator) SceneEntityType {
         return switch (self) {
@@ -96,6 +93,12 @@ pub const SceneEntityExit = struct {
         return SceneEntityExit{
             .sceneFileName = null,
         };
+    }
+
+    pub fn deinit(self: SceneEntityExit, allocator: Allocator) void {
+        if (self.sceneFileName) |scf| {
+            allocator.free(scf);
+        }
     }
 
     pub fn clone(self: SceneEntityExit, allocator: Allocator) SceneEntityExit {
@@ -117,19 +120,15 @@ pub const SceneEntityExit = struct {
 
         self.sceneFileName = allocator.dupe(u8, sceneFileName) catch unreachable;
     }
-
-    pub fn deinit(self: SceneEntityExit, allocator: Allocator) void {
-        if (self.sceneFileName) |scf| {
-            allocator.free(scf);
-        }
-    }
 };
 
 pub const SceneEntityEntrance = struct {
     key: [:0]u8,
 
+    pub const KEY_MAX_LENGTH = 37;
+
     pub fn init(allocator: Allocator) SceneEntityEntrance {
-        const key = allocator.allocSentinel(u8, 37, 0) catch unreachable;
+        const key = allocator.allocSentinel(u8, KEY_MAX_LENGTH, 0) catch unreachable;
         _ = std.fmt.bufPrintZ(key, "{s}", .{uuid.urn.serialize(uuid.v4.new())}) catch unreachable;
 
         return SceneEntityEntrance{
@@ -137,10 +136,22 @@ pub const SceneEntityEntrance = struct {
         };
     }
 
+    pub fn deinit(self: SceneEntityEntrance, allocator: Allocator) void {
+        allocator.free(self.key);
+    }
+
     pub fn clone(self: SceneEntityEntrance, allocator: Allocator) SceneEntityEntrance {
         return SceneEntityEntrance{
             .key = allocator.dupeZ(u8, self.key) catch unreachable,
         };
+    }
+
+    pub fn keyImguiBuffer(self: *SceneEntityEntrance) [:0]u8 {
+        return @ptrCast(self.key.ptr[0..KEY_MAX_LENGTH]);
+    }
+
+    pub fn imguiCommit(self: *SceneEntityEntrance) void {
+        self.key = std.mem.span(self.key.ptr);
     }
 };
 
@@ -151,6 +162,12 @@ pub const SceneEntityTilemap = struct {
         return SceneEntityTilemap{
             .fileName = null,
         };
+    }
+
+    pub fn deinit(self: SceneEntityTilemap, allocator: Allocator) void {
+        if (self.fileName) |fileName| {
+            allocator.free(fileName);
+        }
     }
 
     pub fn clone(self: SceneEntityTilemap, allocator: Allocator) SceneEntityTilemap {
@@ -170,12 +187,6 @@ pub const SceneEntityTilemap = struct {
 
         self.fileName = allocator.dupe(u8, fileName) catch unreachable;
     }
-
-    pub fn deinit(self: SceneEntityTilemap, allocator: Allocator) void {
-        if (self.fileName) |fileName| {
-            allocator.free(fileName);
-        }
-    }
 };
 
 pub const Scene = struct {
@@ -185,6 +196,14 @@ pub const Scene = struct {
         return Scene{
             .entities = ArrayList(*SceneEntity).initCapacity(allocator, 10) catch unreachable,
         };
+    }
+
+    pub fn deinit(self: *Scene, allocator: Allocator) void {
+        for (self.entities.items) |entity| {
+            entity.deinit(allocator);
+            allocator.destroy(entity);
+        }
+        self.entities.clearAndFree(allocator);
     }
 
     pub fn clone(self: Scene, allocator: Allocator) Scene {
@@ -197,14 +216,6 @@ pub const Scene = struct {
         }
 
         return cloned;
-    }
-
-    pub fn deinit(self: *Scene, allocator: Allocator) void {
-        for (self.entities.items) |entity| {
-            entity.deinit(allocator);
-            allocator.destroy(entity);
-        }
-        self.entities.clearAndFree(allocator);
     }
 };
 
@@ -390,7 +401,10 @@ pub const SceneDocument = struct {
         parsed.deinit();
 
         var sceneDocument = try allocator.create(SceneDocument);
-        sceneDocument.* = SceneDocument.init(allocator);
+        sceneDocument.* = SceneDocument{
+            .scene = undefined,
+            .selectedEntities = ArrayList(*SceneEntity).initCapacity(allocator, 10) catch unreachable,
+        };
         sceneDocument.scene = scene;
         sceneDocument.load();
 

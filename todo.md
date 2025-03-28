@@ -45,13 +45,14 @@
 
 ### Multiple editors
 
-- [ ] Different documents activates corresponding editor
-- [ ] Document types
-  - [ ] Tilemaps
+- [x] Different documents activates corresponding editor
+- [x] Document types
+  - [x] Tilemaps
   - [ ] Tilesheets
   - [ ] Spritesheets
   - [ ] Animations
-  - [ ] Scenes
+  - [x] Scenes
+- [x] Ability to switch between editors
 
 ## Assets manager
 
