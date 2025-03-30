@@ -345,6 +345,7 @@ pub const Context = struct {
                 const winPos = rl.getWindowPosition();
                 break :brk @intFromFloat(@Vector(2, f32){ winPos.x, winPos.y });
             },
+            .editorMode = self.mode,
         };
     }
 
@@ -398,6 +399,7 @@ pub const Context = struct {
         rl.setWindowPosition(parsed.value.windowPos[0], parsed.value.windowPos[1]);
 
         self.camera = parsed.value.camera;
+        self.mode = parsed.value.editorMode;
     }
 
     pub fn startAction(self: *Context, action: Action) void {
