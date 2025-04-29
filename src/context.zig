@@ -54,7 +54,7 @@ pub const Context = struct {
 
     materializingAction: ?Action,
 
-    focusOnActiveLayer: bool = true,
+    focusOnActiveLayer: bool = false,
 
     currentProject: Project,
 

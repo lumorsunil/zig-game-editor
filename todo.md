@@ -10,6 +10,7 @@
 - [x] Load editor state on startup
 - [ ] Quitting with changes dialog
 - [ ] Interruption handling
+- [ ] Able to visually see or draw the hitbox of entities somehow
 
 ### Undo/redo
 

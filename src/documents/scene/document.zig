@@ -63,6 +63,9 @@ pub const SceneEntity = struct {
 
 pub const SceneEntityType = union(enum) {
     klet,
+    mossing,
+    stening,
+    barlingSpawner,
     player,
     npc,
     exit: SceneEntityExit,
@@ -71,14 +74,14 @@ pub const SceneEntityType = union(enum) {
 
     pub fn deinit(self: SceneEntityType, allocator: Allocator) void {
         switch (self) {
-            .klet, .player, .npc => {},
+            .klet, .mossing, .stening, .barlingSpawner, .player, .npc => {},
             inline else => |e| e.deinit(allocator),
         }
     }
 
     pub fn clone(self: SceneEntityType, allocator: Allocator) SceneEntityType {
         return switch (self) {
-            .klet, .player, .npc => self,
+            .klet, .mossing, .stening, .barlingSpawner, .player, .npc => self,
             .exit => |exit| .{ .exit = exit.clone(allocator) },
             .entrance => |entrance| .{ .entrance = entrance.clone(allocator) },
             .tilemap => |tilemap| .{ .tilemap = tilemap.clone(allocator) },
@@ -224,6 +227,9 @@ pub const SceneDocument = struct {
     sceneArena: ?std.heap.ArenaAllocator = null,
 
     kletTexture: rl.Texture2D = undefined,
+    mossingTexture: rl.Texture2D = undefined,
+    steningTexture: rl.Texture2D = undefined,
+    barlingTexture: rl.Texture2D = undefined,
     playerTexture: rl.Texture2D = undefined,
     npcTexture: rl.Texture2D = undefined,
 
@@ -241,6 +247,9 @@ pub const SceneDocument = struct {
 
     pub fn deinit(self: *SceneDocument, allocator: Allocator) void {
         rl.unloadTexture(self.kletTexture);
+        rl.unloadTexture(self.mossingTexture);
+        rl.unloadTexture(self.steningTexture);
+        rl.unloadTexture(self.barlingTexture);
         rl.unloadTexture(self.playerTexture);
         rl.unloadTexture(self.npcTexture);
         self.scene.deinit(allocator);
@@ -249,6 +258,9 @@ pub const SceneDocument = struct {
 
     pub fn load(self: *SceneDocument) void {
         self.kletTexture = rl.loadTexture(config.assetsRootDir ++ "klet.png");
+        self.mossingTexture = rl.loadTexture(config.assetsRootDir ++ "mossing.png");
+        self.steningTexture = rl.loadTexture(config.assetsRootDir ++ "stening.png");
+        self.barlingTexture = rl.loadTexture(config.assetsRootDir ++ "barling.png");
         self.playerTexture = rl.loadTexture(config.assetsRootDir ++ "pyssling.png");
         self.npcTexture = rl.loadTexture(config.assetsRootDir ++ "kottekarl.png");
     }
@@ -256,9 +268,12 @@ pub const SceneDocument = struct {
     pub fn getTextureFromEntityType(self: *SceneDocument, entityType: SceneEntityType) *rl.Texture2D {
         return switch (entityType) {
             .klet => &self.kletTexture,
+            .mossing => &self.mossingTexture,
+            .stening => &self.steningTexture,
+            .barlingSpawner => &self.barlingTexture,
             .player => &self.playerTexture,
             .npc => &self.npcTexture,
-            else => unreachable,
+            .exit, .entrance, .tilemap => unreachable,
         };
     }
 
@@ -269,9 +284,12 @@ pub const SceneDocument = struct {
         _ = self; // autofix
         return switch (entityType) {
             .klet => rl.Rectangle.init(0, 0, 32, 32),
+            .mossing => rl.Rectangle.init(0, 0, 32, 32),
+            .stening => rl.Rectangle.init(0, 0, 32, 32),
+            .barlingSpawner => rl.Rectangle.init(0, 0, 32, 32),
             .player => rl.Rectangle.init(0, 0, 16, 32),
             .npc => rl.Rectangle.init(0, 0, 32, 32),
-            else => unreachable,
+            .exit, .entrance, .tilemap => unreachable,
         };
     }
 
@@ -282,6 +300,9 @@ pub const SceneDocument = struct {
         _ = self; // autofix
         return switch (entityType) {
             .klet => rl.Vector2.init(32, 32),
+            .mossing => rl.Vector2.init(32, 32),
+            .stening => rl.Vector2.init(32, 32),
+            .barlingSpawner => rl.Vector2.init(32, 32),
             .player => rl.Vector2.init(16, 32),
             .npc => rl.Vector2.init(32, 32),
             .exit => rl.Vector2.init(16, 16),
@@ -293,49 +314,24 @@ pub const SceneDocument = struct {
     pub fn drawEntity(self: *SceneDocument, context: *Context, entity: SceneEntity) void {
         const scale: f32 = @floatFromInt(context.scale);
         switch (entity.type) {
-            .klet => {
-                const source = rl.Rectangle.init(0, 0, 32, 32);
+            .klet, .mossing, .stening, .barlingSpawner, .player, .npc => {
+                const source = self.getSourceRectFromEntityType(entity.type);
+                const texture = self.getTextureFromEntityType(entity.type);
                 const position: @Vector(2, f32) = @floatFromInt(entity.position);
                 const dest = rl.Rectangle.init(
                     position[0] * scale,
                     position[1] * scale,
-                    32 * scale,
-                    32 * scale,
+                    source.width * scale,
+                    source.height * scale,
                 );
-                const origin = rl.Vector2.init(16 * scale, 16 * scale);
+                const origin = rl.Vector2.init(source.width / 2 * scale, source.height / 2 * scale);
 
-                rl.drawTexturePro(self.kletTexture, source, dest, origin, 0, rl.Color.white);
-            },
-            .player => {
-                const source = rl.Rectangle.init(0, 0, 16, 32);
-                const position: @Vector(2, f32) = @floatFromInt(entity.position);
-                const dest = rl.Rectangle.init(
-                    position[0] * scale,
-                    position[1] * scale,
-                    16 * scale,
-                    32 * scale,
-                );
-                const origin = rl.Vector2.init(8 * scale, 16 * scale);
-
-                rl.drawTexturePro(self.playerTexture, source, dest, origin, 0, rl.Color.white);
-            },
-            .npc => {
-                const source = rl.Rectangle.init(0, 0, 32, 32);
-                const position: @Vector(2, f32) = @floatFromInt(entity.position);
-                const dest = rl.Rectangle.init(
-                    position[0] * scale,
-                    position[1] * scale,
-                    32 * scale,
-                    32 * scale,
-                );
-                const origin = rl.Vector2.init(24 * scale, 16 * scale);
-
-                rl.drawTexturePro(self.npcTexture, source, dest, origin, 0, rl.Color.white);
+                rl.drawTexturePro(texture.*, source, dest, origin, 0, rl.Color.white);
             },
             .tilemap => {
                 const tilemapSizeHalf = context.tilemapDocument.tilemap.grid.size * context.tilemapDocument.tilemap.tileSize * context.scaleV / Vector{ 2, 2 };
                 const position = entity.position - tilemapSizeHalf;
-                drawTilemap(context, position);
+                drawTilemap(context, position, true);
             },
             .exit => {
                 const sizeInt = context.tilemapDocument.tilemap.tileSize * context.scaleV;

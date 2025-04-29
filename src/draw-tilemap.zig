@@ -6,11 +6,11 @@ const Context = @import("context.zig").Context;
 const Tilemap = @import("tilemap.zig").Tilemap;
 const TilemapLayer = @import("tilemap.zig").TilemapLayer;
 
-pub fn drawTilemap(context: *const Context, position: Vector) void {
+pub fn drawTilemap(context: *const Context, position: Vector, overrideFocus: bool) void {
     const tilemap = context.tilemapDocument.tilemap;
 
     for (tilemap.layers.items) |layer| {
-        drawLayer(context, layer, tilemap.tileSize, position, false);
+        drawLayer(context, layer, tilemap.tileSize, position, overrideFocus);
     }
 }
 

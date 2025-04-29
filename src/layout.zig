@@ -63,6 +63,11 @@ fn sceneDocumentMenu(context: *Context) !void {
 
     activeDocumentLabel(context);
 
+    if (z.button("Reset Camera", .{})) {
+        resetCamera(context);
+    }
+    z.text("{d:0.0},{d:0.0}", .{ context.camera.target.x, context.camera.target.y });
+
     if (z.button("Tilemap Editor", .{})) {
         context.mode = .tilemap;
         return;
@@ -121,7 +126,11 @@ fn sceneDocumentMenu(context: *Context) !void {
                     const name = it.next().?;
                     z.text("{s}", .{name});
                     if (z.button("Open Target Scene", .{})) {
+                        // const targetEntranceKey = getTargetEntranceKey(exit);
                         try context.openFileSceneEx(scf);
+                        // const targetEntrance = getEntranceByKey(context, targetEntranceKey);
+                        // moveCameraToEntity(context, targetEntrance.*);
+                        resetCamera(context);
                         return;
                     }
                 }
@@ -147,13 +156,16 @@ fn sceneDocumentMenu(context: *Context) !void {
         .player,
         .npc,
         .klet,
+        .mossing,
+        .stening,
+        .barlingSpawner,
         .exit,
         .entrance,
     };
 
     inline for (entities) |tag| {
         switch (tag) {
-            .player, .npc, .klet => {
+            .player, .npc, .klet, .mossing, .stening, .barlingSpawner => {
                 const texture = context.sceneDocument.getTextureFromEntityType(tag);
                 const source = context.sceneDocument.getSourceRectFromEntityType(tag);
                 const size = context.sceneDocument.getSizeFromEntityType(tag);
@@ -207,7 +219,7 @@ fn sceneDocumentMenu(context: *Context) !void {
                     z.endDragDropSource();
                 }
             },
-            else => {},
+            .tilemap => {},
         }
     }
 }
@@ -235,7 +247,7 @@ fn drawTilemapDocument(context: *Context) void {
         @floatFromInt(size[1] + thickness * 2),
     );
     rl.drawRectangleLinesEx(rect, thickness / context.camera.zoom, rl.Color.black);
-    drawTilemap(context, .{ 0, 0 });
+    drawTilemap(context, .{ 0, 0 }, false);
 
     if (context.currentTool) |currentTool| {
         switch (currentTool.impl) {
@@ -658,6 +670,12 @@ fn gridPositionToEntityPosition(context: *Context, gridPosition: Vector, entityT
     return @intFromFloat(tileSize * @as(@Vector(2, f32), @floatFromInt(gridPosition)) - tileSize * half + entitySize * half);
 }
 
+fn gridPositionToCenterOfTile(context: *Context, gridPosition: Vector) Vector {
+    const tileSize: @Vector(2, f32) = @floatFromInt(context.tilemapDocument.tilemap.tileSize);
+    const half = @Vector(2, f32){ 0.5, 0.5 };
+    return @intFromFloat(tileSize * @as(@Vector(2, f32), @floatFromInt(gridPosition)) + tileSize * half);
+}
+
 fn getEntityRect(context: *Context, entity: SceneEntity) rl.Rectangle {
     const entityPosition: @Vector(2, f32) = @floatFromInt(entity.position);
     const size = context.sceneDocument.getSizeFromEntityType(entity.type);
@@ -840,4 +858,21 @@ fn historyMenu(context: *Context) !void {
             inline else => |action| z.text(@TypeOf(action).label, .{}),
         }
     }
+}
+
+fn moveCameraToEntity(context: *Context, entity: SceneEntity) void {
+    context.camera.target.x = @floatFromInt(-entity.position[0]);
+    context.camera.target.y = @floatFromInt(-entity.position[1]);
+}
+
+fn moveCameraToGridPosition(context: *Context, gridPosition: Vector) void {
+    const centerOfTile = gridPositionToCenterOfTile(context, gridPosition);
+    context.camera.target.x = @floatFromInt(centerOfTile[0]);
+    context.camera.target.y = @floatFromInt(centerOfTile[1]);
+}
+
+fn resetCamera(context: *Context) void {
+    context.camera.target.x = 0;
+    context.camera.target.y = 0;
+    context.camera.zoom = 1;
 }
