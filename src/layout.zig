@@ -111,6 +111,7 @@ fn sceneDocumentMenu(context: *Context) !void {
         // Entity details menu
         switch (selectedEntity.type) {
             .exit => |*exit| {
+                scaleInput(&exit.scale.?);
                 if (z.button("Set Target", .{})) {
                     const maybeFileName = try nfd.openFileDialog(Context.sceneFileFilter, context.defaultPath);
 
@@ -136,6 +137,7 @@ fn sceneDocumentMenu(context: *Context) !void {
                 }
             },
             .entrance => |*entrance| {
+                scaleInput(&entrance.scale.?);
                 _ = z.inputText("Key", .{
                     .buf = entrance.keyImguiBuffer(),
                 });
@@ -222,6 +224,10 @@ fn sceneDocumentMenu(context: *Context) !void {
             .tilemap => {},
         }
     }
+}
+
+fn scaleInput(scale: *@Vector(2, f32)) void {
+    _ = z.inputFloat2("Scale", .{ .v = scale });
 }
 
 fn tilemapDocumentMenu(context: *Context) !void {
@@ -678,7 +684,13 @@ fn gridPositionToCenterOfTile(context: *Context, gridPosition: Vector) Vector {
 
 fn getEntityRect(context: *Context, entity: SceneEntity) rl.Rectangle {
     const entityPosition: @Vector(2, f32) = @floatFromInt(entity.position);
-    const size = context.sceneDocument.getSizeFromEntityType(entity.type);
+    const scaleVx, const scaleVy = switch (entity.type) {
+        inline .exit, .entrance => |e| e.scale.?,
+        else => .{ 1, 1 },
+    };
+    var size = context.sceneDocument.getSizeFromEntityType(entity.type);
+    size.x *= scaleVx;
+    size.y *= scaleVy;
     var rect = rl.Rectangle.init(entityPosition[0], entityPosition[1], size.x, size.y);
     rect.x -= rect.width / 2;
     rect.y -= rect.height / 2;

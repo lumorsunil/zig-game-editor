@@ -90,12 +90,11 @@ pub const SceneEntityType = union(enum) {
 };
 
 pub const SceneEntityExit = struct {
-    sceneFileName: ?[]const u8,
+    sceneFileName: ?[]const u8 = null,
+    scale: ?@Vector(2, f32) = .{ 1, 1 },
 
     pub fn init() SceneEntityExit {
-        return SceneEntityExit{
-            .sceneFileName = null,
-        };
+        return SceneEntityExit{};
     }
 
     pub fn deinit(self: SceneEntityExit, allocator: Allocator) void {
@@ -107,6 +106,7 @@ pub const SceneEntityExit = struct {
     pub fn clone(self: SceneEntityExit, allocator: Allocator) SceneEntityExit {
         return SceneEntityExit{
             .sceneFileName = if (self.sceneFileName) |scf| allocator.dupe(u8, scf) catch unreachable else null,
+            .scale = self.scale,
         };
     }
 
@@ -127,6 +127,7 @@ pub const SceneEntityExit = struct {
 
 pub const SceneEntityEntrance = struct {
     key: [:0]u8,
+    scale: ?@Vector(2, f32) = .{ 1, 1 },
 
     pub const KEY_MAX_LENGTH = 37;
 
@@ -146,6 +147,7 @@ pub const SceneEntityEntrance = struct {
     pub fn clone(self: SceneEntityEntrance, allocator: Allocator) SceneEntityEntrance {
         return SceneEntityEntrance{
             .key = allocator.dupeZ(u8, self.key) catch unreachable,
+            .scale = self.scale,
         };
     }
 
@@ -333,10 +335,11 @@ pub const SceneDocument = struct {
                 const position = entity.position - tilemapSizeHalf;
                 drawTilemap(context, position, true);
             },
-            .exit => {
+            inline .exit, .entrance => |e| {
                 const sizeInt = context.tilemapDocument.tilemap.tileSize * context.scaleV;
-                const size: @Vector(2, f32) = @floatFromInt(sizeInt);
-                const position: @Vector(2, f32) = @floatFromInt(entity.position * context.scaleV - sizeInt / Vector{ 2, 2 });
+                const scaledSizeInt = sizeInt * @as(Vector, @intFromFloat(e.scale.?));
+                const size: @Vector(2, f32) = @floatFromInt(scaledSizeInt);
+                const position: @Vector(2, f32) = @floatFromInt(entity.position * context.scaleV - scaledSizeInt / Vector{ 2, 2 });
 
                 const rec = rl.Rectangle.init(
                     position[0],
@@ -345,21 +348,9 @@ pub const SceneDocument = struct {
                     size[1],
                 );
 
-                rl.drawRectanglePro(rec, rl.Vector2.zero(), 0, rl.Color.white.alpha(0.5));
-            },
-            .entrance => {
-                const sizeInt = context.tilemapDocument.tilemap.tileSize * context.scaleV;
-                const size: @Vector(2, f32) = @floatFromInt(sizeInt);
-                const position: @Vector(2, f32) = @floatFromInt(entity.position * context.scaleV - sizeInt / Vector{ 2, 2 });
+                const color = if (entity.type == .exit) rl.Color.white.alpha(0.5) else rl.Color.yellow.alpha(0.5);
 
-                const rec = rl.Rectangle.init(
-                    position[0],
-                    position[1],
-                    size[0],
-                    size[1],
-                );
-
-                rl.drawRectanglePro(rec, rl.Vector2.zero(), 0, rl.Color.yellow.alpha(0.5));
+                rl.drawRectanglePro(rec, rl.Vector2.zero(), 0, color);
             },
         }
     }
