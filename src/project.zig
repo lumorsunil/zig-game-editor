@@ -1,36 +1,18 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayListUnmanaged;
-const Serializer = @import("serializer.zig").Serializer;
 
 const AssetsLibrary = @import("assets-library.zig").AssetsLibrary;
 
 pub const Project = struct {
     assetsLibrary: AssetsLibrary,
 
-    // openedDocuments: ArrayList(Document),
-
-    pub fn init(allocator: Allocator) Project {
+    pub fn init(allocator: Allocator, root: []const u8) Project {
         return Project{
-            .assetsLibrary = AssetsLibrary.init(allocator),
+            .assetsLibrary = AssetsLibrary.init(allocator, root),
         };
     }
 
-    pub const Serialized = ProjectSerialized;
-};
-
-const ProjectSerialized = struct {
-    assetsLibrary: AssetsLibrary.Serialized,
-
-    pub fn init(value: Project) ProjectSerialized {
-        return ProjectSerialized{
-            .assetsLibrary = Serializer.serializeIntermediate(value.assetsLibrary),
-        };
-    }
-
-    pub fn deserialize(self: ProjectSerialized, allocator: Allocator) Project {
-        return Project{
-            .assetsLibrary = self.assetsLibrary.deserialize(allocator),
-        };
+    pub fn deinit(self: *Project, allocator: Allocator) void {
+        self.assetsLibrary.deinit(allocator);
     }
 };

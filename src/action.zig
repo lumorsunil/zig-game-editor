@@ -1,6 +1,8 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const Tilemap = @import("tilemap.zig").Tilemap;
+const lib = @import("root").lib;
+const Tilemap = lib.Tilemap;
+const TilemapDocument = lib.documents.TilemapDocument;
 
 pub const Action = union(enum) {
     brushPaint: BrushPaint,
@@ -18,6 +20,19 @@ pub const Action = union(enum) {
     pub fn deinit(self: *Action, allocator: Allocator) void {
         switch (self.*) {
             inline else => |*action| action.deinit(allocator),
+        }
+    }
+
+    pub fn clone(self: Action, allocator: Allocator) Action {
+        const i = @intFromEnum(self);
+
+        switch (i) {
+            inline 0...std.meta.fields(Action).len - 1 => |x| {
+                const field = std.meta.fields(Action)[x];
+                const action = @field(self, field.name);
+                return @unionInit(Action, field.name, action.clone(allocator));
+            },
+            else => unreachable,
         }
     }
 
@@ -49,24 +64,29 @@ pub const Action = union(enum) {
                 };
             }
 
-            pub fn materialize(self: *Self, allocator: Allocator, snapshotAfter: Tilemap) void {
-                self.snapshotAfter = snapshotAfter.clone(allocator);
-            }
-
             pub fn deinit(self: *Self, allocator: Allocator) void {
                 self.snapshotAfter.deinit(allocator);
                 self.snapshotBefore.deinit(allocator);
             }
 
+            pub fn clone(self: Self, allocator: Allocator) Self {
+                return Self{
+                    .snapshotBefore = self.snapshotBefore.clone(allocator),
+                    .snapshotAfter = self.snapshotAfter.clone(allocator),
+                };
+            }
+
+            pub fn materialize(self: *Self, allocator: Allocator, snapshotAfter: Tilemap) void {
+                self.snapshotAfter = snapshotAfter.clone(allocator);
+            }
+
             pub fn undo(self: Self, allocator: Allocator, tilemap: *Tilemap) void {
                 tilemap.deinit(allocator);
-                allocator.destroy(tilemap);
                 tilemap.* = self.snapshotBefore.clone(allocator);
             }
 
             pub fn redo(self: Self, allocator: Allocator, tilemap: *Tilemap) void {
                 tilemap.deinit(allocator);
-                allocator.destroy(tilemap);
                 tilemap.* = self.snapshotAfter.clone(allocator);
             }
         };

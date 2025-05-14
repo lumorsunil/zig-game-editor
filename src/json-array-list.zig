@@ -18,8 +18,6 @@ pub fn JsonArrayList(comptime T: type) type {
 
             jal.arrayList.appendNTimes(allocator, data, length) catch unreachable;
 
-            std.log.debug("initWith length: {d}, jal len: {d}", .{ length, jal.slice().len });
-
             return jal;
         }
 

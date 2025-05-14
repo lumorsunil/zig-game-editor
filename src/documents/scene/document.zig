@@ -3,278 +3,42 @@ const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayListUnmanaged;
 const rl = @import("raylib");
 const lib = @import("root").lib;
-const config = @import("root").config;
 const Context = lib.Context;
 const Vector = lib.Vector;
-const UUID = lib.UUIDSerializable;
-const uuid = @import("uuid");
 const drawTilemap = lib.drawTilemap;
+const Scene = @import("persistent-data.zig").Scene;
+const NonPersistentData = @import("non-persistent-data.zig").SceneNonPersistentData;
+const DocumentGeneric = lib.documents.DocumentGeneric;
+const SceneEntity = @import("persistent-data.zig").SceneEntity;
+const SceneEntityType = @import("persistent-data.zig").SceneEntityType;
 
-pub const SceneEntity = struct {
-    id: UUID,
-    position: Vector,
-    type: SceneEntityType,
-    metadata: [:0]u8,
-
-    pub const MAX_METADATA_LENGTH = 1024;
-
-    pub fn init(
-        allocator: Allocator,
-        position: Vector,
-        entityType: SceneEntityType,
-    ) SceneEntity {
-        const metadata = allocator.allocSentinel(u8, MAX_METADATA_LENGTH, 0) catch unreachable;
-        metadata[0] = 0;
-
-        return SceneEntity{
-            .id = UUID.init(),
-            .position = position,
-            .type = entityType,
-            .metadata = metadata[0..0 :0],
-        };
-    }
-
-    pub fn deinit(self: *SceneEntity, allocator: Allocator) void {
-        allocator.free(self.metadataBuffer());
-        self.type.deinit(allocator);
-    }
-
-    pub fn clone(self: SceneEntity, allocator: Allocator) SceneEntity {
-        const metadata = allocator.allocSentinel(u8, MAX_METADATA_LENGTH, 0) catch unreachable;
-        std.mem.copyForwards(u8, metadata, self.metadata);
-        metadata[self.metadata.len] = 0;
-
-        return SceneEntity{
-            .id = self.id,
-            .position = self.position,
-            .metadata = std.mem.span(metadata.ptr),
-            .type = self.type.clone(allocator),
-        };
-    }
-
-    pub fn metadataBuffer(self: *SceneEntity) [:0]u8 {
-        return @ptrCast(self.metadata.ptr[0..MAX_METADATA_LENGTH]);
-    }
-
-    pub fn imguiCommit(self: *SceneEntity) void {
-        self.metadata = std.mem.span(self.metadata.ptr);
-    }
-};
-
-pub const SceneEntityType = union(enum) {
-    klet,
-    mossing,
-    stening,
-    barlingSpawner,
-    player,
-    npc,
-    exit: SceneEntityExit,
-    entrance: SceneEntityEntrance,
-    tilemap: SceneEntityTilemap,
-
-    pub fn deinit(self: SceneEntityType, allocator: Allocator) void {
-        switch (self) {
-            .klet, .mossing, .stening, .barlingSpawner, .player, .npc => {},
-            inline else => |e| e.deinit(allocator),
-        }
-    }
-
-    pub fn clone(self: SceneEntityType, allocator: Allocator) SceneEntityType {
-        return switch (self) {
-            .klet, .mossing, .stening, .barlingSpawner, .player, .npc => self,
-            .exit => |exit| .{ .exit = exit.clone(allocator) },
-            .entrance => |entrance| .{ .entrance = entrance.clone(allocator) },
-            .tilemap => |tilemap| .{ .tilemap = tilemap.clone(allocator) },
-        };
-    }
-};
-
-pub const SceneEntityExit = struct {
-    sceneFileName: ?[]const u8 = null,
-    scale: ?@Vector(2, f32) = .{ 1, 1 },
-
-    pub fn init() SceneEntityExit {
-        return SceneEntityExit{};
-    }
-
-    pub fn deinit(self: SceneEntityExit, allocator: Allocator) void {
-        if (self.sceneFileName) |scf| {
-            allocator.free(scf);
-        }
-    }
-
-    pub fn clone(self: SceneEntityExit, allocator: Allocator) SceneEntityExit {
-        return SceneEntityExit{
-            .sceneFileName = if (self.sceneFileName) |scf| allocator.dupe(u8, scf) catch unreachable else null,
-            .scale = self.scale,
-        };
-    }
-
-    pub fn setSceneFileName(
-        self: *SceneEntityExit,
-        allocator: Allocator,
-        sceneFileName: []const u8,
-    ) void {
-        if (self.sceneFileName) |scf| {
-            if (sceneFileName.ptr != scf.ptr) {
-                allocator.free(scf);
-            }
-        }
-
-        self.sceneFileName = allocator.dupe(u8, sceneFileName) catch unreachable;
-    }
-};
-
-pub const SceneEntityEntrance = struct {
-    key: [:0]u8,
-    scale: ?@Vector(2, f32) = .{ 1, 1 },
-
-    pub const KEY_MAX_LENGTH = 37;
-
-    pub fn init(allocator: Allocator) SceneEntityEntrance {
-        const key = allocator.allocSentinel(u8, KEY_MAX_LENGTH, 0) catch unreachable;
-        _ = std.fmt.bufPrintZ(key, "{s}", .{uuid.urn.serialize(uuid.v4.new())}) catch unreachable;
-
-        return SceneEntityEntrance{
-            .key = key,
-        };
-    }
-
-    pub fn deinit(self: SceneEntityEntrance, allocator: Allocator) void {
-        allocator.free(self.key);
-    }
-
-    pub fn clone(self: SceneEntityEntrance, allocator: Allocator) SceneEntityEntrance {
-        return SceneEntityEntrance{
-            .key = allocator.dupeZ(u8, self.key) catch unreachable,
-            .scale = self.scale,
-        };
-    }
-
-    pub fn keyImguiBuffer(self: *SceneEntityEntrance) [:0]u8 {
-        return @ptrCast(self.key.ptr[0..KEY_MAX_LENGTH]);
-    }
-
-    pub fn imguiCommit(self: *SceneEntityEntrance) void {
-        self.key = std.mem.span(self.key.ptr);
-    }
-};
-
-pub const SceneEntityTilemap = struct {
-    fileName: ?[]const u8,
-
-    pub fn init() SceneEntityTilemap {
-        return SceneEntityTilemap{
-            .fileName = null,
-        };
-    }
-
-    pub fn deinit(self: SceneEntityTilemap, allocator: Allocator) void {
-        if (self.fileName) |fileName| {
-            allocator.free(fileName);
-        }
-    }
-
-    pub fn clone(self: SceneEntityTilemap, allocator: Allocator) SceneEntityTilemap {
-        return SceneEntityTilemap{
-            .fileName = if (self.fileName) |fileName| allocator.dupe(u8, fileName) catch unreachable else null,
-        };
-    }
-
-    pub fn setSceneFileName(
-        self: *SceneEntityTilemap,
-        allocator: Allocator,
-        fileName: []const u8,
-    ) void {
-        if (self.fileName) |f| {
-            allocator.free(f);
-        }
-
-        self.fileName = allocator.dupe(u8, fileName) catch unreachable;
-    }
-};
-
-pub const Scene = struct {
-    entities: ArrayList(*SceneEntity),
-
-    pub fn init(allocator: Allocator) Scene {
-        return Scene{
-            .entities = ArrayList(*SceneEntity).initCapacity(allocator, 10) catch unreachable,
-        };
-    }
-
-    pub fn deinit(self: *Scene, allocator: Allocator) void {
-        for (self.entities.items) |entity| {
-            entity.deinit(allocator);
-            allocator.destroy(entity);
-        }
-        self.entities.clearAndFree(allocator);
-    }
-
-    pub fn clone(self: Scene, allocator: Allocator) Scene {
-        var cloned = Scene.init(allocator);
-
-        for (self.entities.items) |entity| {
-            const clonedEntity = allocator.create(SceneEntity) catch unreachable;
-            clonedEntity.* = entity.clone(allocator);
-            cloned.entities.append(allocator, clonedEntity) catch unreachable;
-        }
-
-        return cloned;
-    }
-};
+const tileSize = Vector{ 16, 16 };
 
 pub const SceneDocument = struct {
-    scene: Scene,
-    sceneArena: ?std.heap.ArenaAllocator = null,
+    document: DocumentType,
 
-    kletTexture: rl.Texture2D = undefined,
-    mossingTexture: rl.Texture2D = undefined,
-    steningTexture: rl.Texture2D = undefined,
-    barlingTexture: rl.Texture2D = undefined,
-    playerTexture: rl.Texture2D = undefined,
-    npcTexture: rl.Texture2D = undefined,
+    pub const DocumentType = DocumentGeneric(Scene, NonPersistentData);
 
-    dragPayload: ?SceneEntityType = null,
-    selectedEntities: ArrayList(*SceneEntity),
-    dragStartPoint: ?Vector = null,
-    isDragging: bool = false,
+    pub const fileFilter = "scene.json";
 
     pub fn init(allocator: Allocator) SceneDocument {
         return SceneDocument{
-            .scene = Scene.init(allocator),
-            .selectedEntities = ArrayList(*SceneEntity).initCapacity(allocator, 10) catch unreachable,
+            .document = DocumentType.init(allocator),
         };
     }
 
     pub fn deinit(self: *SceneDocument, allocator: Allocator) void {
-        rl.unloadTexture(self.kletTexture);
-        rl.unloadTexture(self.mossingTexture);
-        rl.unloadTexture(self.steningTexture);
-        rl.unloadTexture(self.barlingTexture);
-        rl.unloadTexture(self.playerTexture);
-        rl.unloadTexture(self.npcTexture);
-        self.scene.deinit(allocator);
-        self.selectedEntities.clearAndFree(allocator);
-    }
-
-    pub fn load(self: *SceneDocument) void {
-        self.kletTexture = rl.loadTexture(config.assetsRootDir ++ "klet.png");
-        self.mossingTexture = rl.loadTexture(config.assetsRootDir ++ "mossing.png");
-        self.steningTexture = rl.loadTexture(config.assetsRootDir ++ "stening.png");
-        self.barlingTexture = rl.loadTexture(config.assetsRootDir ++ "barling.png");
-        self.playerTexture = rl.loadTexture(config.assetsRootDir ++ "pyssling.png");
-        self.npcTexture = rl.loadTexture(config.assetsRootDir ++ "kottekarl.png");
+        self.document.deinit(allocator);
     }
 
     pub fn getTextureFromEntityType(self: *SceneDocument, entityType: SceneEntityType) *rl.Texture2D {
         return switch (entityType) {
-            .klet => &self.kletTexture,
-            .mossing => &self.mossingTexture,
-            .stening => &self.steningTexture,
-            .barlingSpawner => &self.barlingTexture,
-            .player => &self.playerTexture,
-            .npc => &self.npcTexture,
+            .klet => &self.document.nonPersistentData.kletTexture,
+            .mossing => &self.document.nonPersistentData.mossingTexture,
+            .stening => &self.document.nonPersistentData.steningTexture,
+            .barlingSpawner => &self.document.nonPersistentData.barlingTexture,
+            .player => &self.document.nonPersistentData.playerTexture,
+            .npc => &self.document.nonPersistentData.npcTexture,
             .exit, .entrance, .tilemap => unreachable,
         };
     }
@@ -289,7 +53,7 @@ pub const SceneDocument = struct {
             .mossing => rl.Rectangle.init(0, 0, 32, 32),
             .stening => rl.Rectangle.init(0, 0, 32, 32),
             .barlingSpawner => rl.Rectangle.init(0, 0, 32, 32),
-            .player => rl.Rectangle.init(0, 0, 16, 32),
+            .player => rl.Rectangle.init(1 * 16, 6 * 32, 16, 32),
             .npc => rl.Rectangle.init(0, 0, 32, 32),
             .exit, .entrance, .tilemap => unreachable,
         };
@@ -330,13 +94,14 @@ pub const SceneDocument = struct {
 
                 rl.drawTexturePro(texture.*, source, dest, origin, 0, rl.Color.white);
             },
-            .tilemap => {
-                const tilemapSizeHalf = context.tilemapDocument.tilemap.grid.size * context.tilemapDocument.tilemap.tileSize * context.scaleV / Vector{ 2, 2 };
+            .tilemap => |tilemap| {
+                const tilemapDocument = &(context.requestDocument(tilemap.fileName.?) orelse return).content.?.tilemap;
+                const tilemapSizeHalf = tilemapDocument.getTilemap().grid.size * tileSize * context.scaleV / Vector{ 2, 2 };
                 const position = entity.position - tilemapSizeHalf;
-                drawTilemap(context, position, true);
+                drawTilemap(context, tilemapDocument, position, true);
             },
             inline .exit, .entrance => |e| {
-                const sizeInt = context.tilemapDocument.tilemap.tileSize * context.scaleV;
+                const sizeInt = tileSize * context.scaleV;
                 const scaledSizeInt = sizeInt * @as(Vector, @intFromFloat(e.scale.?));
                 const size: @Vector(2, f32) = @floatFromInt(scaledSizeInt);
                 const position: @Vector(2, f32) = @floatFromInt(entity.position * context.scaleV - scaledSizeInt / Vector{ 2, 2 });
@@ -355,20 +120,28 @@ pub const SceneDocument = struct {
         }
     }
 
+    pub fn getEntities(self: *SceneDocument) *ArrayList(*SceneEntity) {
+        return &self.document.persistentData.entities;
+    }
+
+    pub fn getSelectedEntities(self: SceneDocument) *ArrayList(*SceneEntity) {
+        return &self.document.nonPersistentData.selectedEntities;
+    }
+
     pub fn selectEntity(self: *SceneDocument, entity: *SceneEntity, allocator: Allocator) void {
-        self.selectedEntities.clearRetainingCapacity();
-        self.selectedEntities.append(allocator, entity) catch unreachable;
+        self.getSelectedEntities().clearRetainingCapacity();
+        self.getSelectedEntities().append(allocator, entity) catch unreachable;
     }
 
     pub fn deleteEntity(self: *SceneDocument, entity: *SceneEntity) void {
-        const entitiesIndex = std.mem.indexOfScalar(*SceneEntity, self.scene.entities.items, entity) orelse unreachable;
-        _ = self.scene.entities.swapRemove(entitiesIndex);
-        const selectedEntitiesIndex = std.mem.indexOfScalar(*SceneEntity, self.selectedEntities.items, entity) orelse unreachable;
-        _ = self.selectedEntities.swapRemove(selectedEntitiesIndex);
+        const entitiesIndex = std.mem.indexOfScalar(*SceneEntity, self.document.persistentData.entities.items, entity) orelse unreachable;
+        _ = self.document.persistentData.entities.swapRemove(entitiesIndex);
+        const selectedEntitiesIndex = std.mem.indexOfScalar(*SceneEntity, self.getSelectedEntities().items, entity) orelse unreachable;
+        _ = self.getSelectedEntities().swapRemove(selectedEntitiesIndex);
     }
 
     pub fn getTilemapFileName(self: *SceneDocument) ?[]const u8 {
-        for (self.scene.entities.items) |entity| {
+        for (self.document.persistentData.entities.items) |entity| {
             switch (entity.type) {
                 .tilemap => |tilemap| return tilemap.fileName,
                 else => continue,
@@ -378,23 +151,23 @@ pub const SceneDocument = struct {
         return null;
     }
 
-    pub fn serialize(self: *const SceneDocument, writer: anytype) !void {
-        try std.json.stringify(self.scene, .{}, writer);
+    pub fn getDragPayload(self: *SceneDocument) *?SceneEntityType {
+        return &self.document.nonPersistentData.dragPayload;
     }
 
-    pub fn deserialize(allocator: Allocator, reader: anytype) !*SceneDocument {
-        const parsed = try std.json.parseFromTokenSource(Scene, allocator, reader, .{});
-        const scene = parsed.value.clone(allocator);
-        parsed.deinit();
+    pub fn getIsDragging(self: *SceneDocument) bool {
+        return self.document.nonPersistentData.isDragging;
+    }
 
-        var sceneDocument = try allocator.create(SceneDocument);
-        sceneDocument.* = SceneDocument{
-            .scene = undefined,
-            .selectedEntities = ArrayList(*SceneEntity).initCapacity(allocator, 10) catch unreachable,
-        };
-        sceneDocument.scene = scene;
-        sceneDocument.load();
+    pub fn setIsDragging(self: *SceneDocument, isDragging: bool) void {
+        self.document.nonPersistentData.isDragging = isDragging;
+    }
 
-        return sceneDocument;
+    pub fn getDragStartPoint(self: *SceneDocument) ?Vector {
+        return self.document.nonPersistentData.dragStartPoint;
+    }
+
+    pub fn setDragStartPoint(self: *SceneDocument, dragStartPoint: ?Vector) void {
+        self.document.nonPersistentData.dragStartPoint = dragStartPoint;
     }
 };

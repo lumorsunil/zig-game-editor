@@ -1,14 +1,16 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const Vector = @import("../vector.zig").Vector;
-const Tilemap = @import("../tilemap.zig").Tilemap;
-const TilemapLayer = @import("../tilemap.zig").TilemapLayer;
-const TileSource = @import("../tilemap.zig").TileSource;
-const SelectBox = @import("../select-box.zig").SelectGrid;
 const rl = @import("raylib");
-const Context = @import("../context.zig").Context;
+const lib = @import("root").lib;
+const Context = lib.Context;
+const Vector = lib.Vector;
+const TilemapDocument = lib.documents.TilemapDocument;
+const Tilemap = lib.Tilemap;
+const TilemapLayer = lib.TilemapLayer;
+const TileSource = lib.TileSource;
+const drawLayer = lib.drawLayer;
+const SelectBox = @import("../select-box.zig").SelectGrid;
 const Rectangle = @import("../rectangle.zig").Rectangle;
-const drawLayer = @import("../draw-tilemap.zig").drawLayer;
 
 pub const SelectTool = struct {
     selectedTiles: SelectBox = SelectBox.init(),
@@ -42,16 +44,17 @@ pub const SelectTool = struct {
     pub fn draw(
         self: *SelectTool,
         context: *Context,
+        tilemapDocument: *TilemapDocument,
     ) void {
         if (self.getNewSelectionRectangle()) |rect| {
-            drawSelectionBox(context, rect);
+            drawSelectionBox(context, tilemapDocument, rect);
         }
 
-        const tileSize = context.tilemapDocument.tilemap.tileSize;
+        const tileSize = tilemapDocument.getTileSize();
         const scale = context.scaleV * tileSize;
 
         if (self.floatingLayer) |*layer| {
-            drawLayer(context, layer, tileSize, self.selectedTiles.offset * scale, true);
+            drawLayer(context, tilemapDocument, layer, tileSize, self.selectedTiles.offset * scale, true);
         }
 
         var it = self.selectedTiles.lineIterator();
@@ -66,8 +69,8 @@ pub const SelectTool = struct {
         }
     }
 
-    fn drawSelectionBox(context: *Context, rectangle: Rectangle) void {
-        const s = context.scaleV * context.tilemapDocument.tilemap.tileSize;
+    fn drawSelectionBox(context: *Context, document: *TilemapDocument, rectangle: Rectangle) void {
+        const s = context.scaleV * document.getTileSize();
         const position = rectangle.min * s;
         const size = rectangle.size() * s;
         const rect = rl.Rectangle.init(
@@ -126,7 +129,7 @@ pub const SelectTool = struct {
         }
     }
 
-    pub fn onUseEnd(self: *SelectTool, context: *Context) void {
+    pub fn onUseEnd(self: *SelectTool, context: *Context, tilemapDocument: *TilemapDocument) void {
         const rect = self.getNewSelectionRectangle() orelse Rectangle.init();
 
         switch (self.pendingSelection.?) {
@@ -144,7 +147,7 @@ pub const SelectTool = struct {
                 self.floatingSelectionDragPoint = null;
             },
             .mergeFloating => {
-                self.mergeFloatingLayer(context);
+                self.mergeFloatingLayer(context, tilemapDocument);
                 self.floatingLayer.?.deinit(context.allocator);
                 self.floatingLayer = null;
                 self.floatingSelectionDragPoint = null;
@@ -181,7 +184,7 @@ pub const SelectTool = struct {
                     const tile = sourceLayer.getTileByV(v);
                     const newTile = newLayer.getTileByV(rv);
                     TileSource.set(&newTile.source, context.allocator, &tile.source);
-                    if (clearSource) TileSource.clear(&tile.source, context.tilemapArena.allocator());
+                    if (clearSource) TileSource.clear(&tile.source, context.allocator);
                 }
             }
         }
@@ -202,8 +205,8 @@ pub const SelectTool = struct {
         }
     }
 
-    fn mergeFloatingLayer(self: *SelectTool, context: *Context) void {
-        const tilemap = &context.tilemapDocument.tilemap;
+    fn mergeFloatingLayer(self: *SelectTool, context: *Context, tilemapDocument: *TilemapDocument) void {
+        const tilemap = tilemapDocument.getTilemap();
 
         const size: @Vector(2, usize) = @intCast(self.selectedTiles.size);
         const sizeX, const sizeY = size;
@@ -221,15 +224,15 @@ pub const SelectTool = struct {
 
                 if (self.selectedTiles.isSelected(v) and sourceTile.source != null) {
                     const destTile = activeLayer.getTileByV(v);
-                    TileSource.set(&destTile.source, context.tilemapArena.allocator(), &sourceTile.source);
+                    TileSource.set(&destTile.source, context.allocator, &sourceTile.source);
                 }
             }
         }
     }
 
-    pub fn copy(self: *SelectTool, context: *Context) void {
+    pub fn copy(self: *SelectTool, context: *Context, tilemapDocument: *TilemapDocument) void {
         if (self.copiedLayer) |*layer| layer.deinit(context.allocator);
-        const tilemap = &context.tilemapDocument.tilemap;
+        const tilemap = tilemapDocument.getTilemap();
         self.copiedLayer = self.cloneSelectedTiles(context, tilemap.getActiveLayer(), false);
         self.copiedSelectedTiles.clear(context.allocator);
         self.copiedSelectedTiles = self.selectedTiles.clone(context.allocator);
@@ -243,15 +246,15 @@ pub const SelectTool = struct {
         self.selectedTiles = self.copiedSelectedTiles.clone(context.allocator);
     }
 
-    pub fn delete(self: *SelectTool, context: *Context) void {
+    pub fn delete(self: *SelectTool, context: *Context, tilemapDocument: *TilemapDocument) void {
         const selectedTiles = self.selectedTiles.getSelected(context.allocator);
         defer context.allocator.free(selectedTiles);
 
-        const sourceLayer = context.tilemapDocument.tilemap.getActiveLayer();
+        const sourceLayer = tilemapDocument.getTilemap().getActiveLayer();
 
         for (selectedTiles) |v| {
             const tile = sourceLayer.getTileByV(v);
-            TileSource.clear(&tile.source, context.tilemapArena.allocator());
+            TileSource.clear(&tile.source, context.allocator);
         }
     }
 };

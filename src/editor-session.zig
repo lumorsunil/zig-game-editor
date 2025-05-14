@@ -4,8 +4,8 @@ const Tool = @import("tool.zig").Tool;
 const EditorMode = @import("context.zig").Context.EditorMode;
 
 pub const EditorSession = struct {
-    currentTilemapFileName: ?[:0]const u8,
-    currentSceneFileName: ?[:0]const u8,
+    currentProject: ?[]const u8,
+    openedEditorFilePath: ?[:0]const u8,
     camera: rl.Camera2D,
     windowSize: Vector,
     windowPos: Vector,

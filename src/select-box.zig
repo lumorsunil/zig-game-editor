@@ -101,7 +101,6 @@ pub const SelectGrid = struct {
 
     pub fn deselectRegion(self: *SelectGrid, allocator: Allocator, min: Vector, max: Vector) void {
         self.setAll(allocator, min, max, 0);
-        std.log.debug("size: {d}", .{self.size});
     }
 
     pub fn setPoint(self: *SelectGrid, allocator: Allocator, absolute: Vector, value: u1) void {

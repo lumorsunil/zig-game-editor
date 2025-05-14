@@ -71,13 +71,14 @@ pub const TilemapLayer = struct {
             }
         }
         self.tiles.deinit(allocator);
-        allocator.free(self.name);
+        allocator.free(self.getNameBuffer());
     }
 
     pub fn clone(self: *const TilemapLayer, allocator: Allocator) TilemapLayer {
         var tilemapLayer = self.*;
 
-        tilemapLayer.name = allocator.dupeZ(u8, self.name) catch unreachable;
+        tilemapLayer.name = allocator.allocSentinel(u8, MAX_LAYER_NAME_SIZE, 0) catch unreachable;
+        tilemapLayer.setName(self.name);
         tilemapLayer.tiles = self.tiles.clone(allocator) catch unreachable;
 
         for (tilemapLayer.tiles.items) |*tile| {
@@ -136,6 +137,7 @@ pub const Tilemap = struct {
             layer.deinit(allocator);
             allocator.destroy(layer);
         }
+        self.layers.clearAndFree(allocator);
     }
 
     pub fn clone(self: *const Tilemap, allocator: Allocator) Tilemap {
@@ -253,6 +255,9 @@ pub const Tilemap = struct {
         const tilemap = self.layers.swapRemove(i);
         tilemap.deinit(allocator);
         allocator.destroy(tilemap);
+        if (self.getLayerIndexById(self.activeLayer) == null) {
+            self.activeLayer = self.layers.items[0].id;
+        }
     }
 
     pub fn isOutOfBounds(self: *const Tilemap, gridPosition: Vector) bool {
@@ -276,6 +281,13 @@ pub const Tile = struct {
 pub const TileSource = struct {
     tileset: []const u8,
     gridPosition: Vector,
+
+    pub fn init(allocator: Allocator, tileset: []const u8, gridPosition: Vector) TileSource {
+        return TileSource{
+            .tileset = allocator.dupe(u8, tileset) catch unreachable,
+            .gridPosition = gridPosition,
+        };
+    }
 
     pub fn deinit(self: TileSource, allocator: Allocator) void {
         allocator.free(self.tileset);

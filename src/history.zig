@@ -22,6 +22,17 @@ pub const History = struct {
         self.actions.deinit(allocator);
     }
 
+    pub fn clone(self: History, allocator: Allocator) History {
+        var cloned = self;
+
+        cloned.actions = std.ArrayListUnmanaged(Action).initCapacity(allocator, self.actions.items.len) catch unreachable;
+        for (self.actions.items) |action| {
+            cloned.actions.appendAssumeCapacity(action.clone(allocator));
+        }
+
+        return cloned;
+    }
+
     pub fn push(self: *History, allocator: Allocator, action: Action) void {
         if (self.canRedo()) {
             for (self.actions.items[self.nextActionIndex..]) |*nextAction| {

@@ -1,21 +1,28 @@
 const std = @import("std");
 const rl = @import("raylib");
-const Vector = @import("vector.zig").Vector;
-const VectorInt = @import("vector.zig").VectorInt;
-const Context = @import("context.zig").Context;
-const Tilemap = @import("tilemap.zig").Tilemap;
-const TilemapLayer = @import("tilemap.zig").TilemapLayer;
+const lib = @import("root").lib;
+const Context = lib.Context;
+const TilemapDocument = lib.documents.TilemapDocument;
+const Vector = lib.Vector;
+const VectorInt = lib.VectorInt;
+const Tilemap = lib.Tilemap;
+const TilemapLayer = lib.TilemapLayer;
 
-pub fn drawTilemap(context: *const Context, position: Vector, overrideFocus: bool) void {
-    const tilemap = context.tilemapDocument.tilemap;
-
+pub fn drawTilemap(
+    context: *const Context,
+    tilemapDocument: *TilemapDocument,
+    position: Vector,
+    overrideFocus: bool,
+) void {
+    const tilemap = tilemapDocument.getTilemap();
     for (tilemap.layers.items) |layer| {
-        drawLayer(context, layer, tilemap.tileSize, position, overrideFocus);
+        drawLayer(context, tilemapDocument, layer, tilemap.tileSize, position, overrideFocus);
     }
 }
 
 pub fn drawLayer(
     context: *const Context,
+    tilemapDocument: *TilemapDocument,
     layer: *TilemapLayer,
     tileSize: Vector,
     offset: Vector,
@@ -45,7 +52,7 @@ pub fn drawLayer(
             const fDestHeight: f32 = @floatFromInt(destSize[1]);
             const dest = rl.Rectangle.init(fDestPositionX, fDestPositionY, fDestWidth, fDestHeight);
 
-            const color = if (!overrideFocus and context.focusOnActiveLayer and context.tilemapDocument.tilemap.activeLayer.uuid != layer.id.uuid) rl.Color.init(255, 255, 255, 50) else rl.Color.white;
+            const color = if (!overrideFocus and tilemapDocument.getFocusOnActiveLayer() and tilemapDocument.document.persistentData.tilemap.activeLayer.uuid != layer.id.uuid) rl.Color.init(255, 255, 255, 50) else rl.Color.white;
 
             rl.drawTexturePro(texture, source, dest, origin, 0, color);
         }

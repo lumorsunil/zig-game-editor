@@ -12,9 +12,18 @@ pub const tools = struct {
     pub usingnamespace @import("tools/select.zig");
 };
 pub const documents = struct {
+    pub usingnamespace @import("documents/generic.zig");
     pub usingnamespace @import("documents/scene/document.zig");
+    pub const scene = struct {
+        pub usingnamespace @import("documents/scene/persistent-data.zig");
+    };
     pub usingnamespace @import("documents/tilemap/document.zig");
+    pub usingnamespace @import("documents/animation/document.zig");
+    pub usingnamespace @import("documents/texture/document.zig");
 };
 pub usingnamespace @import("editor-session.zig");
 pub usingnamespace @import("serializer.zig");
 pub usingnamespace @import("draw-tilemap.zig");
+pub usingnamespace @import("string.zig");
+pub usingnamespace @import("editor.zig");
+pub usingnamespace @import("assets-library.zig");

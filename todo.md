@@ -57,8 +57,21 @@
 
 ## Assets manager
 
-- [ ] Able to "import" assets (basically create a link to a file that can be accessed)
-- [ ] Assets can be anything like tilesets, tilemaps, animations, spritesheets, images, sounds etc
+- [x] Assets manager menu
+  - [x] Create new asset
+    - [x] Tilemap
+    - [ ] Scene
+    - [ ] Animation
+  - [x] List assets as icons
+    - [x] Double-click to open editor for asset
+
+## Resource manager
+
+- [x] Container for documents
+- [ ] Way to define dependencies on other documents
+- [ ] Way to load dependencies
+  - [x] Way to load documents
+  - [ ] Way to lazy-load documents
 
 ## Tilemap editor
 

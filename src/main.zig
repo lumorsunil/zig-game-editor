@@ -18,11 +18,15 @@ pub fn main() !void {
     var context = Context.init(allocator);
     defer context.deinit();
 
+    // Hardcoded stuff
+
     // Load tileset
     const tilesetFileName = config.assetsRootDir ++ config.tilesetPath;
     const texture = rl.loadTexture(tilesetFileName);
     defer rl.unloadTexture(texture);
     try context.textures.put(config.tilesetName, texture);
+
+    // End of hardcoded stuff
 
     context.restoreSession() catch |err| {
         std.log.err("Could not restore session: {}", .{err});
