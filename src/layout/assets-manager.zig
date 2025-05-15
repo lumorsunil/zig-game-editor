@@ -33,6 +33,17 @@ pub fn assetsManager(context: *Context) void {
         z.openPopup("new-asset", .{});
     }
 
+    if (assetsLibrary.currentDirectory) |cd| {
+        if (!std.mem.eql(u8, cd, ".")) {
+            if (z.button("..", .{ .w = iconSize, .h = iconSize })) {
+                z.setCursorPos(.{ spacing, spacing });
+                const newDir = context.allocator.dupeZ(u8, std.fs.path.dirname(cd) orelse ".") catch unreachable;
+                defer context.allocator.free(newDir);
+                context.setCurrentDirectory(newDir);
+            }
+        }
+    }
+
     z.sameLine(.{});
 
     if (assetsLibrary.currentFilesAndDirectories) |cfad| {
@@ -76,8 +87,34 @@ fn newAssetUI(context: *Context) void {
     if (z.beginPopup("new-asset", .{})) {
         defer z.endPopup();
 
+        if (z.button("Directory", .{ .w = newAssetItemWidth, .h = 24 })) {
+            context.isNewDirectoryDialogOpen = true;
+        }
+        if (z.button("Scene", .{ .w = newAssetItemWidth, .h = 24 })) {
+            context.isNewSceneDialogOpen = true;
+        }
         if (z.button("Tilemap", .{ .w = newAssetItemWidth, .h = 24 })) {
             context.isNewTilemapDialogOpen = true;
+        }
+        if (z.button("Animation", .{ .w = newAssetItemWidth, .h = 24 })) {
+            context.isNewAnimationDialogOpen = true;
+        }
+    }
+
+    if (context.isNewDirectoryDialogOpen) {
+        _ = z.begin("New Directory", .{});
+        defer z.end();
+
+        z.pushStrId("new-directory-input");
+        _ = z.inputText("", .{
+            .buf = &context.reusableTextBuffer,
+        });
+        z.popId();
+
+        if (z.button("Create", .{})) {
+            context.isNewDirectoryDialogOpen = false;
+            context.newDirectory(std.mem.sliceTo(&context.reusableTextBuffer, 0));
+            context.reusableTextBuffer[0] = 0;
         }
     }
 
@@ -93,7 +130,41 @@ fn newAssetUI(context: *Context) void {
 
         if (z.button("Create", .{})) {
             context.isNewTilemapDialogOpen = false;
-            context.newTilemap(std.mem.sliceTo(&context.reusableTextBuffer, 0));
+            context.newAsset(std.mem.sliceTo(&context.reusableTextBuffer, 0), .tilemap);
+            context.reusableTextBuffer[0] = 0;
+        }
+    }
+
+    if (context.isNewSceneDialogOpen) {
+        _ = z.begin("New Scene", .{});
+        defer z.end();
+
+        z.pushStrId("new-scene-input");
+        _ = z.inputText("", .{
+            .buf = &context.reusableTextBuffer,
+        });
+        z.popId();
+
+        if (z.button("Create", .{})) {
+            context.isNewSceneDialogOpen = false;
+            context.newAsset(std.mem.sliceTo(&context.reusableTextBuffer, 0), .scene);
+            context.reusableTextBuffer[0] = 0;
+        }
+    }
+
+    if (context.isNewAnimationDialogOpen) {
+        _ = z.begin("New Animation", .{});
+        defer z.end();
+
+        z.pushStrId("new-animation-input");
+        _ = z.inputText("", .{
+            .buf = &context.reusableTextBuffer,
+        });
+        z.popId();
+
+        if (z.button("Create", .{})) {
+            context.isNewAnimationDialogOpen = false;
+            context.newAsset(std.mem.sliceTo(&context.reusableTextBuffer, 0), .animation);
             context.reusableTextBuffer[0] = 0;
         }
     }

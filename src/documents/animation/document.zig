@@ -1,6 +1,9 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const ArrayList = std.ArrayListUnmanaged;
+const rl = @import("raylib");
 const lib = @import("root").lib;
+const Animation = @import("animation.zig").Animation;
 const DocumentGeneric = lib.documents.DocumentGeneric;
 const PersistentData = @import("persistent-data.zig").PersistentData;
 const NonPersistentData = @import("non-persistent-data.zig").NonPersistentData;
@@ -8,9 +11,7 @@ const NonPersistentData = @import("non-persistent-data.zig").NonPersistentData;
 pub const AnimationDocument = struct {
     document: DocumentType,
 
-    pub const DocumentType = DocumentGeneric(PersistentData, NonPersistentData);
-
-    pub const fileFilter = "animations.json";
+    pub const DocumentType = DocumentGeneric(PersistentData, NonPersistentData, .{});
 
     pub fn init(allocator: Allocator) AnimationDocument {
         return AnimationDocument{
@@ -20,5 +21,19 @@ pub const AnimationDocument = struct {
 
     pub fn deinit(self: *AnimationDocument, allocator: Allocator) void {
         self.document.deinit(allocator);
+    }
+
+    pub fn getAnimations(self: *AnimationDocument) *ArrayList(Animation) {
+        return &self.document.persistentData.animations;
+    }
+
+    pub fn getTextureFilePath(self: AnimationDocument) ?[:0]const u8 {
+        return self.document.persistentData.texturePath;
+    }
+
+    pub fn setTexture(self: *AnimationDocument, allocator: Allocator, path: [:0]const u8) void {
+        const data = self.document.persistentData;
+        if (data.texturePath) |tp| allocator.free(tp);
+        data.texturePath = allocator.dupeZ(u8, path) catch unreachable;
     }
 };

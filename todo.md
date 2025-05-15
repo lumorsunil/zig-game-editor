@@ -58,12 +58,16 @@
 ## Assets manager
 
 - [x] Assets manager menu
+  - [x] Create directory
   - [x] Create new asset
     - [x] Tilemap
-    - [ ] Scene
-    - [ ] Animation
+    - [x] Scene
+    - [x] Animation
   - [x] List assets as icons
     - [x] Double-click to open editor for asset
+  - [x] Go up a directory
+  - [ ] Move files
+  - [ ] Delete files
 
 ## Resource manager
 

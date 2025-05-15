@@ -4,6 +4,7 @@ const ArrayList = std.ArrayListUnmanaged;
 const Animation = @import("animation.zig").Animation;
 
 pub const PersistentData = struct {
+    texturePath: ?[:0]const u8 = null,
     animations: ArrayList(Animation),
 
     const initialAnimationsCapacity = 10;
@@ -19,6 +20,8 @@ pub const PersistentData = struct {
             animation.deinit(allocator);
         }
         self.animations.clearAndFree(allocator);
+        if (self.texturePath) |tp| allocator.free(tp);
+        self.texturePath = null;
     }
 
     pub fn clone(self: PersistentData, allocator: Allocator) PersistentData {
@@ -27,6 +30,7 @@ pub const PersistentData = struct {
         for (self.animations.items) |animation| {
             cloned.animations.append(allocator, animation.clone(allocator)) catch unreachable;
         }
+        if (self.texturePath) |tp| cloned.texturePath = allocator.dupeZ(u8, tp) catch unreachable;
 
         return cloned;
     }

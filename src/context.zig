@@ -11,6 +11,8 @@ const AssetsLibrary = lib.AssetsLibrary;
 const Document = lib.Document;
 const DocumentTag = lib.DocumentTag;
 const Node = lib.Node;
+const SceneEntity = lib.documents.scene.SceneEntity;
+const SceneEntityTilemap = lib.documents.scene.SceneEntityTilemap;
 const nfd = @import("nfd");
 
 pub const Context = struct {
@@ -42,7 +44,10 @@ pub const Context = struct {
     errorMessage: [1024:0]u8 = undefined,
     isErrorDialogOpen: bool = false,
 
+    isNewDirectoryDialogOpen: bool = false,
     isNewTilemapDialogOpen: bool = false,
+    isNewSceneDialogOpen: bool = false,
+    isNewAnimationDialogOpen: bool = false,
 
     pub const PlayState = enum {
         notRunning,
@@ -256,22 +261,57 @@ pub const Context = struct {
         return absoluteFilePath;
     }
 
-    pub fn newTilemap(self: *Context, name: []const u8) void {
-        var targetDir = self.currentProject.?.assetsLibrary.openRoot();
+    pub fn newDirectory(self: *Context, name: []const u8) void {
+        var rootDir = self.currentProject.?.assetsLibrary.openRoot();
+        defer rootDir.close();
+        var targetDir = rootDir.openDir(
+            self.currentProject.?.assetsLibrary.currentDirectory.?,
+            .{},
+        ) catch unreachable;
+        defer targetDir.close();
+
+        targetDir.makeDir(name) catch |err| {
+            self.showError("Could not create directory {s} in {s}: {}", .{ name, self.currentProject.?.assetsLibrary.currentDirectory.?, err });
+            return;
+        };
+    }
+
+    pub fn newAsset(self: *Context, name: []const u8, comptime documentType: DocumentTag) void {
+        const fileExtension = Document.getFileExtension(documentType);
+        const fileName = std.mem.concat(self.allocator, u8, &.{ name, fileExtension }) catch unreachable;
+        defer self.allocator.free(fileName);
+
+        var rootDir = self.currentProject.?.assetsLibrary.openRoot();
+        defer rootDir.close();
+        var targetDir = rootDir.openDir(
+            self.currentProject.?.assetsLibrary.currentDirectory.?,
+            .{},
+        ) catch unreachable;
         defer targetDir.close();
 
         // TODO: Catch file already exists
-
-        const fileExtension = Document.getFileExtension(.tilemap);
-        const fileName = std.mem.concat(self.allocator, u8, &.{ name, fileExtension }) catch unreachable;
-        defer self.allocator.free(fileName);
 
         const absoluteFilePathZ = toAbsolutePathZ(self.allocator, targetDir, fileName);
         defer self.allocator.free(absoluteFilePathZ);
         var document = Document.init(self.allocator, absoluteFilePathZ);
         errdefer document.deinit(self.allocator);
 
-        document.newContent(self.allocator, .tilemap);
+        document.newContent(self.allocator, documentType);
+        document.content.?.load(absoluteFilePathZ);
+
+        switch (document.content.?) {
+            .scene => |*scene| {
+                const entity = self.allocator.create(SceneEntity) catch unreachable;
+                entity.* = SceneEntity.init(
+                    self.allocator,
+                    .{ 0, 0 },
+                    .{ .tilemap = SceneEntityTilemap.init() },
+                );
+                scene.getEntities().append(self.allocator, entity) catch unreachable;
+            },
+            else => {},
+        }
+
         document.save() catch |err| {
             self.showError("Could not save document {s}: {}", .{ absoluteFilePathZ, err });
             return;
@@ -282,8 +322,6 @@ pub const Context = struct {
             return;
         };
 
-        var rootDir = self.currentProject.?.assetsLibrary.openRoot();
-        defer rootDir.close();
         const rootDirAbsolutePath = rootDir.realpathAlloc(self.allocator, ".") catch unreachable;
         defer self.allocator.free(rootDirAbsolutePath);
         const relativeToRoot = std.fs.path.relative(self.allocator, rootDirAbsolutePath, absoluteFilePathZ) catch unreachable;
@@ -314,23 +352,30 @@ pub const Context = struct {
         const entry = self.openedEditors.getOrPut(self.allocator, path) catch unreachable;
 
         if (!entry.found_existing) {
-            const existingDocument = self.documents.get(path);
-
-            entry.key_ptr.* = self.allocator.dupe(u8, path) catch unreachable;
-
-            if (existingDocument) |document| {
-                entry.value_ptr.* = Editor.init(document);
+            if (self.requestDocument(path)) |document| {
+                entry.value_ptr.* = Editor.init(document.*);
+                entry.key_ptr.* = self.allocator.dupe(u8, path) catch unreachable;
                 return;
             }
 
-            entry.value_ptr.* = Editor.openFileEx(self.allocator, path) catch |err| {
-                self.showError("Could not open editor with file {s}: {}", .{ path, err });
-                _ = self.openedEditors.swapRemove(path);
-                return;
-            };
-
-            const document = entry.value_ptr.document;
-            self.documents.put(self.allocator, self.allocator.dupe(u8, path) catch unreachable, document) catch unreachable;
+            // const existingDocument = self.documents.get(path);
+            //
+            // entry.key_ptr.* = self.allocator.dupe(u8, path) catch unreachable;
+            //
+            // if (existingDocument) |document| {
+            //     entry.value_ptr.* = Editor.init(document);
+            //     _ = self.requestDocument(document.filePath);
+            //     return;
+            // }
+            //
+            // entry.value_ptr.* = Editor.openFileEx(self.allocator, path) catch |err| {
+            //     self.showError("Could not open editor with file {s}: {}", .{ path, err });
+            //     _ = self.openedEditors.swapRemove(path);
+            //     return;
+            // };
+            //
+            // const document = entry.value_ptr.document;
+            // self.documents.put(self.allocator, self.allocator.dupe(u8, path) catch unreachable, document) catch unreachable;
         }
 
         self.currentEditor = entry.index;
@@ -356,18 +401,32 @@ pub const Context = struct {
         const absolutePath = toAbsolutePathZ(self.allocator, targetDir, path);
         defer self.allocator.free(absolutePath);
         const entry = self.documents.getOrPut(self.allocator, absolutePath) catch unreachable;
+        const documentType = Document.getTagByFilePath(path);
 
         if (!entry.found_existing) {
-            const documentType = Document.getTagByFilePath(path);
             entry.key_ptr.* = self.allocator.dupe(u8, absolutePath) catch unreachable;
             entry.value_ptr.* = Document.open(self.allocator, absolutePath, documentType) catch |err| {
                 self.showError("Could not open document {s}: {}", .{ path, err });
                 _ = self.documents.swapRemove(absolutePath);
                 return null;
             };
+        } else if (entry.value_ptr.content == null) {
+            std.log.debug("Loading content for document {s}", .{path});
+            entry.value_ptr.loadContent(self.allocator, documentType) catch |err| {
+                self.showError("Could not load document {s}: {}", .{ path, err });
+                return null;
+            };
         }
 
         return entry.value_ptr;
+    }
+
+    pub fn requestTexture(self: *Context, path: [:0]const u8) ?rl.Texture2D {
+        if (self.requestDocument(path)) |textureDocument| {
+            return textureDocument.content.?.texture.getTexture();
+        }
+
+        return null;
     }
 
     pub fn openFileWithDialog(self: *Context, documentType: DocumentTag) ?Document {

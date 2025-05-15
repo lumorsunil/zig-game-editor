@@ -35,7 +35,7 @@ pub fn layout(context: *Context) !void {
     rl.beginMode2D(context.camera);
 
     if (context.getCurrentEditor()) |editor| {
-        drawEditor(context, editor);
+        editorDraw(context, editor);
     }
 
     rl.endMode2D();
@@ -53,8 +53,9 @@ pub fn layout(context: *Context) !void {
     }
 
     if (context.isErrorDialogOpen) {
-        _ = z.begin("Error Message", .{});
+        _ = z.begin("Error Message", .{ .flags = .{ .no_collapse = true } });
         z.textColored(.{ 1, 0, 0, 1 }, "{s}", .{context.errorMessage});
+        if (z.button("Dismiss", .{})) context.isErrorDialogOpen = false;
         z.end();
     }
 
@@ -90,11 +91,11 @@ fn noProjectOpenedMenu(context: *Context) void {
     }
 }
 
-fn drawEditor(context: *Context, editor: *Editor) void {
+fn editorDraw(context: *Context, editor: *Editor) void {
     switch (editor.document.content.?) {
         .scene => |*scene| drawSceneDocument(context, scene),
         .tilemap => |*tilemap| drawTilemapDocument(context, tilemap),
-        // .animation => |animation| drawAnimationDocument(context, animation),
+        .animation => |*animation| drawAnimationDocument(context, animation),
         else => {},
     }
 }
@@ -103,6 +104,7 @@ fn editorMenu(context: *Context, editor: *Editor) void {
     switch (editor.document.content.?) {
         .scene => |*scene| sceneDocumentMenu(context, editor, scene),
         .tilemap => |*tilemap| tilemapDocumentMenu(context, editor, tilemap),
+        .animation => |*animation| animationDocumentMenu(context, editor, animation),
         else => {},
     }
 }
@@ -138,9 +140,9 @@ fn sceneDocumentMenu(context: *Context, editor: *Editor, sceneDocument: *SceneDo
     }
     if (z.button("Set Tilemap", .{})) {
         if (context.openFileWithDialog(.tilemap)) |document| {
+            std.log.debug("opened tilemap {s}", .{document.filePath});
             for (sceneDocument.getEntities().items) |entity| {
                 if (entity.type == .tilemap) {
-                    // TODO: Check if there's an issue with this path being relative to root
                     entity.type.tilemap.setFileName(context.allocator, document.filePath);
                 }
             }
@@ -299,6 +301,28 @@ fn tilemapDocumentMenu(
     }
 }
 
+fn animationDocumentMenu(
+    context: *Context,
+    _: *Editor,
+    animationDocument: *AnimationDocument,
+) void {
+    z.setNextWindowPos(.{ .x = 0, .y = 0 });
+    z.setNextWindowSize(.{ .w = 200, .h = 800 });
+    _ = z.begin("Menu", .{ .flags = .{
+        .no_title_bar = true,
+        .no_resize = true,
+        .no_move = true,
+        .no_collapse = true,
+    } });
+    defer z.end();
+
+    if (z.button("Set Texture", .{})) {
+        if (context.openFileWithDialog(.texture)) |textureDocument| {
+            animationDocument.setTexture(context.allocator, textureDocument.filePath);
+        }
+    }
+}
+
 fn drawTilemapDocument(context: *Context, document: *TilemapDocument) void {
     const tilemap = document.getTilemap();
     const size = tilemap.grid.size * tilemap.tileSize * context.scaleV;
@@ -320,7 +344,14 @@ fn drawTilemapDocument(context: *Context, document: *TilemapDocument) void {
     }
 }
 
-fn drawAnimationDocument(_: *Context, _: *AnimationDocument) void {}
+// In progress: Adding TextureDocument and a way to load it in instead of having textures loaded into other documents directly
+fn drawAnimationDocument(context: *Context, animationDocument: *AnimationDocument) void {
+    if (animationDocument.getTextureFilePath()) |textureFilePath| {
+        if (context.requestTexture(textureFilePath)) |texture| {
+            rl.drawTexture(texture, 0, 0, rl.Color.white);
+        }
+    }
+}
 
 fn drawSceneDocument(context: *Context, sceneDocument: *SceneDocument) void {
     for (sceneDocument.getEntities().items) |entity| {

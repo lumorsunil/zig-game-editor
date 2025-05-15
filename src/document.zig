@@ -5,6 +5,7 @@ const SceneDocument = lib.documents.SceneDocument;
 const TilemapDocument = lib.documents.TilemapDocument;
 const AnimationDocument = lib.documents.AnimationDocument;
 const TextureDocument = lib.documents.TextureDocument;
+const DocumentGenericConfig = lib.documents.DocumentGenericConfig;
 
 pub const Document = struct {
     // TODO: Remove nullable when we have assets manager
@@ -23,28 +24,44 @@ pub const Document = struct {
         self.content = null;
     }
 
+    /// filePath needs to be absolute
     pub fn open(
         allocator: Allocator,
         filePath: [:0]const u8,
         documentType: DocumentTag,
     ) !Document {
-        const file = std.fs.openFileAbsolute(filePath, .{}) catch |err| {
-            std.log.err("Could not open file {s}: {}", .{ filePath, err });
-            return err;
-        };
-        defer file.close();
-        const fileReader = file.reader();
-        var reader = std.json.reader(allocator, fileReader);
-        defer reader.deinit();
-        const content = DocumentContent.deserialize(allocator, filePath, &reader, documentType) catch |err| {
-            std.log.err("Error reading file: {s} {}", .{ filePath, err });
-            return err;
-        };
-
         var document = Document.init(allocator, filePath);
-        document.content = content;
+        try document.loadContent(allocator, documentType);
 
         return document;
+    }
+
+    /// filePath needs to be absolute
+    pub fn loadContent(
+        self: *Document,
+        allocator: Allocator,
+        documentType: DocumentTag,
+    ) !void {
+        switch (documentType) {
+            inline else => |tag| {
+                if (tag == documentType) {
+                    const DocumentContentPayload = std.meta.TagPayload(DocumentContent, tag);
+                    const config: DocumentGenericConfig = DocumentContentPayload.DocumentType._config;
+
+                    if (config.isDeserializable) {
+                        const content = DocumentContent.deserialize(allocator, self.filePath, documentType) catch |err| {
+                            std.log.err("Error reading file: {s} {}", .{ self.filePath, err });
+                            return err;
+                        };
+
+                        self.content = content;
+                    } else {
+                        self.content = DocumentContent.init(allocator, tag);
+                        self.content.?.load(self.filePath);
+                    }
+                }
+            },
+        }
     }
 
     pub const DocumentSaveError = error{NoContent};
@@ -96,7 +113,7 @@ pub const Document = struct {
     }
 
     pub fn getTagByFilePath(filePath: []const u8) DocumentTag {
-        inline for (std.meta.tags(DocumentTag)) |tag| {
+        for (std.meta.tags(DocumentTag)) |tag| {
             const extension = Document.getFileExtension(tag);
             if (std.mem.endsWith(u8, filePath, extension)) return tag;
         }
@@ -123,9 +140,9 @@ pub const DocumentContent = union(enum) {
         }
     }
 
-    pub fn load(self: *Document) void {
-        switch (self.content.?) {
-            inline else => |*d| d.load(),
+    pub fn load(self: *DocumentContent, path: [:0]const u8) void {
+        switch (self.*) {
+            inline else => |*d| d.document.load(path),
         }
     }
 
@@ -138,11 +155,10 @@ pub const DocumentContent = union(enum) {
     pub fn deserialize(
         allocator: Allocator,
         path: [:0]const u8,
-        reader: anytype,
         documentType: DocumentTag,
     ) !DocumentContent {
         return switch (documentType) {
-            inline else => |d| @unionInit(DocumentContent, @tagName(d), .{ .document = try DocumentPayload(d).DocumentType.deserialize(allocator, path, reader) }),
+            inline else => |d| @unionInit(DocumentContent, @tagName(d), .{ .document = try DocumentPayload(d).DocumentType.deserialize(allocator, path) }),
         };
     }
 

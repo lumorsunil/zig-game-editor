@@ -1,5 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const rl = @import("raylib");
 const PersistentData = @import("persistent-data.zig").PersistentData;
 
 pub const NonPersistentData = struct {
@@ -10,7 +11,7 @@ pub const NonPersistentData = struct {
         return NonPersistentData{};
     }
 
-    pub fn deinit(_: NonPersistentData, _: Allocator) void {}
+    pub fn deinit(_: *NonPersistentData, _: Allocator) void {}
 
     pub fn load(_: *NonPersistentData, _: [:0]const u8, _: *PersistentData) void {}
 };

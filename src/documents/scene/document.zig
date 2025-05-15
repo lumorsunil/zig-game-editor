@@ -17,9 +17,7 @@ const tileSize = Vector{ 16, 16 };
 pub const SceneDocument = struct {
     document: DocumentType,
 
-    pub const DocumentType = DocumentGeneric(Scene, NonPersistentData);
-
-    pub const fileFilter = "scene.json";
+    pub const DocumentType = DocumentGeneric(Scene, NonPersistentData, .{});
 
     pub fn init(allocator: Allocator) SceneDocument {
         return SceneDocument{
@@ -95,7 +93,8 @@ pub const SceneDocument = struct {
                 rl.drawTexturePro(texture.*, source, dest, origin, 0, rl.Color.white);
             },
             .tilemap => |tilemap| {
-                const tilemapDocument = &(context.requestDocument(tilemap.fileName.?) orelse return).content.?.tilemap;
+                const tilemapFileName = tilemap.fileName orelse return;
+                const tilemapDocument = &(context.requestDocument(tilemapFileName) orelse return).content.?.tilemap;
                 const tilemapSizeHalf = tilemapDocument.getTilemap().grid.size * tileSize * context.scaleV / Vector{ 2, 2 };
                 const position = entity.position - tilemapSizeHalf;
                 drawTilemap(context, tilemapDocument, position, true);

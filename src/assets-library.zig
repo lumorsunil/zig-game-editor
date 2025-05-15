@@ -40,6 +40,7 @@ pub const Node = union(enum) {
 pub const AssetsLibrary = struct {
     root: []const u8,
     currentFilesAndDirectories: ?[]Node = null,
+    currentDirectory: ?[]const u8 = null,
 
     pub fn init(allocator: Allocator, root: []const u8) AssetsLibrary {
         return AssetsLibrary{
@@ -51,6 +52,7 @@ pub const AssetsLibrary = struct {
         allocator.free(self.root);
         self.deinitCurrentFilesAndDirectories(allocator);
         self.currentFilesAndDirectories = null;
+        self.currentDirectory = null;
     }
 
     fn deinitCurrentFilesAndDirectories(self: AssetsLibrary, allocator: Allocator) void {
@@ -58,6 +60,7 @@ pub const AssetsLibrary = struct {
             for (c) |n| n.deinit(allocator);
             allocator.free(c);
         }
+        if (self.currentDirectory) |cd| allocator.free(cd);
     }
 
     pub const SetCurrentDirectoryError = error{InvalidDirectory};
@@ -68,8 +71,10 @@ pub const AssetsLibrary = struct {
         path: []const u8,
     ) !void {
         if (!self.isValidDirectory(allocator, path)) return SetCurrentDirectoryError.InvalidDirectory;
+        const dupedPath = allocator.dupe(u8, path) catch unreachable;
         self.deinitCurrentFilesAndDirectories(allocator);
-        self.currentFilesAndDirectories = self.readDirectory(allocator, path);
+        self.currentFilesAndDirectories = self.readDirectory(allocator, dupedPath);
+        self.currentDirectory = dupedPath;
     }
 
     pub fn appendNewFile(self: *AssetsLibrary, allocator: Allocator, path: []const u8) void {
@@ -119,6 +124,7 @@ pub const AssetsLibrary = struct {
 
     /// Assumes that path is a valid directory
     fn readDirectory(self: AssetsLibrary, allocator: Allocator, path: []const u8) []Node {
+        std.log.debug("Reading directory {s}", .{path});
         var rootDir = self.openRoot();
         defer rootDir.close();
         var targetDir = rootDir.openDir(
@@ -135,11 +141,18 @@ pub const AssetsLibrary = struct {
             defer allocator.free(absolutePath);
             std.debug.panic("Could not iterate path {s}: {}", .{ absolutePath, err });
         }) |entry| {
+            const entryPath = std.fs.path.join(allocator, &.{ path, entry.name }) catch unreachable;
+            defer allocator.free(entryPath);
+
             const node: Node = switch (entry.kind) {
-                .file => createNodeFromFilePath(allocator, entry.name),
-                .directory => createNodeFromDirectoryPath(allocator, entry.name),
+                .file => createNodeFromFilePath(allocator, entryPath),
+                .directory => createNodeFromDirectoryPath(allocator, entryPath),
                 else => continue,
             };
+
+            switch (node) {
+                inline else => |n| std.log.debug("Added asset entry: {s}, {s}", .{ n.name, n.path }),
+            }
 
             list.append(allocator, node) catch unreachable;
         }
@@ -160,7 +173,7 @@ pub const AssetsLibrary = struct {
 
     pub fn createNodeFromDirectoryPath(allocator: Allocator, path: []const u8) Node {
         const pathZ = allocator.dupeZ(u8, path) catch unreachable;
-        const nameZ = allocator.dupeZ(u8, std.mem.sliceTo(std.fs.path.basename(path), '.')) catch unreachable;
+        const nameZ = allocator.dupeZ(u8, std.fs.path.basename(path)) catch unreachable;
 
         return .{ .directory = .{
             .path = pathZ,

@@ -15,9 +15,7 @@ const NonPersistentData = @import("non-persistent-data.zig").NonPersistentData;
 pub const TilemapDocument = struct {
     document: DocumentType,
 
-    pub const DocumentType = DocumentGeneric(TilemapData, NonPersistentData);
-
-    pub const fileFilter = "tilemap.json";
+    pub const DocumentType = DocumentGeneric(TilemapData, NonPersistentData, .{});
 
     pub fn init(allocator: Allocator) TilemapDocument {
         return TilemapDocument{
