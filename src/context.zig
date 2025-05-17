@@ -47,7 +47,7 @@ pub const Context = struct {
     isNewDirectoryDialogOpen: bool = false,
     isNewTilemapDialogOpen: bool = false,
     isNewSceneDialogOpen: bool = false,
-    isNewAnimationDialogOpen: bool = false,
+    isNewAnimationDocumentDialogOpen: bool = false,
 
     pub const PlayState = enum {
         notRunning,

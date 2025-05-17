@@ -42,10 +42,8 @@ pub const SceneDocument = struct {
     }
 
     pub fn getSourceRectFromEntityType(
-        self: *SceneDocument,
         entityType: SceneEntityType,
     ) rl.Rectangle {
-        _ = self; // autofix
         return switch (entityType) {
             .klet => rl.Rectangle.init(0, 0, 32, 32),
             .mossing => rl.Rectangle.init(0, 0, 32, 32),
@@ -58,10 +56,8 @@ pub const SceneDocument = struct {
     }
 
     pub fn getSizeFromEntityType(
-        self: *SceneDocument,
         entityType: SceneEntityType,
     ) rl.Vector2 {
-        _ = self; // autofix
         return switch (entityType) {
             .klet => rl.Vector2.init(32, 32),
             .mossing => rl.Vector2.init(32, 32),
@@ -79,7 +75,7 @@ pub const SceneDocument = struct {
         const scale: f32 = @floatFromInt(context.scale);
         switch (entity.type) {
             .klet, .mossing, .stening, .barlingSpawner, .player, .npc => {
-                const source = self.getSourceRectFromEntityType(entity.type);
+                const source = getSourceRectFromEntityType(entity.type);
                 const texture = self.getTextureFromEntityType(entity.type);
                 const position: @Vector(2, f32) = @floatFromInt(entity.position);
                 const dest = rl.Rectangle.init(

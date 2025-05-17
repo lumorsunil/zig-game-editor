@@ -26,8 +26,12 @@ pub fn StringZ(comptime capacity: usize) type {
             return std.fmt.bufPrintZ(buffer, "{s}", .{value}) catch unreachable;
         }
 
-        pub fn set(self: *Self, newSlice: []const u8) void {
-            self.slice = std.fmt.bufPrintZ(self.slice.ptr, "{s}", .{newSlice});
+        pub fn set(self: *Self, newSlice: [:0]const u8) void {
+            self.slice = std.fmt.bufPrintZ(
+                self.getBuffer(),
+                "{s}",
+                .{newSlice},
+            ) catch unreachable;
         }
 
         pub fn jsonStringify(self: *const Self, jw: anytype) !void {

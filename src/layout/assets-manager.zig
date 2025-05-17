@@ -97,7 +97,7 @@ fn newAssetUI(context: *Context) void {
             context.isNewTilemapDialogOpen = true;
         }
         if (z.button("Animation", .{ .w = newAssetItemWidth, .h = 24 })) {
-            context.isNewAnimationDialogOpen = true;
+            context.isNewAnimationDocumentDialogOpen = true;
         }
     }
 
@@ -152,7 +152,7 @@ fn newAssetUI(context: *Context) void {
         }
     }
 
-    if (context.isNewAnimationDialogOpen) {
+    if (context.isNewAnimationDocumentDialogOpen) {
         _ = z.begin("New Animation", .{});
         defer z.end();
 
@@ -163,7 +163,7 @@ fn newAssetUI(context: *Context) void {
         z.popId();
 
         if (z.button("Create", .{})) {
-            context.isNewAnimationDialogOpen = false;
+            context.isNewAnimationDocumentDialogOpen = false;
             context.newAsset(std.mem.sliceTo(&context.reusableTextBuffer, 0), .animation);
             context.reusableTextBuffer[0] = 0;
         }
