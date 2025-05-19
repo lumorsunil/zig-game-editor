@@ -4,31 +4,27 @@ const Allocator = std.mem.Allocator;
 pub fn StringZ(comptime capacity: usize) type {
     return struct {
         slice: [:0]u8,
+        buffer: [:0]u8,
 
         const Self = @This();
 
         pub fn init(allocator: Allocator, initialSlice: []const u8) Self {
+            const buffer = allocator.allocSentinel(u8, capacity, 0) catch unreachable;
+            const slice = std.fmt.bufPrintZ(buffer, "{s}", .{initialSlice}) catch unreachable;
+
             return Self{
-                .slice = initSlice(allocator, initialSlice),
+                .slice = slice,
+                .buffer = buffer,
             };
         }
 
         pub fn deinit(self: Self, allocator: Allocator) void {
-            allocator.free(self.getBuffer());
-        }
-
-        pub fn getBuffer(self: Self) [:0]u8 {
-            return @ptrCast(self.slice.ptr[0..capacity]);
-        }
-
-        pub fn initSlice(allocator: Allocator, value: []const u8) [:0]u8 {
-            const buffer = allocator.allocSentinel(u8, capacity, 0) catch unreachable;
-            return std.fmt.bufPrintZ(buffer, "{s}", .{value}) catch unreachable;
+            allocator.free(self.buffer);
         }
 
         pub fn set(self: *Self, newSlice: [:0]const u8) void {
             self.slice = std.fmt.bufPrintZ(
-                self.getBuffer(),
+                self.buffer,
                 "{s}",
                 .{newSlice},
             ) catch unreachable;

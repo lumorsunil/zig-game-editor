@@ -25,7 +25,7 @@ pub const TextureDocument = struct {
         self.document.deinit(allocator);
     }
 
-    pub fn getTexture(self: TextureDocument) ?rl.Texture2D {
-        return self.document.nonPersistentData.texture;
+    pub fn getTexture(self: TextureDocument) ?*rl.Texture2D {
+        return if (self.document.nonPersistentData.texture) |*texture| texture else null;
     }
 };

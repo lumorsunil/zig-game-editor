@@ -247,7 +247,7 @@ fn layerNameInputCallback(data: *z.InputTextCallbackData) i32 {
 }
 
 fn handleBrush(context: *Context, tilemapDocument: *TilemapDocument, brush: *BrushTool) void {
-    highlightHoveredCell(context, tilemapDocument);
+    utils.highlightHoveredCell(context, tilemapDocument.getTileSize(), tilemapDocument.getGridSize());
 
     if (rl.isMouseButtonDown(.mouse_button_left)) {
         tilemapDocument.startGenericAction(Action.BrushPaint, context.allocator);
@@ -276,7 +276,7 @@ fn handleBrush(context: *Context, tilemapDocument: *TilemapDocument, brush: *Bru
 }
 
 fn handleSelect(context: *Context, tilemapDocument: *TilemapDocument, select: *SelectTool) void {
-    highlightHoveredCell(context, tilemapDocument);
+    utils.highlightHoveredCell(context, tilemapDocument.getTileSize(), tilemapDocument.getGridSize());
 
     if (rl.isMouseButtonDown(.mouse_button_left)) {
         const gridPosition = utils.getMouseGridPositionSafe(context, tilemapDocument);
@@ -307,20 +307,6 @@ fn handleSelect(context: *Context, tilemapDocument: *TilemapDocument, select: *S
     } else if (rl.isKeyPressed(.key_delete)) {
         select.delete(context, tilemapDocument);
     }
-}
-
-fn highlightHoveredCell(context: *Context, tilemapDocument: *TilemapDocument) void {
-    const gridPosition = utils.getMouseGridPositionSafe(context, tilemapDocument);
-
-    if (gridPosition == null) return;
-
-    const tileSizeScaled = tilemapDocument.getTileSize() * context.scaleV;
-    const x, const y = gridPosition.? * tileSizeScaled;
-    const w, const h = tileSizeScaled;
-
-    rl.beginMode2D(context.camera);
-    rl.drawRectangleLines(x, y, w, h, rl.Color.yellow);
-    rl.endMode2D();
 }
 
 fn selectTileSourceMenu(

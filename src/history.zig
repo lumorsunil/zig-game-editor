@@ -3,6 +3,8 @@ const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayListUnmanaged;
 const Action = @import("action.zig").Action;
 const Tilemap = @import("tilemap.zig").Tilemap;
+const lib = @import("root").lib;
+const json = lib.json;
 
 pub const History = struct {
     actions: ArrayList(Action),
@@ -31,6 +33,18 @@ pub const History = struct {
         }
 
         return cloned;
+    }
+
+    pub fn jsonStringify(self: *const @This(), jw: anytype) !void {
+        try json.writeObject(self.*, jw);
+    }
+
+    pub fn jsonParse(
+        allocator: Allocator,
+        source: anytype,
+        options: std.json.ParseOptions,
+    ) !@This() {
+        return try json.parseObject(@This(), allocator, source, options);
     }
 
     pub fn push(self: *History, allocator: Allocator, action: Action) void {

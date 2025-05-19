@@ -129,6 +129,10 @@ pub const TilemapDocument = struct {
         return self.document.persistentData.tilemap.tileSize;
     }
 
+    pub fn getGridSize(self: TilemapDocument) Vector {
+        return self.document.persistentData.tilemap.grid.size;
+    }
+
     pub fn isOutOfBounds(self: TilemapDocument, gridPosition: Vector) bool {
         return self.document.persistentData.tilemap.isOutOfBounds(gridPosition);
     }

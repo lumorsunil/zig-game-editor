@@ -5,6 +5,8 @@ const rl = @import("raylib");
 const Vector = @import("vector.zig").Vector;
 const VectorInt = @import("vector.zig").VectorInt;
 const UUID = @import("uuid.zig").UUIDSerializable;
+const lib = @import("root").lib;
+const json = lib.json;
 
 pub const Grid = struct {
     size: Vector,
@@ -88,6 +90,18 @@ pub const TilemapLayer = struct {
         return tilemapLayer;
     }
 
+    pub fn jsonStringify(self: *const @This(), jw: anytype) !void {
+        try json.writeObject(self.*, jw);
+    }
+
+    pub fn jsonParse(
+        allocator: Allocator,
+        source: anytype,
+        options: std.json.ParseOptions,
+    ) !@This() {
+        return try json.parseObject(@This(), allocator, source, options);
+    }
+
     pub fn getTileByIndex(self: *TilemapLayer, i: usize) *Tile {
         return &self.tiles.items[i];
     }
@@ -152,6 +166,18 @@ pub const Tilemap = struct {
         }
 
         return tilemap;
+    }
+
+    pub fn jsonStringify(self: *const @This(), jw: anytype) !void {
+        try json.writeObject(self.*, jw);
+    }
+
+    pub fn jsonParse(
+        allocator: Allocator,
+        source: anytype,
+        options: std.json.ParseOptions,
+    ) !@This() {
+        return try json.parseObject(@This(), allocator, source, options);
     }
 
     pub fn resize(self: *Tilemap, allocator: Allocator, newSize: Vector) void {

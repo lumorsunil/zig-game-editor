@@ -5,6 +5,7 @@ const uuid = @import("uuid");
 const lib = @import("root").lib;
 const UUID = lib.UUIDSerializable;
 const Vector = lib.Vector;
+const json = lib.json;
 
 pub const SceneEntity = struct {
     id: UUID,
@@ -217,5 +218,17 @@ pub const Scene = struct {
         }
 
         return cloned;
+    }
+
+    pub fn jsonStringify(self: *const @This(), jw: anytype) !void {
+        try json.writeObject(self.*, jw);
+    }
+
+    pub fn jsonParse(
+        allocator: Allocator,
+        source: anytype,
+        options: std.json.ParseOptions,
+    ) !@This() {
+        return try json.parseObject(@This(), allocator, source, options);
     }
 };

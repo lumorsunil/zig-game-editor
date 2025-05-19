@@ -1,11 +1,15 @@
 const std = @import("std");
 const rl = @import("raylib");
 const z = @import("zgui");
+const c = @import("c");
 const lib = @import("root").lib;
 const Context = lib.Context;
 const Editor = lib.Editor;
 const AnimationDocument = lib.documents.AnimationDocument;
+const Animation = lib.documents.animation.Animation;
+const Frame = lib.documents.animation.Frame;
 const LayoutGeneric = lib.LayoutGeneric;
+const Vector = lib.Vector;
 const utils = @import("utils.zig");
 
 pub const LayoutAnimation = LayoutGeneric(.animation, draw, menu, handleInput);
@@ -13,7 +17,7 @@ pub const LayoutAnimation = LayoutGeneric(.animation, draw, menu, handleInput);
 fn draw(context: *Context, animationDocument: *AnimationDocument) void {
     if (animationDocument.getTextureFilePath()) |textureFilePath| {
         if (context.requestTexture(textureFilePath)) |texture| {
-            rl.drawTexture(texture, 0, 0, rl.Color.white);
+            rl.drawTextureEx(texture.*, .{ .x = 0, .y = 0 }, 0, @floatFromInt(context.scale), rl.Color.white);
         }
     }
 }
@@ -24,7 +28,7 @@ fn menu(
     animationDocument: *AnimationDocument,
 ) void {
     z.setNextWindowPos(.{ .x = 0, .y = 0 });
-    z.setNextWindowSize(.{ .w = 200, .h = 800 });
+    z.setNextWindowSize(.{ .w = 300, .h = 800 });
     _ = z.begin("Menu", .{ .flags = .{
         .no_title_bar = true,
         .no_resize = true,
@@ -40,6 +44,12 @@ fn menu(
     if (z.button("Set Texture", .{})) {
         if (context.openFileWithDialog(.texture)) |textureDocument| {
             animationDocument.setTexture(context.allocator, textureDocument.filePath);
+        }
+    }
+
+    if (z.button("Reload Texture", .{})) {
+        if (animationDocument.getTextureFilePath()) |textureFilePath| {
+            context.reloadDocument(textureFilePath);
         }
     }
 
@@ -75,12 +85,193 @@ fn menu(
         }
     }
     z.endListBox();
+
+    if (animationDocument.getSelectedAnimation()) |animation| {
+        animationDetailsMenu(context, animationDocument, animation);
+        frameWindow(context, animationDocument, animation);
+        animationDocument.updatePreview();
+        previewWindow(context, animationDocument, animation);
+
+        if (animationDocument.getSelectedFrame()) |frame| {
+            frameDetailsMenu(animationDocument, animation, frame);
+        }
+    }
+}
+
+fn animationDetailsMenu(
+    context: *Context,
+    animationDocument: *AnimationDocument,
+    animation: *Animation,
+) void {
+    z.separatorText("Animation");
+    if (z.button("Delete Animation", .{})) {
+        return animationDocument.deleteSelectedAnimation(context.allocator);
+    }
+    _ = z.inputText("Name", .{ .buf = animation.name.buffer });
+    _ = z.inputInt2("Grid size", .{ .v = &animation.gridSize });
+    if (z.inputFloat("Frame dur.", .{ .v = &animation.frameDuration })) {
+        animationDocument.resetAnimation();
+    }
+    z.text("Total dur.: {d:0.3}", .{animation.getTotalDuration()});
+}
+
+fn frameDetailsMenu(
+    animationDocument: *AnimationDocument,
+    animation: *Animation,
+    frame: *Frame,
+) void {
+    z.separatorText("Frame");
+    if (z.button("Delete Frame", .{})) return animationDocument.removeSelectedFrame();
+    _ = z.inputInt2("Origin", .{ .v = &frame.origin });
+    if (z.inputFloat("Dur. Scale", .{ .v = &frame.durationScale })) {
+        animationDocument.resetAnimation();
+    }
+    z.text("Frame start: {d:0.3}", .{animation.getFrameStart(frame)});
+}
+
+fn frameWindow(
+    context: *Context,
+    animationDocument: *AnimationDocument,
+    animation: *Animation,
+) void {
+    const screenWidth: f32 = @floatFromInt(rl.getScreenWidth());
+    z.setNextWindowSize(.{
+        .cond = .always,
+        .w = screenWidth - 300,
+        .h = @floatFromInt(context.scale * animation.gridSize[1] + 24 * 2 + 16),
+    });
+    _ = z.begin("Animation Frames", .{ .flags = .{
+        .always_horizontal_scrollbar = true,
+        .no_resize = true,
+    } });
+    var listBoxSize = z.getWindowContentRegionMax();
+    listBoxSize[0] = @floatFromInt(@as(i32, @intCast(animation.frames.items.len)) * (context.scale * animation.gridSize[0] + 8));
+    listBoxSize[1] -= 24 + 12;
+    z.pushStrId("Animation Frames Listbox");
+    if (z.beginListBox("", .{ .w = listBoxSize[0], .h = listBoxSize[1] })) {
+        for (animation.frames.items, 0..) |frame, i| {
+            var buffer: [4:0]u8 = undefined;
+            const label = std.fmt.bufPrintZ(&buffer, "{d}", .{i}) catch unreachable;
+            const isSelected = if (animationDocument.getSelectedFrameIndex()) |si| si == i else false;
+            const selectableCursorPos = z.getCursorPos();
+            const fGridSize: @Vector(2, f32) = @floatFromInt(animation.gridSize);
+            const fGridSizeScaled: @Vector(2, f32) = @floatFromInt(animation.gridSize * context.scaleV);
+            if (z.selectable(
+                label,
+                .{
+                    .selected = isSelected,
+                    .w = fGridSizeScaled[0],
+                    .h = fGridSizeScaled[1],
+                },
+            )) {
+                animationDocument.setSelectedFrameIndex(i);
+            }
+
+            if (animationDocument.getTextureFilePath()) |textureFilePath| {
+                if (context.requestTexture(textureFilePath)) |texture| {
+                    const gridPosition = frame.gridPos;
+                    const sourceRectMin = @as(@Vector(2, f32), @floatFromInt(gridPosition * animation.gridSize));
+                    const sourceRect = c.Rectangle{
+                        .x = sourceRectMin[0],
+                        .y = sourceRectMin[1],
+                        .width = fGridSize[0],
+                        .height = fGridSize[1],
+                    };
+                    z.setCursorPos(selectableCursorPos);
+                    c.rlImGuiImageRect(
+                        @ptrCast(texture),
+                        animation.gridSize[0] * context.scale,
+                        animation.gridSize[1] * context.scale,
+                        sourceRect,
+                    );
+                }
+            }
+
+            if (i < animation.frames.items.len - 1) z.sameLine(.{});
+        }
+        z.endListBox();
+    }
+    z.popId();
+    z.end();
+}
+
+fn previewWindow(
+    context: *Context,
+    animationDocument: *AnimationDocument,
+    animation: *Animation,
+) void {
+    const fGridSize: @Vector(2, f32) = @floatFromInt(animation.gridSize);
+    const fGridSizeScaled: @Vector(2, f32) = @floatFromInt(animation.gridSize * context.scaleV);
+    const padding = @Vector(2, f32){ 2, 2 } * @as(@Vector(2, f32), @floatFromInt(context.scaleV));
+    z.setNextWindowSize(.{
+        .cond = .always,
+        .w = fGridSizeScaled[0] + padding[0] * 2,
+        .h = fGridSizeScaled[1] + padding[1] * 2,
+    });
+    _ = z.begin("Preview", .{ .flags = .{ .no_title_bar = true, .no_scrollbar = true, .always_auto_resize = true } });
+    defer z.end();
+
+    const textureFilePath = animationDocument.getTextureFilePath() orelse return;
+    const texture = context.requestTexture(textureFilePath) orelse return;
+    const currentFrame = animationDocument.getPreviewFrame() orelse return;
+
+    const gridPosition = currentFrame.gridPos;
+    const sourceRectMin = @as(
+        @Vector(2, f32),
+        @floatFromInt(gridPosition * animation.gridSize),
+    );
+    const sourceRect = c.Rectangle{
+        .x = sourceRectMin[0],
+        .y = sourceRectMin[1],
+        .width = fGridSize[0],
+        .height = fGridSize[1],
+    };
+
+    z.setCursorPos(padding);
+    c.rlImGuiImageRect(
+        @ptrCast(texture),
+        animation.gridSize[0] * context.scale,
+        animation.gridSize[1] * context.scale,
+        sourceRect,
+    );
 }
 
 fn handleInput(
     context: *Context,
     _: *Editor,
-    _: *AnimationDocument,
+    animationDocument: *AnimationDocument,
 ) void {
     utils.cameraControls(context);
+
+    if (animationDocument.getSelectedAnimation()) |animation| {
+        handleAnimationInput(context, animationDocument, animation);
+    }
+}
+
+fn handleAnimationInput(
+    context: *Context,
+    animationDocument: *AnimationDocument,
+    animation: *Animation,
+) void {
+    const gridPosition = utils.getMouseGridPositionWithSize(context, animation.gridSize);
+    const textureFilePath = animationDocument.getTextureFilePath() orelse return;
+    const texture = context.requestTexture(textureFilePath) orelse return;
+
+    const textureSize: Vector = .{ texture.width, texture.height };
+    const textureGridSize: Vector = @divFloor(textureSize, animation.gridSize);
+
+    const isInBounds = @reduce(.And, gridPosition >= Vector{ 0, 0 }) and @reduce(.And, gridPosition < textureGridSize);
+
+    if (isInBounds) {
+        utils.highlightHoveredCell(context, animation.gridSize, textureGridSize);
+
+        if (z.isMouseClicked(.left)) {
+            if (animationDocument.getSelectedFrame()) |frame| {
+                frame.gridPos = gridPosition;
+            } else {
+                animation.addFrame(context.allocator, gridPosition);
+                animationDocument.resetAnimation();
+            }
+        }
+    }
 }

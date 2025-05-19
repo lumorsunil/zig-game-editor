@@ -51,7 +51,7 @@
   - [x] Tilemaps
   - [ ] Tilesheets
   - [ ] Spritesheets
-  - [ ] Animations
+  - [x] Animations
   - [x] Scenes
 - [x] Ability to switch between editors
 
@@ -114,8 +114,31 @@
 
 ## Animation editor
 
-- [ ] Redo functionality of animation studio in new environment
-- [ ] Incorporate spritesheets as a source of sprites
+- [x] Redo functionality of animation studio in new environment
+  - [x] Set texture
+  - [x] Add new animation button
+  - [x] List of selectable animations
+  - [x] Animation details
+    - [x] Animation name input
+    - [x] Grid size
+    - [x] Frame duration
+    - [x] Total animation duration
+    - [x] Delete animation button
+  - [x] Frames window
+    - [x] List of selectable frames
+    - [ ] Account for origin (postpone until we need it)
+    - [ ] Duration scale modifier label
+  - [x] Click on spritesheet to add/replace frame
+    - [x] Highlight hovered grid cell
+    - [ ] Highlight currently selected frame's source cell
+  - [x] Frame details
+    - [x] Origin input
+    - [x] Duration scale input
+    - [x] Starting time of frame
+    - [x] Delete frame button
+  - [x] Preview window
+  - [x] Reload texture button
+  - [x] Match serialized json data with old format
 
 ## Scene editor
 

@@ -36,8 +36,6 @@ pub const Context = struct {
     exitTexture: rl.Texture2D,
     entranceTexture: rl.Texture2D,
 
-    mode: EditorMode = .scene,
-
     playState: PlayState = .notRunning,
 
     reusableTextBuffer: [256:0]u8 = undefined,
@@ -70,7 +68,6 @@ pub const Context = struct {
         const exitImage = rl.genImageColor(1, 1, rl.Color.white);
         const entranceImage = rl.genImageColor(1, 1, rl.Color.yellow);
 
-        const mode: EditorMode = .tilemap;
         const rootDir = std.fs.cwd().realpathAlloc(allocator, ".") catch unreachable;
         defer allocator.free(rootDir);
 
@@ -88,7 +85,6 @@ pub const Context = struct {
             .exitTexture = rl.loadTextureFromImage(exitImage),
             .entranceTexture = rl.loadTextureFromImage(entranceImage),
             .currentProject = null,
-            .mode = mode,
         };
     }
 
@@ -127,7 +123,6 @@ pub const Context = struct {
                 const winPos = rl.getWindowPosition();
                 break :brk @intFromFloat(@Vector(2, f32){ winPos.x, winPos.y });
             },
-            .editorMode = self.mode,
         };
     }
 
@@ -169,20 +164,14 @@ pub const Context = struct {
             };
         }
 
-        // if (parsed.value.openedEditorFilePath) |oefp| {
-        //     const editor = Editor.openFileEx(self.allocator, oefp) catch |err| {
-        //         std.log.err("Could not open file {s}: {}", .{ oefp, err });
-        //         return err;
-        //     };
-        //     self.openedEditors.putAssumeCapacity(oefp, editor);
-        //     self.currentEditor = 0;
-        // }
+        if (parsed.value.openedEditorFilePath) |oefp| {
+            self.openEditor(oefp);
+        }
 
         rl.setWindowSize(parsed.value.windowSize[0], parsed.value.windowSize[1]);
         rl.setWindowPosition(parsed.value.windowPos[0], parsed.value.windowPos[1]);
 
         self.camera = parsed.value.camera;
-        self.mode = parsed.value.editorMode;
     }
 
     pub fn play(self: *Context) void {
@@ -355,27 +344,11 @@ pub const Context = struct {
             if (self.requestDocument(path)) |document| {
                 entry.value_ptr.* = Editor.init(document.*);
                 entry.key_ptr.* = self.allocator.dupe(u8, path) catch unreachable;
+            } else {
+                _ = self.openedEditors.swapRemove(path);
+                self.currentEditor = null;
                 return;
             }
-
-            // const existingDocument = self.documents.get(path);
-            //
-            // entry.key_ptr.* = self.allocator.dupe(u8, path) catch unreachable;
-            //
-            // if (existingDocument) |document| {
-            //     entry.value_ptr.* = Editor.init(document);
-            //     _ = self.requestDocument(document.filePath);
-            //     return;
-            // }
-            //
-            // entry.value_ptr.* = Editor.openFileEx(self.allocator, path) catch |err| {
-            //     self.showError("Could not open editor with file {s}: {}", .{ path, err });
-            //     _ = self.openedEditors.swapRemove(path);
-            //     return;
-            // };
-            //
-            // const document = entry.value_ptr.document;
-            // self.documents.put(self.allocator, self.allocator.dupe(u8, path) catch unreachable, document) catch unreachable;
         }
 
         self.currentEditor = entry.index;
@@ -404,12 +377,12 @@ pub const Context = struct {
         const documentType = Document.getTagByFilePath(path);
 
         if (!entry.found_existing) {
-            entry.key_ptr.* = self.allocator.dupe(u8, absolutePath) catch unreachable;
             entry.value_ptr.* = Document.open(self.allocator, absolutePath, documentType) catch |err| {
                 self.showError("Could not open document {s}: {}", .{ path, err });
                 _ = self.documents.swapRemove(absolutePath);
                 return null;
             };
+            entry.key_ptr.* = self.allocator.dupe(u8, absolutePath) catch unreachable;
         } else if (entry.value_ptr.content == null) {
             std.log.debug("Loading content for document {s}", .{path});
             entry.value_ptr.loadContent(self.allocator, documentType) catch |err| {
@@ -421,12 +394,23 @@ pub const Context = struct {
         return entry.value_ptr;
     }
 
-    pub fn requestTexture(self: *Context, path: [:0]const u8) ?rl.Texture2D {
+    pub fn requestTexture(self: *Context, path: [:0]const u8) ?*rl.Texture2D {
         if (self.requestDocument(path)) |textureDocument| {
             return textureDocument.content.?.texture.getTexture();
         }
 
         return null;
+    }
+
+    pub fn unloadDocument(self: *Context, path: [:0]const u8) void {
+        var entry = self.documents.fetchSwapRemove(path) orelse return;
+        entry.value.deinit(self.allocator);
+        self.allocator.free(entry.key);
+    }
+
+    pub fn reloadDocument(self: *Context, path: [:0]const u8) void {
+        self.unloadDocument(path);
+        _ = self.requestDocument(path);
     }
 
     pub fn openFileWithDialog(self: *Context, documentType: DocumentTag) ?Document {

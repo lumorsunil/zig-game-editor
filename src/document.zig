@@ -31,7 +31,10 @@ pub const Document = struct {
         documentType: DocumentTag,
     ) !Document {
         var document = Document.init(allocator, filePath);
-        try document.loadContent(allocator, documentType);
+        document.loadContent(allocator, documentType) catch |err| {
+            document.deinit(allocator);
+            return err;
+        };
 
         return document;
     }

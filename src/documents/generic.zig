@@ -1,5 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const lib = @import("root").lib;
+const json = lib.json;
 
 pub const DocumentGenericConfig = struct {
     isDeserializable: bool = true,
@@ -60,7 +62,10 @@ pub fn DocumentGeneric(
             var reader = std.json.reader(allocator, fileReader);
             defer reader.deinit();
 
-            const parsed = try std.json.parseFromTokenSource(PersistentData, allocator, &reader, .{});
+            const parsed = std.json.parseFromTokenSource(PersistentData, allocator, &reader, .{}) catch |err| {
+                std.log.err("Error parsing json at {d}: {}", .{ reader.scanner.cursor, err });
+                return err;
+            };
             const persistentData = allocator.create(PersistentData) catch unreachable;
             persistentData.* = parsed.value.clone(allocator);
             parsed.deinit();

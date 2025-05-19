@@ -43,17 +43,17 @@ pub fn layout(context: *Context) !void {
 
     c.rlImGuiBegin();
 
+    _ = z.begin("demo-button", .{});
+    if (z.button("Demo", .{})) {
+        context.isDemoWindowEnabled = true;
+    }
+    z.end();
+
     if (context.isDemoWindowEnabled) {
         z.showDemoWindow(&context.isDemoWindowOpen);
     }
 
     if (context.currentProject) |_| {
-        _ = z.begin("demo-button", .{});
-        if (z.button("Demo", .{})) {
-            context.isDemoWindowEnabled = true;
-        }
-        z.end();
-
         if (context.getCurrentEditor()) |editor| {
             editorMenu(context, editor);
         }

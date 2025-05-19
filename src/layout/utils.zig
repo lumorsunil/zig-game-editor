@@ -73,9 +73,13 @@ pub fn getMouseSceneGridPosition(context: *Context) Vector {
 }
 
 pub fn getMouseGridPosition(context: *Context) Vector {
+    return getMouseGridPositionWithSize(context, tileSize);
+}
+
+pub fn getMouseGridPositionWithSize(context: *Context, cellSize: Vector) Vector {
     const mp = getMousePosition(context);
     const ftr: @Vector(2, f32) = @floatFromInt(mp);
-    const fDivisor: @Vector(2, f32) = @floatFromInt(tileSize);
+    const fDivisor: @Vector(2, f32) = @floatFromInt(cellSize);
 
     const fp = ftr / fDivisor;
 
@@ -161,4 +165,22 @@ pub fn resetCamera(context: *Context) void {
 
 pub fn scaleInput(scale: *@Vector(2, f32)) void {
     _ = z.inputFloat2("Scale", .{ .v = scale });
+}
+
+pub fn isOutOfBounds(gridPosition: Vector, gridSize: Vector) bool {
+    return gridPosition[0] < 0 or gridPosition[1] < 0 or gridPosition[0] >= gridSize[0] or gridPosition[1] >= gridSize[1];
+}
+
+pub fn highlightHoveredCell(context: *Context, cellSize: Vector, gridSize: Vector) void {
+    const gridPosition = getMouseGridPositionWithSize(context, cellSize);
+
+    if (isOutOfBounds(gridPosition, gridSize)) return;
+
+    const cellSizeScaled = cellSize * context.scaleV;
+    const x, const y = gridPosition * cellSizeScaled;
+    const w, const h = cellSizeScaled;
+
+    rl.beginMode2D(context.camera);
+    rl.drawRectangleLines(x, y, w, h, rl.Color.white);
+    rl.endMode2D();
 }

@@ -19,6 +19,9 @@ pub const documents = struct {
     };
     pub usingnamespace @import("documents/tilemap/document.zig");
     pub usingnamespace @import("documents/animation/document.zig");
+    pub const animation = struct {
+        pub usingnamespace @import("documents/animation/animation.zig");
+    };
     pub usingnamespace @import("documents/texture/document.zig");
 };
 pub const layouts = struct {
@@ -33,3 +36,4 @@ pub usingnamespace @import("draw-tilemap.zig");
 pub usingnamespace @import("string.zig");
 pub usingnamespace @import("editor.zig");
 pub usingnamespace @import("assets-library.zig");
+pub const json = @import("json.zig");
