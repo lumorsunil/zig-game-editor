@@ -27,8 +27,10 @@ fn draw(context: *Context, sceneDocument: *SceneDocument) void {
     }
 
     if (sceneDocument.getDragPayload().*) |payload| {
-        const position = if (rl.isKeyDown(.key_left_shift)) utils.getMousePosition(context) else utils.gridPositionToEntityPosition(utils.getMouseSceneGridPosition(context), payload);
-        sceneDocument.drawEntity(context, SceneEntity.init(context.allocator, position, payload));
+        const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(context) else utils.gridPositionToEntityPosition(utils.getMouseSceneGridPosition(context), payload);
+        var entity: SceneEntity = .init(context.allocator, position, payload);
+        defer entity.deinit(context.allocator);
+        sceneDocument.drawEntity(context, entity);
     }
 }
 
@@ -203,7 +205,7 @@ fn handleInput(context: *Context, _: *Editor, sceneDocument: *SceneDocument) voi
     sceneDocumentHandleInputMoveEntity(context, sceneDocument);
     sceneDocumentHandleInputDeleteEntity(context, sceneDocument);
 
-    if (rl.isKeyPressed(.key_f5)) {
+    if (rl.isKeyPressed(.f5)) {
         context.play();
     }
 }
@@ -211,9 +213,9 @@ fn handleInput(context: *Context, _: *Editor, sceneDocument: *SceneDocument) voi
 fn sceneDocumentHandleInputCreateEntity(context: *Context, sceneDocument: *SceneDocument) void {
     const dragPayload = sceneDocument.getDragPayload();
     if (dragPayload.*) |payload| {
-        if (rl.isMouseButtonReleased(.mouse_button_left)) {
+        if (rl.isMouseButtonReleased(.left)) {
             const entity = context.allocator.create(SceneEntity) catch unreachable;
-            const position = if (rl.isKeyDown(.key_left_shift)) utils.getMousePosition(context) else utils.gridPositionToEntityPosition(utils.getMouseSceneGridPosition(context), payload);
+            const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(context) else utils.gridPositionToEntityPosition(utils.getMouseSceneGridPosition(context), payload);
             entity.* = SceneEntity.init(context.allocator, position, payload);
             sceneDocument.getEntities().append(context.allocator, entity) catch unreachable;
             dragPayload.* = null;
@@ -224,7 +226,7 @@ fn sceneDocumentHandleInputCreateEntity(context: *Context, sceneDocument: *Scene
 fn sceneDocumentHandleInputSelectEntity(context: *Context, sceneDocument: *SceneDocument) void {
     if (sceneDocument.getDragPayload().* != null) return;
 
-    if (rl.isMouseButtonPressed(.mouse_button_left)) {
+    if (rl.isMouseButtonPressed(.left)) {
         for (sceneDocument.getEntities().items) |entity| {
             if (entity.type == .tilemap) continue;
 
@@ -243,9 +245,9 @@ fn sceneDocumentHandleInputMoveEntity(context: *Context, sceneDocument: *SceneDo
 
     if (sceneDocument.getDragStartPoint()) |dragStartPoint| {
         if (sceneDocument.getIsDragging()) {
-            if (rl.isMouseButtonDown(.mouse_button_left)) {
+            if (rl.isMouseButtonDown(.left)) {
                 const entity = sceneDocument.getSelectedEntities().items[0];
-                const position = if (rl.isKeyDown(.key_left_shift)) utils.getMousePosition(context) else utils.gridPositionToEntityPosition(utils.getMouseSceneGridPosition(context), entity.type);
+                const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(context) else utils.gridPositionToEntityPosition(utils.getMouseSceneGridPosition(context), entity.type);
                 entity.position = position;
             } else {
                 sceneDocument.setIsDragging(false);
@@ -269,11 +271,11 @@ fn sceneDocumentHandleInputMoveEntity(context: *Context, sceneDocument: *SceneDo
     }
 }
 
-fn sceneDocumentHandleInputDeleteEntity(_: *Context, sceneDocument: *SceneDocument) void {
+fn sceneDocumentHandleInputDeleteEntity(context: *Context, sceneDocument: *SceneDocument) void {
     if (sceneDocument.getSelectedEntities().items.len == 0) return;
 
     const selectedEntity = sceneDocument.getSelectedEntities().items[0];
-    if (rl.isKeyPressed(.key_delete)) {
-        sceneDocument.deleteEntity(selectedEntity);
+    if (rl.isKeyPressed(.delete)) {
+        sceneDocument.deleteEntity(context.allocator, selectedEntity);
     }
 }

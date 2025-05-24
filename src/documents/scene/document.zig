@@ -128,9 +128,11 @@ pub const SceneDocument = struct {
         self.getSelectedEntities().append(allocator, entity) catch unreachable;
     }
 
-    pub fn deleteEntity(self: *SceneDocument, entity: *SceneEntity) void {
+    pub fn deleteEntity(self: *SceneDocument, allocator: Allocator, entity: *SceneEntity) void {
         const entitiesIndex = std.mem.indexOfScalar(*SceneEntity, self.document.persistentData.entities.items, entity) orelse unreachable;
         _ = self.document.persistentData.entities.swapRemove(entitiesIndex);
+        entity.deinit(allocator);
+        allocator.destroy(entity);
         const selectedEntitiesIndex = std.mem.indexOfScalar(*SceneEntity, self.getSelectedEntities().items, entity) orelse unreachable;
         _ = self.getSelectedEntities().swapRemove(selectedEntitiesIndex);
     }

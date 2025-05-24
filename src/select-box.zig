@@ -37,9 +37,10 @@ pub const SelectGrid = struct {
         };
     }
 
-    pub fn deinit(self: SelectGrid, allocator: Allocator) void {
+    pub fn deinit(self: *SelectGrid, allocator: Allocator) void {
         if (self.selected.len > 0) {
             allocator.free(self.selected);
+            self.selected = &.{};
         }
     }
 
@@ -114,7 +115,7 @@ pub const SelectGrid = struct {
         } else if (self.isPointInside(absolute)) {
             return self.setPointVolatile(absolute, value);
         } else {
-            const otherGrid = initPoint(allocator, absolute);
+            var otherGrid = initPoint(allocator, absolute);
             defer otherGrid.deinit(allocator);
             self.setOr(allocator, otherGrid);
         }

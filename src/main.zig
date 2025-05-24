@@ -3,6 +3,7 @@ const zxg = @import("zxg");
 const Context = @import("context.zig").Context;
 const layout = @import("layout.zig").layout;
 const rl = @import("raylib");
+const z = @import("zgui");
 
 pub const lib = @import("lib.zig");
 pub const config = @import("config.zig");
@@ -19,10 +20,12 @@ pub fn main() !void {
     defer context.deinit();
 
     // Hardcoded stuff
+    const style = z.getStyle();
+    style.setColorsDark();
 
     // Load tileset
     const tilesetFileName = config.assetsRootDir ++ config.tilesetPath;
-    const texture = rl.loadTexture(tilesetFileName);
+    const texture = try rl.loadTexture(tilesetFileName);
     defer rl.unloadTexture(texture);
     try context.textures.put(config.tilesetName, texture);
 

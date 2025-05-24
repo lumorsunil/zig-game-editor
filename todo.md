@@ -11,6 +11,7 @@
 - [ ] Quitting with changes dialog
 - [ ] Interruption handling
 - [ ] Able to visually see or draw the hitbox of entities somehow
+- [x] Update to 0.14.1
 
 ### Undo/redo
 

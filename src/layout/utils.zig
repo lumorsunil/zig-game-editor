@@ -134,13 +134,13 @@ pub fn activeDocumentLabel(context: *Context, editor: *Editor) void {
 }
 
 pub fn cameraControls(context: *Context) void {
-    if (rl.isMouseButtonDown(.mouse_button_middle)) {
+    if (rl.isMouseButtonDown(.middle)) {
         const delta = rl.getMouseDelta();
         context.camera.target.x -= delta.x / context.camera.zoom;
         context.camera.target.y -= delta.y / context.camera.zoom;
     }
 
-    if (rl.isKeyDown(.key_left_control)) {
+    if (rl.isKeyDown(.left_control)) {
         context.camera.zoom *= 1 + rl.getMouseWheelMove() * 0.1;
         context.camera.zoom = std.math.clamp(context.camera.zoom, 0.1, 10);
     }

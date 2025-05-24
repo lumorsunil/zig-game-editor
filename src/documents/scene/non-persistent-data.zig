@@ -39,11 +39,11 @@ pub const SceneNonPersistentData = struct {
     }
 
     pub fn load(self: *SceneNonPersistentData, _: [:0]const u8, _: *Scene) void {
-        self.kletTexture = rl.loadTexture(config.assetsRootDir ++ "klet.png");
-        self.mossingTexture = rl.loadTexture(config.assetsRootDir ++ "mossing.png");
-        self.steningTexture = rl.loadTexture(config.assetsRootDir ++ "stening.png");
-        self.barlingTexture = rl.loadTexture(config.assetsRootDir ++ "barling.png");
-        self.playerTexture = rl.loadTexture(config.assetsRootDir ++ "pyssling.png");
-        self.npcTexture = rl.loadTexture(config.assetsRootDir ++ "kottekarl.png");
+        self.kletTexture = rl.loadTexture(config.assetsRootDir ++ "klet.png") catch unreachable;
+        self.mossingTexture = rl.loadTexture(config.assetsRootDir ++ "mossing.png") catch unreachable;
+        self.steningTexture = rl.loadTexture(config.assetsRootDir ++ "stening.png") catch unreachable;
+        self.barlingTexture = rl.loadTexture(config.assetsRootDir ++ "barling.png") catch unreachable;
+        self.playerTexture = rl.loadTexture(config.assetsRootDir ++ "pyssling.png") catch unreachable;
+        self.npcTexture = rl.loadTexture(config.assetsRootDir ++ "kottekarl.png") catch unreachable;
     }
 };

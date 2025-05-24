@@ -1,3 +1,4 @@
+const std = @import("std");
 const z = @import("zgui");
 const c = @import("c");
 const rl = @import("raylib");
@@ -114,7 +115,8 @@ fn tilemapMenu(context: *Context, tilemapDocument: *TilemapDocument) void {
     if (z.inputInt2("Size", .{
         .v = inputTilemapSize,
         .flags = .{
-            .enter_returns_true = true,
+            // TODO: Fix this later
+            .enter_returns_true = false,
         },
     })) {
         tilemapDocument.startGenericAction(Action.ResizeTilemap, context.allocator);
@@ -249,7 +251,7 @@ fn layerNameInputCallback(data: *z.InputTextCallbackData) i32 {
 fn handleBrush(context: *Context, tilemapDocument: *TilemapDocument, brush: *BrushTool) void {
     utils.highlightHoveredCell(context, tilemapDocument.getTileSize(), tilemapDocument.getGridSize());
 
-    if (rl.isMouseButtonDown(.mouse_button_left)) {
+    if (rl.isMouseButtonDown(.left)) {
         tilemapDocument.startGenericAction(Action.BrushPaint, context.allocator);
 
         const gridPosition = utils.getMouseGridPositionSafe(context, tilemapDocument);
@@ -262,7 +264,7 @@ fn handleBrush(context: *Context, tilemapDocument: *TilemapDocument, brush: *Bru
         tilemapDocument.endGenericAction(Action.BrushPaint, context.allocator);
     }
 
-    if (rl.isMouseButtonDown(.mouse_button_right)) {
+    if (rl.isMouseButtonDown(.right)) {
         tilemapDocument.startGenericAction(Action.BrushDelete, context.allocator);
 
         const gridPosition = utils.getMouseGridPositionSafe(context, tilemapDocument);
@@ -278,7 +280,7 @@ fn handleBrush(context: *Context, tilemapDocument: *TilemapDocument, brush: *Bru
 fn handleSelect(context: *Context, tilemapDocument: *TilemapDocument, select: *SelectTool) void {
     utils.highlightHoveredCell(context, tilemapDocument.getTileSize(), tilemapDocument.getGridSize());
 
-    if (rl.isMouseButtonDown(.mouse_button_left)) {
+    if (rl.isMouseButtonDown(.left)) {
         const gridPosition = utils.getMouseGridPositionSafe(context, tilemapDocument);
         if (gridPosition == null) return;
         select.onUse(context, tilemapDocument.getTilemap(), gridPosition.?);
@@ -298,13 +300,13 @@ fn handleSelect(context: *Context, tilemapDocument: *TilemapDocument, select: *S
             .floatingMove => tilemapDocument.endGenericAction(Action.CreateFloatingSelection, context.allocator),
             .mergeFloating => tilemapDocument.endGenericAction(Action.MergeFloatingSelection, context.allocator),
         }
-    } else if (rl.isKeyDown(.key_left_control)) {
-        if (rl.isKeyPressed(.key_c)) {
+    } else if (rl.isKeyDown(.left_control)) {
+        if (rl.isKeyPressed(.c)) {
             select.copy(context, tilemapDocument);
-        } else if (rl.isKeyPressed(.key_v)) {
+        } else if (rl.isKeyPressed(.v)) {
             select.paste(context);
         }
-    } else if (rl.isKeyPressed(.key_delete)) {
+    } else if (rl.isKeyPressed(.delete)) {
         select.delete(context, tilemapDocument);
     }
 }
@@ -330,7 +332,7 @@ fn selectTileSourceMenu(
     //const fScaledWidth: f32 = @floatFromInt(scaledWidth);
     //const fScaledSize: @Vector(2, f32) = .{ fScaledWidth, fScaledWidth };
 
-    if (rl.isMouseButtonDown(.mouse_button_middle)) {
+    if (rl.isMouseButtonDown(.middle)) {
         const delta = rl.getMouseDelta();
         z.setScrollX(scrollPos[0] - delta.x);
         z.setScrollY(scrollPos[1] - delta.y);
@@ -341,12 +343,17 @@ fn selectTileSourceMenu(
             const gridPosition: Vector = @intCast(@Vector(2, usize){ x, y });
             const sourceRect = TileSource.getSourceRectEx(gridPosition, tilemapDocument.getTileSize());
 
+            var idBuffer: [16:0]u8 = undefined;
+            const id = std.fmt.bufPrintZ(&idBuffer, "{d:0.0},{d:0.0}", .{ x, y }) catch unreachable;
+
+            z.pushStrId(id);
             _ = z.selectable(" ", .{
                 .selected = brush.selectedSourceTiles.isSelected(gridPosition),
                 .w = @floatFromInt(scaledWidth),
                 .h = @floatFromInt(scaledWidth),
                 .flags = .{ .allow_overlap = true },
             });
+            z.popId();
             const zmin: @Vector(2, f32) = z.getWindowContentRegionMin();
             const min: @Vector(2, i32) = @intFromFloat(zmin);
             const scaledSize: Vector = @splat(scaledWidth + 8);
@@ -359,8 +366,8 @@ fn selectTileSourceMenu(
 
             const isMouseWithinCursor = @reduce(.And, mouseWindowPos >= fCursorPos) and @reduce(.And, mouseWindowPos <= fCursorEnd);
 
-            if (rl.isMouseButtonPressed(.mouse_button_left) and isMouseWithinCursor) {
-                if (rl.isKeyDown(.key_left_shift)) {
+            if (rl.isMouseButtonPressed(.left) and isMouseWithinCursor) {
+                if (rl.isKeyDown(.left_shift)) {
                     brush.selectedSourceTiles.togglePoint(context.allocator, gridPosition);
                 } else {
                     TileSource.set(&brush.source, context.allocator, &TileSource{
@@ -375,7 +382,7 @@ fn selectTileSourceMenu(
         z.newLine();
     }
 
-    if (rl.isKeyDown(.key_enter)) brush.isSelectingTileSource = false;
+    if (rl.isKeyDown(.enter)) brush.isSelectingTileSource = false;
 
     z.end();
 }
@@ -406,10 +413,10 @@ fn handleInput(context: *Context, editor: *Editor, tilemapDocument: *TilemapDocu
 }
 
 fn handleShortcuts(context: *Context, editor: *Editor) void {
-    if (rl.isKeyDown(.key_left_control)) {
-        if (rl.isKeyDown(.key_s)) return context.saveEditorFile(editor);
-        if (rl.isKeyPressed(.key_z)) {
-            if (rl.isKeyDown(.key_left_shift)) {
+    if (rl.isKeyDown(.left_control)) {
+        if (rl.isKeyDown(.s)) return context.saveEditorFile(editor);
+        if (rl.isKeyPressed(.z)) {
+            if (rl.isKeyDown(.left_shift)) {
                 if (editor.document.content.? == .tilemap) {
                     return editor.document.content.?.tilemap.redo(context.allocator);
                 }
@@ -419,16 +426,16 @@ fn handleShortcuts(context: *Context, editor: *Editor) void {
                 }
             }
         }
-        if (rl.isKeyPressed(.key_y)) {
+        if (rl.isKeyPressed(.y)) {
             if (editor.document.content.? == .tilemap) {
                 return editor.document.content.?.tilemap.redo(context.allocator);
             }
         }
-    } else if (rl.isKeyPressed(.key_n)) {
+    } else if (rl.isKeyPressed(.n)) {
         if (editor.document.content.? == .tilemap) {
             editor.document.content.?.tilemap.setToolByType(.brush);
         }
-    } else if (rl.isKeyPressed(.key_r)) {
+    } else if (rl.isKeyPressed(.r)) {
         if (editor.document.content.? == .tilemap) {
             editor.document.content.?.tilemap.setToolByType(.select);
         }

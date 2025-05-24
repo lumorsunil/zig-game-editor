@@ -37,7 +37,7 @@ pub const JsonArrayList = @import("json-array-list.zig").JsonArrayList;
 //                 ),
 //             );
 //         },
-//         inline .Array, .Pointer, .Optional, .Vector => |a| {
+//         inline .Array, .pointer, .Optional, .Vector => |a| {
 //             var wrapped = a;
 //             wrapped.child = SerializeWrapper(wrapped.child);
 //             return @Type(wrapped);
@@ -69,7 +69,7 @@ pub const JsonArrayList = @import("json-array-list.zig").JsonArrayList;
 //
 //             return @Type(@unionInit(std.builtin.Type, @tagName(tag), wrapped));
 //         },
-//         inline .Pointer => |a, tag| {
+//         inline .pointer => |a, tag| {
 //             var wrapped = a;
 //             wrapped.child = SerializeWrapper(wrapped.child);
 //             const WrappedTypeWithoutAlignment = @Type(@unionInit(std.builtin.Type, @tagName(tag), wrapped));
@@ -88,7 +88,7 @@ pub const JsonArrayList = @import("json-array-list.zig").JsonArrayList;
 pub fn SerializeObjectShallow(comptime T: type) type {
     const typeInfo = @typeInfo(T);
     switch (typeInfo) {
-        inline .Struct => |s, tag| {
+        inline .@"struct" => |s, tag| {
             var wrapped = s;
 
             wrapped.fields = &.{};
@@ -143,14 +143,14 @@ fn ElementOfArrayList(comptime T: type) ?type {
     const items = @typeInfo(std.meta.FieldType(T, .items));
 
     return switch (items) {
-        .Pointer => |p| if (p.size == .Slice) p.child else null,
+        .pointer => |p| if (p.size == .slice) p.child else null,
         else => null,
     };
 }
 
 fn isStruct(comptime T: type) bool {
     return switch (@typeInfo(T)) {
-        .Struct => true,
+        .@"struct" => true,
         else => false,
     };
 }
@@ -166,7 +166,7 @@ fn writeValueRaw(value: anytype, jw: anytype) !void {
 pub fn writeObject(object: anytype, jw: anytype) !void {
     const ObjectType = @TypeOf(object);
 
-    if (@typeInfo(ObjectType) == .Pointer) return writeObject(object.*, jw);
+    if (@typeInfo(ObjectType) == .pointer) return writeObject(object.*, jw);
 
     const fields = std.meta.fields(ObjectType);
     try jw.beginObject();

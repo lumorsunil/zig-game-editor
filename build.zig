@@ -24,8 +24,8 @@ pub fn build(b: *Build) void {
         .target = target,
         .optimize = optimize,
     });
-    context.addC(&generateUvTool.root_module);
-    context.addNfd(&generateUvTool.root_module);
+    context.addC(generateUvTool.root_module);
+    context.addNfd(generateUvTool.root_module);
 
     utils.addRunExe(b, generateUvTool, "generate-uv", "Run generate-uv tool");
 
@@ -36,9 +36,9 @@ pub fn build(b: *Build) void {
         .optimize = optimize,
     });
 
-    context.addC(&exe.root_module);
-    context.addNfd(&exe.root_module);
-    context.addUuid(&exe.root_module);
+    context.addC(exe.root_module);
+    context.addNfd(exe.root_module);
+    context.addUuid(exe.root_module);
 
     utils.addRunExe(b, exe, "run", "Run the app");
 }

@@ -21,8 +21,11 @@ pub const BrushTool = struct {
         return BrushTool{};
     }
 
-    pub fn deinit(self: BrushTool, allocator: Allocator) void {
-        if (self.source) |source| source.deinit(allocator);
+    pub fn deinit(self: *BrushTool, allocator: Allocator) void {
+        if (self.source) |source| {
+            source.deinit(allocator);
+            self.source = null;
+        }
         self.selectedSourceTiles.deinit(allocator);
     }
 
@@ -36,9 +39,9 @@ pub const BrushTool = struct {
         const layer = tilemap.getActiveLayer();
         const tile = layer.getTileByV(gridPosition);
 
-        if (rl.isKeyDown(.key_left_control)) {
+        if (rl.isKeyDown(.left_control)) {
             return self.copySource(context, &tile.source);
-        } else if (rl.isMouseButtonPressed(.mouse_button_left) and rl.isKeyDown(.key_left_shift) and self.lastPaintedCell != null) {
+        } else if (rl.isMouseButtonPressed(.left) and rl.isKeyDown(.left_shift) and self.lastPaintedCell != null) {
             return self.paintLine(context, tilemapDocument, self.lastPaintedCell.?, gridPosition);
         }
 

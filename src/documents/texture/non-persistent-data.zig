@@ -16,6 +16,9 @@ pub const TextureNonPersistentData = struct {
     }
 
     pub fn load(self: *TextureNonPersistentData, path: [:0]const u8, _: *PersistentData) void {
-        self.texture = rl.loadTexture(path);
+        self.texture = rl.loadTexture(path) catch |err| brk: {
+            std.log.err("Could not load texture {s}: {}", .{ path, err });
+            break :brk null;
+        };
     }
 };

@@ -21,7 +21,7 @@ pub fn main() !void {
 
     var size: @Vector(2, i32) = .{ 32, 32 };
 
-    var texture: rl.Texture2D = createUVTexture(size);
+    var texture: rl.Texture2D = try createUVTexture(size);
     const scale = 4;
 
     var camera = rl.Camera2D{
@@ -50,7 +50,7 @@ pub fn main() !void {
         if (z.inputInt2("Size", .{ .v = &size })) {
             std.log.debug("Changed size to {d}", .{size});
             rl.unloadTexture(texture);
-            texture = createUVTexture(size);
+            texture = try createUVTexture(size);
         }
         if (z.button("Export", .{})) {
             std.log.debug("Export clicked", .{});
@@ -64,7 +64,7 @@ pub fn main() !void {
 
         if (z.io.getWantCaptureMouse()) continue;
 
-        if (rl.isMouseButtonDown(.mouse_button_middle)) {
+        if (rl.isMouseButtonDown(.middle)) {
             const delta = rl.getMouseDelta();
             camera.target.x -= delta.x / camera.zoom;
             camera.target.y -= delta.y / camera.zoom;
@@ -74,7 +74,7 @@ pub fn main() !void {
     }
 }
 
-fn createUVTexture(size: @Vector(2, i32)) rl.Texture2D {
+fn createUVTexture(size: @Vector(2, i32)) !rl.Texture2D {
     var image = rl.genImageColor(size[0], size[1], rl.Color.white);
     defer rl.unloadImage(image);
 
@@ -94,7 +94,7 @@ fn createUVTexture(size: @Vector(2, i32)) rl.Texture2D {
         }
     }
 
-    return rl.loadTextureFromImage(image);
+    return try rl.loadTextureFromImage(image);
 }
 
 fn exportImage(allocator: Allocator, texture: rl.Texture2D, dialogPath: [:0]const u8) !void {
@@ -105,7 +105,7 @@ fn exportImage(allocator: Allocator, texture: rl.Texture2D, dialogPath: [:0]cons
             try allocator.dupeZ(u8, saveFileName);
         nfd.freePath(saveFileName);
         std.log.err("Exporting to file {s}", .{fileName});
-        const image = rl.loadImageFromTexture(texture);
+        const image = try rl.loadImageFromTexture(texture);
         defer rl.unloadImage(image);
         if (!rl.exportImage(image, fileName)) {
             std.log.err("Error exporting image", .{});

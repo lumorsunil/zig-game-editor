@@ -65,9 +65,6 @@ pub const Context = struct {
     const defaultTileSize: Vector = .{ 16, 16 };
 
     pub fn init(allocator: Allocator) Context {
-        const exitImage = rl.genImageColor(1, 1, rl.Color.white);
-        const entranceImage = rl.genImageColor(1, 1, rl.Color.yellow);
-
         const rootDir = std.fs.cwd().realpathAlloc(allocator, ".") catch unreachable;
         defer allocator.free(rootDir);
 
@@ -82,8 +79,8 @@ pub const Context = struct {
                 .zoom = 1,
             },
             .textures = std.StringHashMap(rl.Texture2D).init(allocator),
-            .exitTexture = rl.loadTextureFromImage(exitImage),
-            .entranceTexture = rl.loadTextureFromImage(entranceImage),
+            .exitTexture = undefined,
+            .entranceTexture = undefined,
             .currentProject = null,
         };
     }
@@ -172,6 +169,11 @@ pub const Context = struct {
         rl.setWindowPosition(parsed.value.windowPos[0], parsed.value.windowPos[1]);
 
         self.camera = parsed.value.camera;
+
+        const exitImage = rl.genImageColor(1, 1, rl.Color.white);
+        const entranceImage = rl.genImageColor(1, 1, rl.Color.yellow);
+        self.exitTexture = try rl.loadTextureFromImage(exitImage);
+        self.entranceTexture = try rl.loadTextureFromImage(entranceImage);
     }
 
     pub fn play(self: *Context) void {

@@ -108,7 +108,7 @@ pub const SelectTool = struct {
 
         if (self.pendingSelection == null) {
             // Start floating selection
-            if (self.selectedTiles.hasSelected() and rl.isKeyDown(.key_left_control) and rl.isKeyDown(.key_left_alt)) {
+            if (self.selectedTiles.hasSelected() and rl.isKeyDown(.left_control) and rl.isKeyDown(.left_alt)) {
                 self.pendingSelection = .floatingMove;
                 self.floatingLayer = self.cloneSelectedTiles(context, tilemap.getActiveLayer(), true);
                 self.floatingSelectionDragPoint = gridPosition;
@@ -120,9 +120,9 @@ pub const SelectTool = struct {
 
         self.newSelectionEnd = gridPosition;
 
-        if (rl.isKeyDown(.key_left_control)) {
+        if (rl.isKeyDown(.left_control)) {
             self.pendingSelection = .subtract;
-        } else if (rl.isKeyDown(.key_left_shift)) {
+        } else if (rl.isKeyDown(.left_shift)) {
             self.pendingSelection = .add;
         } else {
             self.pendingSelection = .select;

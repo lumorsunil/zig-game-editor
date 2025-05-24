@@ -46,17 +46,17 @@ pub fn assetsManager(context: *Context) void {
 
     z.sameLine(.{});
 
-    if (assetsLibrary.currentFilesAndDirectories) |cfad| {
-        for (cfad) |node| {
-            const id: [:0]const u8 = switch (node) {
+    if (assetsLibrary.currentFilesAndDirectories) |*cfad| {
+        for (cfad.*) |*node| {
+            const id: [:0]const u8 = switch (node.*) {
                 inline else => |n| n.path,
             };
             _ = id; // autofix
-            const label: [:0]const u8 = switch (node) {
+            const label: [:0]const u8 = switch (node.*) {
                 .file => |f| Document.getTypeLabel(f.documentType),
                 .directory => "Directory",
             };
-            const name: [:0]const u8 = switch (node) {
+            const name: [:0]const u8 = switch (node.*) {
                 inline else => |n| n.name,
             };
 
@@ -66,12 +66,14 @@ pub fn assetsManager(context: *Context) void {
             const labelPos: @TypeOf(pos) = .{ pos[0], pos[1] + iconSize };
             const nextPos: @TypeOf(pos) = if (pos[0] + iconSize * 2 + spacing >= windowSize[0]) .{ spacing, pos[1] + iconSize + spacing + labelHeight } else .{ pos[0] + iconSize + spacing, pos[1] };
 
+            z.pushPtrId(node);
             if (z.selectable(label, .{ .w = iconSize, .h = iconSize, .flags = .{ .allow_double_click = true } }) and z.isMouseDoubleClicked(.left)) {
-                switch (node) {
+                switch (node.*) {
                     .file => |file| context.openFileNode(file),
                     .directory => |directory| context.setCurrentDirectory(directory.path),
                 }
             }
+            z.popId();
             z.setCursorPos(labelPos);
             z.text("{s}", .{name});
             z.setCursorPos(nextPos);
