@@ -11,6 +11,7 @@ const Frame = lib.documents.animation.Frame;
 const LayoutGeneric = lib.LayoutGeneric;
 const Vector = lib.Vector;
 const utils = @import("utils.zig");
+const config = @import("../config.zig");
 
 pub const LayoutAnimation = LayoutGeneric(.animation, draw, menu, handleInput);
 
@@ -27,8 +28,9 @@ fn menu(
     editor: *Editor,
     animationDocument: *AnimationDocument,
 ) void {
-    z.setNextWindowPos(.{ .x = 0, .y = 0 });
-    z.setNextWindowSize(.{ .w = 300, .h = 800 });
+    const screenSize: @Vector(2, f32) = @floatFromInt(Vector{ rl.getScreenWidth(), rl.getScreenHeight() });
+    z.setNextWindowPos(.{ .x = 0, .y = config.topBarOffset });
+    z.setNextWindowSize(.{ .w = 300, .h = screenSize[1] - config.topBarOffset });
     _ = z.begin("Menu", .{ .flags = .{
         .no_title_bar = true,
         .no_resize = true,

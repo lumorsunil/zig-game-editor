@@ -14,6 +14,7 @@ const SelectTool = lib.tools.SelectTool;
 const Vector = lib.Vector;
 const utils = @import("utils.zig");
 const drawTilemap = lib.drawTilemap;
+const config = @import("../config.zig");
 
 pub const LayoutTilemap = LayoutGeneric(.tilemap, draw, menu, handleInput);
 
@@ -51,8 +52,9 @@ fn menu(
 }
 
 fn mainMenu(context: *Context, editor: *Editor, tilemapDocument: *TilemapDocument) void {
-    z.setNextWindowPos(.{ .x = 0, .y = 0 });
-    z.setNextWindowSize(.{ .w = 200, .h = 800 });
+    const screenSize: @Vector(2, f32) = @floatFromInt(Vector{ rl.getScreenWidth(), rl.getScreenHeight() });
+    z.setNextWindowPos(.{ .x = 0, .y = config.topBarOffset });
+    z.setNextWindowSize(.{ .w = 200, .h = screenSize[1] - config.topBarOffset });
     _ = z.begin("Menu", .{ .flags = .{
         .no_title_bar = true,
         .no_resize = true,

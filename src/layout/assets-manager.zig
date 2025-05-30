@@ -70,7 +70,11 @@ pub fn assetsManager(context: *Context) void {
             if (z.selectable(label, .{ .w = iconSize, .h = iconSize, .flags = .{ .allow_double_click = true } }) and z.isMouseDoubleClicked(.left)) {
                 switch (node.*) {
                     .file => |file| context.openFileNode(file),
-                    .directory => |directory| context.setCurrentDirectory(directory.path),
+                    .directory => |directory| {
+                        context.setCurrentDirectory(directory.path);
+                        z.popId();
+                        return;
+                    },
                 }
             }
             z.popId();

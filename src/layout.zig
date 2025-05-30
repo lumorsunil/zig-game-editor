@@ -54,6 +54,11 @@ pub fn layout(context: *Context) !void {
     }
 
     if (context.currentProject) |_| {
+        if (projectMenu(context)) {
+            c.rlImGuiEnd();
+            return;
+        }
+
         if (context.getCurrentEditor()) |editor| {
             editorMenu(context, editor);
         }
@@ -77,6 +82,43 @@ pub fn layout(context: *Context) !void {
             editorHandleInput(context, editor);
         }
     }
+}
+
+const ProjectsMenuState = enum {
+    render,
+    abort,
+};
+
+fn projectMenu(context: *Context) bool {
+    if (z.beginMainMenuBar()) {
+        if (z.beginMenu("Projects", true)) {
+            projectsMenu: switch (ProjectsMenuState.render) {
+                .render => {
+                    if (z.selectable("New Project", .{})) {
+                        context.newProject();
+                        continue :projectsMenu .abort;
+                    }
+                    if (z.selectable("Open Project", .{})) {
+                        context.openProject();
+                        continue :projectsMenu .abort;
+                    }
+                    if (z.selectable("Close Project", .{})) {
+                        context.closeProject();
+                        continue :projectsMenu .abort;
+                    }
+                    z.endMenu();
+                },
+                .abort => {
+                    z.endMenu();
+                    z.endMainMenuBar();
+                    return true;
+                },
+            }
+        }
+        z.endMainMenuBar();
+    }
+
+    return false;
 }
 
 fn noProjectOpenedMenu(context: *Context) void {

@@ -231,13 +231,48 @@ pub const Context = struct {
     pub fn newProject(self: *Context) void {
         const folder = self.selectFolder() orelse return;
         defer self.allocator.free(folder);
-        self.currentProject = Project.init(self.allocator, folder);
+        self.setProject(.init(self.allocator, folder));
     }
 
     pub fn openProject(self: *Context) void {
         const folder = self.selectFolder() orelse return;
         defer self.allocator.free(folder);
-        self.currentProject = Project.init(self.allocator, folder);
+        self.setProject(.init(self.allocator, folder));
+    }
+
+    pub fn closeProject(self: *Context) void {
+        self.setProject(null);
+    }
+
+    fn closeEditors(self: *Context) void {
+        for (self.openedEditors.values()) |*editor| {
+            editor.deinit(self.allocator);
+        }
+
+        for (self.openedEditors.keys()) |key| {
+            self.allocator.free(key);
+        }
+
+        self.openedEditors.clearAndFree(self.allocator);
+        self.currentEditor = null;
+    }
+
+    fn setProject(self: *Context, project: ?Project) void {
+        if (self.currentProject) |*p| {
+            self.closeEditors();
+
+            p.deinit(self.allocator);
+        }
+        self.currentProject = project;
+
+        if (self.currentProject) |_| {
+            self.loadProject();
+        }
+    }
+
+    /// Project needs to be set before this is called.
+    fn loadProject(self: *Context) void {
+        self.setCurrentDirectory(".");
     }
 
     pub fn toAbsolutePathZ(

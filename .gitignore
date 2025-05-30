@@ -6,5 +6,8 @@ session.json
 imgui.ini
 *.tilemap.json
 *.scene.json
+*.animations.json
 *.png
 projects
+todo-kottefolket.md
+*.sh

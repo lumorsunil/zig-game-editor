@@ -13,6 +13,7 @@ const SceneEntityExit = lib.documents.scene.SceneEntityExit;
 const SceneEntityEntrance = lib.documents.scene.SceneEntityEntrance;
 const Vector = lib.Vector;
 const utils = @import("utils.zig");
+const config = @import("../config.zig");
 
 pub const LayoutScene = LayoutGeneric(.scene, draw, menu, handleInput);
 
@@ -35,8 +36,9 @@ fn draw(context: *Context, sceneDocument: *SceneDocument) void {
 }
 
 fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void {
-    z.setNextWindowPos(.{ .x = 0, .y = 0 });
-    z.setNextWindowSize(.{ .w = 200, .h = 800 });
+    const screenSize: @Vector(2, f32) = @floatFromInt(Vector{ rl.getScreenWidth(), rl.getScreenHeight() });
+    z.setNextWindowPos(.{ .x = 0, .y = config.topBarOffset });
+    z.setNextWindowSize(.{ .w = 200, .h = screenSize[1] - config.topBarOffset });
     _ = z.begin("Scene Menu", .{ .flags = .{
         .no_title_bar = true,
         .no_resize = true,
