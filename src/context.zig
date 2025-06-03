@@ -46,6 +46,7 @@ pub const Context = struct {
     isNewTilemapDialogOpen: bool = false,
     isNewSceneDialogOpen: bool = false,
     isNewAnimationDocumentDialogOpen: bool = false,
+    isNewEntityTypeDocumentDialogOpen: bool = false,
 
     pub const PlayState = enum {
         notRunning,
@@ -363,7 +364,7 @@ pub const Context = struct {
 
     pub fn openFileNode(self: *Context, file: Node.File) void {
         switch (file.documentType) {
-            .scene, .tilemap, .animation => {
+            .scene, .tilemap, .animation, .entityType => {
                 var targetDir = self.currentProject.?.assetsLibrary.openRoot();
                 defer targetDir.close();
                 const absolutePath = toAbsolutePathZ(self.allocator, targetDir, file.path);

@@ -105,6 +105,9 @@ fn newAssetUI(context: *Context) void {
         if (z.button("Animation", .{ .w = newAssetItemWidth, .h = 24 })) {
             context.isNewAnimationDocumentDialogOpen = true;
         }
+        if (z.button("Entity Type", .{ .w = newAssetItemWidth, .h = 24 })) {
+            context.isNewEntityTypeDocumentDialogOpen = true;
+        }
     }
 
     if (context.isNewDirectoryDialogOpen) {
@@ -171,6 +174,23 @@ fn newAssetUI(context: *Context) void {
         if (z.button("Create", .{})) {
             context.isNewAnimationDocumentDialogOpen = false;
             context.newAsset(std.mem.sliceTo(&context.reusableTextBuffer, 0), .animation);
+            context.reusableTextBuffer[0] = 0;
+        }
+    }
+
+    if (context.isNewEntityTypeDocumentDialogOpen) {
+        _ = z.begin("New Entity Type", .{});
+        defer z.end();
+
+        z.pushStrId("new-entity-type-input");
+        _ = z.inputText("", .{
+            .buf = &context.reusableTextBuffer,
+        });
+        z.popId();
+
+        if (z.button("Create", .{})) {
+            context.isNewEntityTypeDocumentDialogOpen = false;
+            context.newAsset(std.mem.sliceTo(&context.reusableTextBuffer, 0), .entityType);
             context.reusableTextBuffer[0] = 0;
         }
     }

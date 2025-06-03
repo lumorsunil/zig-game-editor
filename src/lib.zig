@@ -23,11 +23,13 @@ pub const documents = struct {
         pub usingnamespace @import("documents/animation/animation.zig");
     };
     pub usingnamespace @import("documents/texture/document.zig");
+    pub usingnamespace @import("documents/entity-type/document.zig");
 };
 pub const layouts = struct {
     pub usingnamespace @import("layout/scene.zig");
     pub usingnamespace @import("layout/tilemap.zig");
     pub usingnamespace @import("layout/animation.zig");
+    pub usingnamespace @import("layout/entity-type.zig");
 };
 pub usingnamespace @import("layout-generic.zig");
 pub usingnamespace @import("editor-session.zig");

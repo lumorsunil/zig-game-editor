@@ -5,10 +5,10 @@ const SceneDocument = lib.documents.SceneDocument;
 const TilemapDocument = lib.documents.TilemapDocument;
 const AnimationDocument = lib.documents.AnimationDocument;
 const TextureDocument = lib.documents.TextureDocument;
+const EntityTypeDocument = lib.documents.EntityTypeDocument;
 const DocumentGenericConfig = lib.documents.DocumentGenericConfig;
 
 pub const Document = struct {
-    // TODO: Remove nullable when we have assets manager
     filePath: [:0]const u8,
     content: ?DocumentContent = null,
 
@@ -94,6 +94,7 @@ pub const Document = struct {
             .tilemap => "tilemap.json",
             .animation => "animations.json",
             .texture => "png",
+            .entityType => "entity-type.json",
         };
     }
 
@@ -103,6 +104,7 @@ pub const Document = struct {
             .tilemap => ".tilemap.json",
             .animation => ".animations.json",
             .texture => ".png",
+            .entityType => ".entity-type.json",
         };
     }
 
@@ -112,6 +114,7 @@ pub const Document = struct {
             .tilemap => "Tilemap",
             .animation => "Animation",
             .texture => "Texture",
+            .entityType => "Entity Type",
         };
     }
 
@@ -130,6 +133,7 @@ pub const DocumentContent = union(enum) {
     tilemap: TilemapDocument,
     animation: AnimationDocument,
     texture: TextureDocument,
+    entityType: EntityTypeDocument,
 
     pub fn init(allocator: Allocator, comptime documentType: DocumentTag) DocumentContent {
         return switch (documentType) {

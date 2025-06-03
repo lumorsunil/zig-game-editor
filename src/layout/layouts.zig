@@ -7,6 +7,7 @@ const LayoutGeneric = lib.LayoutGeneric;
 const LayoutScene = lib.layouts.LayoutScene;
 const LayoutTilemap = lib.layouts.LayoutTilemap;
 const LayoutAnimation = lib.layouts.LayoutAnimation;
+const LayoutEntityType = lib.layouts.LayoutEntityType;
 const Document = lib.Document;
 const DocumentContent = lib.DocumentContent;
 
@@ -14,6 +15,7 @@ const layouts = .{
     .scene = LayoutScene,
     .tilemap = LayoutTilemap,
     .animation = LayoutAnimation,
+    .entityType = LayoutEntityType,
 };
 
 pub fn getLayout(document: Document) ?(struct { type, *anyopaque }) {

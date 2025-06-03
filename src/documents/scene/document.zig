@@ -3,6 +3,7 @@ const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayListUnmanaged;
 const rl = @import("raylib");
 const lib = @import("root").lib;
+const config = @import("root").config;
 const Context = lib.Context;
 const Vector = lib.Vector;
 const drawTilemap = lib.drawTilemap;
@@ -12,7 +13,7 @@ const DocumentGeneric = lib.documents.DocumentGeneric;
 const SceneEntity = @import("persistent-data.zig").SceneEntity;
 const SceneEntityType = @import("persistent-data.zig").SceneEntityType;
 
-const tileSize = Vector{ 16, 16 };
+const tileSize = config.tileSize;
 
 pub const SceneDocument = struct {
     document: DocumentType,

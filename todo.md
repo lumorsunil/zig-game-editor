@@ -141,6 +141,34 @@
   - [x] Reload texture button
   - [x] Match serialized json data with old format
 
+## Entity type editor
+
+- [ ] Custom entities
+  - [ ] Custom entity editor
+    - [ ] Add new custom entity
+    - [ ] List of custom entities
+      - [ ] Delete custom entity
+    - [ ] Custom entity details
+      - [ ] Set name
+      - [ ] Set icon
+      - [ ] Set size
+      - [ ] Property editor
+  - [x] Data structure
+    - [x] Type ID
+    - [x] Name
+    - [x] Icon
+    - [x] Size
+    - [ ] Properties (Object)
+      - [ ] Label
+      - [ ] Data type
+        - [ ] String
+          - [ ] Max length
+        - [ ] Number
+        - [ ] Object
+        - [ ] Reference
+          - [ ] Entity
+          - [ ] Scene
+
 ## Scene editor
 
 - [x] Entities

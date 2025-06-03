@@ -3,6 +3,7 @@ const rl = @import("raylib");
 const z = @import("zgui");
 const c = @import("c");
 const lib = @import("root").lib;
+const config = @import("root").config;
 const LayoutGeneric = lib.LayoutGeneric;
 const Context = lib.Context;
 const Editor = lib.Editor;
@@ -13,7 +14,8 @@ const SceneEntityExit = lib.documents.scene.SceneEntityExit;
 const SceneEntityEntrance = lib.documents.scene.SceneEntityEntrance;
 const Vector = lib.Vector;
 const utils = @import("utils.zig");
-const config = @import("../config.zig");
+
+const tileSize = config.tileSize;
 
 pub const LayoutScene = LayoutGeneric(.scene, draw, menu, handleInput);
 
@@ -157,7 +159,7 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
             },
             .exit => {
                 const pos: @Vector(2, f32) = z.getCursorPos();
-                const size: @Vector(2, f32) = @floatFromInt(utils.tileSize * context.scaleV);
+                const size: @Vector(2, f32) = @floatFromInt(tileSize * context.scaleV);
 
                 c.rlImGuiImageRect(
                     @ptrCast(&context.exitTexture),
@@ -177,7 +179,7 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
             },
             .entrance => {
                 const pos: @Vector(2, f32) = z.getCursorPos();
-                const size: @Vector(2, f32) = @floatFromInt(utils.tileSize * context.scaleV);
+                const size: @Vector(2, f32) = @floatFromInt(tileSize * context.scaleV);
 
                 c.rlImGuiImageRect(
                     @ptrCast(&context.entranceTexture),

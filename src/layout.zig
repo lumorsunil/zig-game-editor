@@ -24,8 +24,6 @@ const AnimationDocument = lib.documents.AnimationDocument;
 const assetsManager = @import("layout/assets-manager.zig").assetsManager;
 const layouts = @import("layout/layouts.zig");
 
-const tileSize = Vector{ 16, 16 };
-
 pub fn layout(context: *Context) !void {
     const screenSize: Vector = .{ rl.getScreenWidth(), rl.getScreenHeight() };
     const screenW, const screenH = @as(@Vector(2, f32), @floatFromInt(screenSize));

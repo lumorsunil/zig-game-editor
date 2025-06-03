@@ -3,6 +3,7 @@ const Allocator = std.mem.Allocator;
 const rl = @import("raylib");
 const z = @import("zgui");
 const lib = @import("root").lib;
+const config = @import("root").config;
 const Context = lib.Context;
 const Editor = lib.Editor;
 const SceneDocument = lib.documents.SceneDocument;
@@ -11,7 +12,7 @@ const SceneEntityType = lib.documents.scene.SceneEntityType;
 const TilemapDocument = lib.documents.TilemapDocument;
 const Vector = lib.Vector;
 
-pub const tileSize = Vector{ 16, 16 };
+const tileSize = config.tileSize;
 
 pub fn getEntityRect(entity: SceneEntity) rl.Rectangle {
     const entityPosition: @Vector(2, f32) = @floatFromInt(entity.position);

@@ -82,7 +82,7 @@ fn menu(
     _ = z.beginListBox("Animations", .{});
     for (animationDocument.getAnimations().items, 0..) |animation, i| {
         const selectedIndex = animationDocument.getSelectedAnimationIndex();
-        if (z.selectable(animation.name.slice, .{ .selected = selectedIndex == i })) {
+        if (z.selectable(animation.name.buffer, .{ .selected = selectedIndex == i })) {
             animationDocument.setSelectedAnimationIndex(i);
         }
     }

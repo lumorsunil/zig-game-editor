@@ -44,7 +44,7 @@ pub const Animation = struct {
         var cloned = Animation.init(allocator, self.gridSize);
 
         cloned.frames.appendSlice(allocator, self.frames.items) catch unreachable;
-        cloned.name.set(self.name.slice);
+        cloned.name.set(self.name.buffer);
         cloned.frameDuration = self.frameDuration;
 
         return cloned;
