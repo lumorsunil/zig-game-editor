@@ -1,6 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const lib = @import("root").lib;
+const Context = lib.Context;
 const Tool = lib.Tool;
 const BrushTool = lib.tools.BrushTool;
 const SelectTool = lib.tools.SelectTool;
@@ -9,14 +10,8 @@ const Action = lib.Action;
 const Vector = lib.Vector;
 const PersistentData = @import("persistent-data.zig").TilemapData;
 
-var __tools = [_]Tool{
-    Tool.init("brush", .{ .brush = BrushTool.init() }),
-    Tool.init("select", .{ .select = SelectTool.init() }),
-};
-
 pub const NonPersistentData = struct {
-    currentTool: ?*Tool = &__tools[0],
-    tools: []Tool = &__tools,
+    currentTool: ?*Tool = null,
     materializingAction: ?Action = null,
     focusOnActiveLayer: bool = false,
     inputTilemapSize: Vector = .{ 0, 0 },
@@ -25,8 +20,7 @@ pub const NonPersistentData = struct {
         return NonPersistentData{};
     }
 
-    pub fn deinit(self: *NonPersistentData, allocator: Allocator) void {
-        for (self.tools) |*tool| tool.deinit(allocator);
+    pub fn deinit(self: *NonPersistentData, _: Allocator) void {
         self.currentTool = null;
     }
 
@@ -36,10 +30,11 @@ pub const NonPersistentData = struct {
     }
 
     pub fn getTool(
-        self: *const NonPersistentData,
+        _: *const NonPersistentData,
         comptime toolType: std.meta.FieldEnum(ImplTool),
+        context: *Context,
     ) *Tool {
-        for (self.tools) |*tool| {
+        for (&context.tools) |*tool| {
             switch (tool.impl) {
                 toolType => return tool,
                 else => {},
@@ -52,7 +47,8 @@ pub const NonPersistentData = struct {
     pub fn setTool(
         self: *NonPersistentData,
         comptime toolType: std.meta.FieldEnum(ImplTool),
+        context: *Context,
     ) void {
-        self.currentTool = self.getTool(toolType);
+        self.currentTool = self.getTool(toolType, context);
     }
 };

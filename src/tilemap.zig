@@ -67,11 +67,6 @@ pub const TilemapLayer = struct {
     }
 
     pub fn deinit(self: *TilemapLayer, allocator: Allocator) void {
-        for (self.tiles.items) |tile| {
-            if (tile.source) |source| {
-                allocator.free(source.tileset);
-            }
-        }
         self.tiles.deinit(allocator);
         allocator.free(self.getNameBuffer());
     }
@@ -84,7 +79,7 @@ pub const TilemapLayer = struct {
         tilemapLayer.tiles = self.tiles.clone(allocator) catch unreachable;
 
         for (tilemapLayer.tiles.items) |*tile| {
-            tile.* = tile.clone(allocator);
+            tile.* = tile.clone();
         }
 
         return tilemapLayer;
@@ -191,7 +186,7 @@ pub const Tilemap = struct {
             _ = newTilemap.addLayer(allocator, layer.name);
         }
 
-        newTilemap.copyArea(allocator, self, .{ 0, 0 }, self.grid.size, .{ 0, 0 });
+        newTilemap.copyArea(self, .{ 0, 0 }, self.grid.size, .{ 0, 0 });
 
         self.deinit(allocator);
         self.* = newTilemap;
@@ -199,7 +194,6 @@ pub const Tilemap = struct {
 
     fn copyArea(
         dst: *Tilemap,
-        allocator: Allocator,
         src: *Tilemap,
         srcPos: Vector,
         srcSize: Vector,
@@ -228,7 +222,7 @@ pub const Tilemap = struct {
                     const dstLayer = dst.layers.items[i];
                     const dstTile = dstLayer.getTileByXY(dstX, dstY);
 
-                    dstTile.* = srcTile.clone(allocator);
+                    dstTile.* = srcTile.clone();
                 }
             }
         }
@@ -295,59 +289,42 @@ pub const Tile = struct {
     source: ?TileSource = null,
     isSolid: bool = false,
 
-    pub fn clone(self: *const Tile, allocator: Allocator) Tile {
+    pub fn clone(self: *const Tile) Tile {
         var tile = self.*;
 
-        tile.source = TileSource.clone(&self.source, allocator);
+        tile.source = TileSource.clone(&self.source);
 
         return tile;
     }
 };
 
 pub const TileSource = struct {
-    tileset: []const u8,
+    tileset: UUID,
     gridPosition: Vector,
 
-    pub fn init(allocator: Allocator, tileset: []const u8, gridPosition: Vector) TileSource {
+    pub fn init(tileset: UUID, gridPosition: Vector) TileSource {
         return TileSource{
-            .tileset = allocator.dupe(u8, tileset) catch unreachable,
+            .tileset = tileset,
             .gridPosition = gridPosition,
         };
     }
 
-    pub fn deinit(self: TileSource, allocator: Allocator) void {
-        allocator.free(self.tileset);
+    pub fn clone(self: *const ?TileSource) ?TileSource {
+        return self.*;
     }
 
-    pub fn clone(self: *const ?TileSource, allocator: Allocator) ?TileSource {
-        var tileSource = self.*;
-
-        if (tileSource) |*source| {
-            source.tileset = allocator.dupe(u8, source.tileset) catch unreachable;
-        }
-
-        return tileSource;
+    pub fn set(dest: *?TileSource, source: *const ?TileSource) void {
+        dest.* = clone(source);
     }
 
-    pub fn set(dest: *?TileSource, allocator: Allocator, source: *const ?TileSource) void {
-        if (dest.*) |s| {
-            s.deinit(allocator);
-        }
-
-        dest.* = clone(source, allocator);
-    }
-
-    pub fn clear(dest: *?TileSource, allocator: Allocator) void {
-        if (dest.*) |s| {
-            s.deinit(allocator);
-            dest.* = null;
-        }
+    pub fn clear(dest: *?TileSource) void {
+        dest.* = null;
     }
 
     pub fn eql(a: ?TileSource, b: ?TileSource) bool {
         if (a == null and b == null) return true;
         if (a == null or b == null) return false;
-        return std.mem.eql(u8, a.?.tileset, b.?.tileset) and @reduce(.And, a.?.gridPosition == b.?.gridPosition);
+        return a.?.tileset.uuid == b.?.tileset.uuid and @reduce(.And, a.?.gridPosition == b.?.gridPosition);
     }
 
     pub fn getSourceRect(self: *const TileSource, tileSize: Vector) rl.Rectangle {

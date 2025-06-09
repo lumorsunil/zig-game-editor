@@ -15,9 +15,14 @@ pub const TextureNonPersistentData = struct {
         self.texture = null;
     }
 
-    pub fn load(self: *TextureNonPersistentData, path: [:0]const u8, _: *PersistentData) void {
-        self.texture = rl.loadTexture(path) catch |err| brk: {
-            std.log.err("Could not load texture {s}: {}", .{ path, err });
+    pub fn load(
+        self: *TextureNonPersistentData,
+        _: [:0]const u8,
+        persistentData: *PersistentData,
+    ) void {
+        if (persistentData.textureFilePath.len == 0) return;
+        self.texture = rl.loadTexture(persistentData.textureFilePath) catch |err| brk: {
+            std.log.err("Could not load texture {s}: {}", .{ persistentData.textureFilePath, err });
             break :brk null;
         };
     }

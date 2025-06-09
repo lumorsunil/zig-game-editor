@@ -41,4 +41,17 @@ pub fn build(b: *Build) void {
     context.addUuid(exe.root_module);
 
     utils.addRunExe(b, exe, "run", "Run the app");
+
+    const checkExe = b.addExecutable(.{
+        .name = exe.name,
+        .root_source_file = exe.root_module.root_source_file,
+        .target = target,
+    });
+
+    context.addC(checkExe.root_module);
+    context.addNfd(checkExe.root_module);
+    context.addUuid(checkExe.root_module);
+
+    const step = b.step("check", "Check step made for zls");
+    step.dependOn(&checkExe.step);
 }

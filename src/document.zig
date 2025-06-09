@@ -7,6 +7,9 @@ const AnimationDocument = lib.documents.AnimationDocument;
 const TextureDocument = lib.documents.TextureDocument;
 const EntityTypeDocument = lib.documents.EntityTypeDocument;
 const DocumentGenericConfig = lib.documents.DocumentGenericConfig;
+const UUID = lib.UUIDSerializable;
+
+pub const DocumentError = error{FileExtensionInvalid};
 
 pub const Document = struct {
     filePath: [:0]const u8,
@@ -22,6 +25,12 @@ pub const Document = struct {
         allocator.free(self.filePath);
         if (self.content) |*content| content.deinit(allocator);
         self.content = null;
+    }
+
+    pub fn getId(self: Document) UUID {
+        return switch (self.content.?) {
+            inline else => |content| content.getId(),
+        };
     }
 
     /// filePath needs to be absolute
@@ -93,7 +102,7 @@ pub const Document = struct {
             .scene => "scene.json",
             .tilemap => "tilemap.json",
             .animation => "animations.json",
-            .texture => "png",
+            .texture => "texture.json",
             .entityType => "entity-type.json",
         };
     }
@@ -103,7 +112,7 @@ pub const Document = struct {
             .scene => ".scene.json",
             .tilemap => ".tilemap.json",
             .animation => ".animations.json",
-            .texture => ".png",
+            .texture => ".texture.json",
             .entityType => ".entity-type.json",
         };
     }
@@ -118,13 +127,13 @@ pub const Document = struct {
         };
     }
 
-    pub fn getTagByFilePath(filePath: []const u8) DocumentTag {
+    pub fn getTagByFilePath(filePath: []const u8) !DocumentTag {
         for (std.meta.tags(DocumentTag)) |tag| {
             const extension = Document.getFileExtension(tag);
             if (std.mem.endsWith(u8, filePath, extension)) return tag;
         }
 
-        std.debug.panic("Could not get document type from file path: {s}", .{filePath});
+        return DocumentError.FileExtensionInvalid;
     }
 };
 

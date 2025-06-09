@@ -54,7 +54,7 @@ pub const Editor = struct {
     // }
 
     pub fn openFileEx(allocator: Allocator, filePath: [:0]const u8) !Editor {
-        const documentType = Document.getTagByFilePath(filePath);
+        const documentType = try Document.getTagByFilePath(filePath);
         const document = try Document.open(allocator, filePath, documentType);
 
         return Editor{

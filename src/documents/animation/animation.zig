@@ -28,7 +28,7 @@ pub const Animation = struct {
 
     pub fn init(allocator: Allocator, gridSize: Vector) Animation {
         return Animation{
-            .name = StringZ(32).init(allocator, "New Animation"),
+            .name = .init(allocator, "New Animation"),
             .frames = ArrayList(Frame).initCapacity(allocator, 10) catch unreachable,
             .gridSize = gridSize,
             .frameDuration = 0.1,

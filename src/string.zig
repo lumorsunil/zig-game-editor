@@ -21,6 +21,16 @@ pub fn StringZ(comptime capacity: usize) type {
             return self;
         }
 
+        pub fn initFmt(allocator: Allocator, comptime fmt: []const u8, args: anytype) Self {
+            var self = Self{
+                .buffer = allocator.allocSentinel(u8, capacity, 0) catch unreachable,
+            };
+
+            self.setFmt(fmt, args);
+
+            return self;
+        }
+
         pub fn deinit(self: Self, allocator: Allocator) void {
             allocator.free(self.buffer);
         }
@@ -30,10 +40,14 @@ pub fn StringZ(comptime capacity: usize) type {
         }
 
         pub fn set(self: *Self, newSlice: [:0]const u8) void {
+            self.setFmt("{s}", .{std.mem.sliceTo(newSlice, 0)});
+        }
+
+        pub fn setFmt(self: *Self, comptime fmt: []const u8, args: anytype) void {
             _ = std.fmt.bufPrintZ(
                 self.buffer,
-                "{s}",
-                .{std.mem.sliceTo(newSlice, 0)},
+                fmt,
+                args,
             ) catch unreachable;
         }
 

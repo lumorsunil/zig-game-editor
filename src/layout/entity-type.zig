@@ -14,11 +14,9 @@ const utils = @import("utils.zig");
 pub const LayoutEntityType = LayoutGeneric(.entityType, draw, menu, handleInput);
 
 fn draw(context: *Context, entityTypeDocument: *EntityTypeDocument) void {
-    if (entityTypeDocument.getTextureFilePath()) |textureFilePath| {
-        if (context.requestTexture(textureFilePath)) |texture| {
-            rl.drawTextureEx(texture.*, .{ .x = 0, .y = 0 }, 0, @floatFromInt(context.scale), rl.Color.white);
-        }
-    }
+    const textureId = entityTypeDocument.getTextureId() orelse return;
+    const texture = context.requestTextureById(textureId) catch return orelse return;
+    rl.drawTextureEx(texture.*, .{ .x = 0, .y = 0 }, 0, @floatFromInt(context.scale), rl.Color.white);
 }
 
 fn menu(context: *Context, editor: *Editor, entityTypeDocument: *EntityTypeDocument) void {
@@ -58,13 +56,13 @@ fn menu(context: *Context, editor: *Editor, entityTypeDocument: *EntityTypeDocum
     z.text("Cell: {d:0.0},{d:0.0}", .{ gridPosition[0], gridPosition[1] });
     if (z.button("Set Icon Texture", .{})) {
         if (context.openFileWithDialog(.texture)) |textureDocument| {
-            entityTypeDocument.setTextureFilePath(context.allocator, textureDocument.filePath);
+            entityTypeDocument.setTextureId(textureDocument.getId());
         }
     }
-    z.text("Texture: {?s}", .{entityTypeDocument.getTextureFilePath()});
+    z.text("Texture: {?s}", .{entityTypeDocument.getTextureId()});
     if (z.isItemHovered(.{ .delay_short = true })) {
         if (z.beginTooltip()) {
-            z.text("{?s}", .{entityTypeDocument.getTextureFilePath()});
+            z.text("{?s}", .{entityTypeDocument.getTextureId()});
         }
         z.endTooltip();
     }
@@ -73,8 +71,8 @@ fn menu(context: *Context, editor: *Editor, entityTypeDocument: *EntityTypeDocum
 }
 
 fn drawIconMenu(context: *Context, entityTypeDocument: *EntityTypeDocument) void {
-    const textureFilePath = entityTypeDocument.getTextureFilePath() orelse return;
-    const texture = context.requestTexture(textureFilePath) orelse return;
+    const textureId = entityTypeDocument.getTextureId() orelse return;
+    const texture = context.requestTextureById(textureId) catch return orelse return;
     const cellSize = entityTypeDocument.getCellSize().*;
     const sourcePosition: @Vector(2, f32) = @floatFromInt(entityTypeDocument.getGridPosition().* * cellSize);
     const source = rl.Rectangle.init(
@@ -90,8 +88,8 @@ fn drawIconMenu(context: *Context, entityTypeDocument: *EntityTypeDocument) void
 fn handleInput(context: *Context, _: *Editor, entityTypeDocument: *EntityTypeDocument) void {
     utils.cameraControls(context);
 
-    const textureFilePath = entityTypeDocument.getTextureFilePath() orelse return;
-    const texture = context.requestTexture(textureFilePath) orelse return;
+    const textureId = entityTypeDocument.getTextureId() orelse return;
+    const texture = context.requestTextureById(textureId) catch return orelse return;
     const cellSize = entityTypeDocument.getCellSize().*;
     if (@reduce(.And, cellSize == Vector{ 0, 0 })) return;
     const gridPosition = utils.getMouseGridPositionWithSize(context, cellSize);

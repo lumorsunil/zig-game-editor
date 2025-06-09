@@ -1,5 +1,6 @@
 const lib = @import("root").lib;
 const Vector = lib.Vector;
+const UUID = lib.UUIDSerializable;
 
 pub const screenSize = .{ 1024, 800 };
 pub const assetsRootDir = "D:/studio/My Drive/Kottefolket/";

@@ -4,8 +4,10 @@ const lib = @import("root").lib;
 const Tilemap = lib.Tilemap;
 const History = lib.History;
 const Vector = lib.Vector;
+const UUID = lib.UUIDSerializable;
 
 pub const TilemapData = struct {
+    id: UUID,
     tilemap: Tilemap,
     history: History,
 
@@ -14,6 +16,7 @@ pub const TilemapData = struct {
 
     pub fn init(allocator: Allocator) TilemapData {
         return TilemapData{
+            .id = UUID.init(),
             .tilemap = Tilemap.init(allocator, defaultSize, defaultTileSize),
             .history = History.init(),
         };
@@ -27,6 +30,7 @@ pub const TilemapData = struct {
     pub fn clone(self: TilemapData, allocator: Allocator) TilemapData {
         var cloned = self;
 
+        cloned.id = self.id;
         cloned.tilemap = self.tilemap.clone(allocator);
         cloned.history = self.history.clone(allocator);
 

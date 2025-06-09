@@ -13,14 +13,15 @@ const TilemapDocument = lib.documents.TilemapDocument;
 const Vector = lib.Vector;
 
 const tileSize = config.tileSize;
+const defaultEntitySize = rl.Vector2.init(@floatFromInt(tileSize[0]), @floatFromInt(tileSize[1]));
 
-pub fn getEntityRect(entity: SceneEntity) rl.Rectangle {
+pub fn getEntityRect(context: *Context, entity: SceneEntity) rl.Rectangle {
     const entityPosition: @Vector(2, f32) = @floatFromInt(entity.position);
     const scaleVx, const scaleVy = switch (entity.type) {
         inline .exit, .entrance => |e| e.scale.?,
         else => .{ 1, 1 },
     };
-    var size = SceneDocument.getSizeFromEntityType(entity.type);
+    var size = SceneDocument.getSizeFromEntityType(context, entity.type) catch defaultEntitySize orelse defaultEntitySize;
     size.x *= scaleVx;
     size.y *= scaleVy;
     var rect = rl.Rectangle.init(entityPosition[0], entityPosition[1], size.x, size.y);
@@ -34,7 +35,7 @@ pub fn getEntityRectScaled(
     context: *Context,
     entity: SceneEntity,
 ) rl.Rectangle {
-    var rect = getEntityRect(entity);
+    var rect = getEntityRect(context, entity);
     const scale: f32 = @floatFromInt(context.scale);
     rect.width *= scale;
     rect.height *= scale;
@@ -88,11 +89,12 @@ pub fn getMouseGridPositionWithSize(context: *Context, cellSize: Vector) Vector 
 }
 
 pub fn gridPositionToEntityPosition(
+    context: *Context,
     gridPosition: Vector,
     entityType: SceneEntityType,
 ) Vector {
     const fTileSize: @Vector(2, f32) = @floatFromInt(tileSize);
-    const rlEntitySize = SceneDocument.getSizeFromEntityType(entityType);
+    const rlEntitySize = SceneDocument.getSizeFromEntityType(context, entityType) catch defaultEntitySize orelse defaultEntitySize;
     const entitySize = @Vector(2, f32){ rlEntitySize.x, rlEntitySize.y };
     const half = @Vector(2, f32){ 0.5, 0.5 };
     return @intFromFloat(fTileSize * @as(@Vector(2, f32), @floatFromInt(gridPosition)) - fTileSize * half + entitySize * half);
@@ -110,7 +112,7 @@ pub fn isMousePositionInsideEntityRect(
 ) bool {
     const point: @Vector(2, f32) = @floatFromInt(getMousePosition(context));
     const rlPoint = rl.Vector2.init(point[0], point[1]);
-    const rect = getEntityRect(entity);
+    const rect = getEntityRect(context, entity);
 
     return rl.checkCollisionPointRec(rlPoint, rect);
 }

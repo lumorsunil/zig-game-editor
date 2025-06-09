@@ -9,7 +9,7 @@ const Tilemap = lib.Tilemap;
 const TilemapLayer = lib.TilemapLayer;
 
 pub fn drawTilemap(
-    context: *const Context,
+    context: *Context,
     tilemapDocument: *TilemapDocument,
     position: Vector,
     overrideFocus: bool,
@@ -21,7 +21,7 @@ pub fn drawTilemap(
 }
 
 pub fn drawLayer(
-    context: *const Context,
+    context: *Context,
     tilemapDocument: *TilemapDocument,
     layer: *TilemapLayer,
     tileSize: Vector,
@@ -37,7 +37,7 @@ pub fn drawLayer(
 
             const ux: VectorInt = @intCast(x);
             const uy: VectorInt = @intCast(y);
-            const texture = context.textures.get(tileSource.tileset).?;
+            const texture = context.requestTextureById(tileSource.tileset) catch continue orelse continue;
             const origin = rl.Vector2.init(0, 0);
             const gridPosition: Vector = .{ ux, uy };
             const scaleV: Vector = .{ context.scale, context.scale };
@@ -54,7 +54,7 @@ pub fn drawLayer(
 
             const color = if (!overrideFocus and tilemapDocument.getFocusOnActiveLayer() and tilemapDocument.document.persistentData.tilemap.activeLayer.uuid != layer.id.uuid) rl.Color.init(255, 255, 255, 50) else rl.Color.white;
 
-            rl.drawTexturePro(texture, source, dest, origin, 0, color);
+            rl.drawTexturePro(texture.*, source, dest, origin, 0, color);
         }
     }
 }

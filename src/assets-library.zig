@@ -41,6 +41,9 @@ pub const AssetsLibrary = struct {
     root: []const u8,
     currentFilesAndDirectories: ?[]Node = null,
     currentDirectory: ?[]const u8 = null,
+    dragPayload: ?*Node = null,
+    assetTypeFilter: lib.DocumentTag = .scene,
+    enableAssetTypeFilter: bool = false,
 
     pub fn init(allocator: Allocator, root: []const u8) AssetsLibrary {
         return AssetsLibrary{
@@ -77,8 +80,8 @@ pub const AssetsLibrary = struct {
         self.currentDirectory = dupedPath;
     }
 
-    pub fn appendNewFile(self: *AssetsLibrary, allocator: Allocator, path: []const u8) void {
-        const fileNode = createNodeFromFilePath(allocator, path);
+    pub fn appendNewFile(self: *AssetsLibrary, allocator: Allocator, path: [:0]const u8) void {
+        const fileNode = createNodeFromFilePath(allocator, path) catch unreachable;
 
         if (self.currentFilesAndDirectories) |c| {
             self.currentFilesAndDirectories = std.mem.concat(allocator, Node, &.{
@@ -124,7 +127,6 @@ pub const AssetsLibrary = struct {
 
     /// Assumes that path is a valid directory
     fn readDirectory(self: AssetsLibrary, allocator: Allocator, path: []const u8) []Node {
-        std.log.debug("Reading directory {s}", .{path});
         var rootDir = self.openRoot();
         defer rootDir.close();
         var targetDir = rootDir.openDir(
@@ -141,18 +143,17 @@ pub const AssetsLibrary = struct {
             defer allocator.free(absolutePath);
             std.debug.panic("Could not iterate path {s}: {}", .{ absolutePath, err });
         }) |entry| {
-            const entryPath = std.fs.path.join(allocator, &.{ path, entry.name }) catch unreachable;
+            const entryPath = std.fs.path.joinZ(allocator, &.{ path, entry.name }) catch unreachable;
             defer allocator.free(entryPath);
 
+            // TODO: Make this work on non-windows
+            const withoutDotSlash = if (std.mem.startsWith(u8, entryPath, ".\\")) entryPath[2..] else entryPath;
+
             const node: Node = switch (entry.kind) {
-                .file => createNodeFromFilePath(allocator, entryPath),
-                .directory => createNodeFromDirectoryPath(allocator, entryPath),
+                .file => createNodeFromFilePath(allocator, withoutDotSlash) catch continue,
+                .directory => createNodeFromDirectoryPath(allocator, withoutDotSlash),
                 else => continue,
             };
-
-            switch (node) {
-                inline else => |n| std.log.debug("Added asset entry: {s}, {s}", .{ n.name, n.path }),
-            }
 
             list.append(allocator, node) catch unreachable;
         }
@@ -160,18 +161,19 @@ pub const AssetsLibrary = struct {
         return list.toOwnedSlice(allocator) catch unreachable;
     }
 
-    pub fn createNodeFromFilePath(allocator: Allocator, path: []const u8) Node {
+    pub fn createNodeFromFilePath(allocator: Allocator, path: [:0]const u8) !Node {
+        const documentType = try Document.getTagByFilePath(path);
         const pathZ = allocator.dupeZ(u8, path) catch unreachable;
         const nameZ = allocator.dupeZ(u8, std.mem.sliceTo(std.fs.path.basename(path), '.')) catch unreachable;
 
         return .{ .file = .{
             .path = pathZ,
             .name = nameZ,
-            .documentType = Document.getTagByFilePath(path),
+            .documentType = documentType,
         } };
     }
 
-    pub fn createNodeFromDirectoryPath(allocator: Allocator, path: []const u8) Node {
+    pub fn createNodeFromDirectoryPath(allocator: Allocator, path: [:0]const u8) Node {
         const pathZ = allocator.dupeZ(u8, path) catch unreachable;
         const nameZ = allocator.dupeZ(u8, std.fs.path.basename(path)) catch unreachable;
 

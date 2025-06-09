@@ -8,12 +8,13 @@ const Tilemap = lib.Tilemap;
 const TileSource = lib.TileSource;
 const TilemapDocument = lib.documents.TilemapDocument;
 const SelectBox = @import("../select-box.zig").SelectGrid;
+const UUID = lib.UUIDSerializable;
 
 pub const BrushTool = struct {
     source: ?TileSource = null,
     isSelectingTileSource: bool = false,
     selectedSourceTiles: SelectBox = SelectBox.init(),
-    tileset: []const u8 = "tileset-initial",
+    tileset: UUID = undefined,
     currentPaintedCell: ?Vector = null,
     lastPaintedCell: ?Vector = null,
 
@@ -22,10 +23,7 @@ pub const BrushTool = struct {
     }
 
     pub fn deinit(self: *BrushTool, allocator: Allocator) void {
-        if (self.source) |source| {
-            source.deinit(allocator);
-            self.source = null;
-        }
+        self.source = null;
         self.selectedSourceTiles.deinit(allocator);
     }
 
@@ -40,7 +38,7 @@ pub const BrushTool = struct {
         const tile = layer.getTileByV(gridPosition);
 
         if (rl.isKeyDown(.left_control)) {
-            return self.copySource(context, &tile.source);
+            return self.copySource(&tile.source);
         } else if (rl.isMouseButtonPressed(.left) and rl.isKeyDown(.left_shift) and self.lastPaintedCell != null) {
             return self.paintLine(context, tilemapDocument, self.lastPaintedCell.?, gridPosition);
         }
@@ -48,9 +46,9 @@ pub const BrushTool = struct {
         self.paint(context, tilemapDocument, gridPosition);
     }
 
-    fn copySource(self: *BrushTool, context: *Context, tileSource: *?TileSource) void {
+    fn copySource(self: *BrushTool, tileSource: *?TileSource) void {
         if (TileSource.eql(self.source, tileSource.*)) return;
-        TileSource.set(&self.source, context.allocator, tileSource);
+        TileSource.set(&self.source, tileSource);
     }
 
     fn paint(self: *BrushTool, context: *Context, tilemapDocument: *TilemapDocument, gridPosition: Vector) void {
@@ -59,14 +57,14 @@ pub const BrushTool = struct {
 
         // Sets the brush source to one of the selected sources at random
         if (self.selectedSourceTiles.hasSelected()) {
-            TileSource.set(&self.source, context.allocator, &self.getRandomFromSelected(context));
+            TileSource.set(&self.source, &self.getRandomFromSelected(context));
         }
 
         // Paint from the brush source
         const tilemap = tilemapDocument.getTilemap();
         const layer = tilemap.getActiveLayer();
         const tile = layer.getTileByV(gridPosition);
-        TileSource.set(&tile.source, context.allocator, &self.source);
+        TileSource.set(&tile.source, &self.source);
 
         self.currentPaintedCell = gridPosition;
         self.lastPaintedCell = gridPosition;
@@ -105,11 +103,14 @@ pub const BrushTool = struct {
         self.currentPaintedCell = null;
     }
 
-    pub fn onAlternateUse(self: *const BrushTool, context: *Context, tilemap: *Tilemap, gridPosition: Vector) void {
-        _ = self; // autofix
+    pub fn onAlternateUse(
+        _: *const BrushTool,
+        tilemap: *Tilemap,
+        gridPosition: Vector,
+    ) void {
         const layer = tilemap.getActiveLayer();
         const tile = layer.getTileByV(gridPosition);
-        TileSource.set(&tile.source, context.allocator, &null);
+        TileSource.set(&tile.source, &null);
     }
 
     fn getRandomFromSelected(self: *const BrushTool, context: *Context) TileSource {
@@ -117,6 +118,6 @@ pub const BrushTool = struct {
         defer context.allocator.free(selectedGridPositions);
         const i = std.crypto.random.uintLessThan(usize, selectedGridPositions.len);
 
-        return TileSource.init(context.allocator, self.tileset, selectedGridPositions[i]);
+        return TileSource.init(self.tileset, selectedGridPositions[i]);
     }
 };

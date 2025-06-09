@@ -4,15 +4,18 @@ const ArrayList = std.ArrayListUnmanaged;
 const Animation = @import("animation.zig").Animation;
 const lib = @import("root").lib;
 const json = lib.json;
+const UUID = lib.UUIDSerializable;
 
 pub const PersistentData = struct {
-    texturePath: ?[:0]const u8 = null,
+    id: UUID,
+    textureId: ?UUID = null,
     animations: ArrayList(Animation),
 
     const initialAnimationsCapacity = 10;
 
     pub fn init(allocator: Allocator) PersistentData {
         return PersistentData{
+            .id = UUID.init(),
             .animations = ArrayList(Animation).initCapacity(allocator, initialAnimationsCapacity) catch unreachable,
         };
     }
@@ -22,17 +25,18 @@ pub const PersistentData = struct {
             animation.deinit(allocator);
         }
         self.animations.clearAndFree(allocator);
-        if (self.texturePath) |tp| allocator.free(tp);
-        self.texturePath = null;
+        self.textureId = null;
     }
 
     pub fn clone(self: PersistentData, allocator: Allocator) PersistentData {
         var cloned = PersistentData.init(allocator);
 
+        cloned.id = self.id;
+
         for (self.animations.items) |animation| {
             cloned.animations.append(allocator, animation.clone(allocator)) catch unreachable;
         }
-        if (self.texturePath) |tp| cloned.texturePath = allocator.dupeZ(u8, tp) catch unreachable;
+        cloned.textureId = self.textureId;
 
         return cloned;
     }

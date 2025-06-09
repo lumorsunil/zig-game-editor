@@ -13,6 +13,7 @@ const SceneEntityType = lib.documents.scene.SceneEntityType;
 const SceneEntityExit = lib.documents.scene.SceneEntityExit;
 const SceneEntityEntrance = lib.documents.scene.SceneEntityEntrance;
 const Vector = lib.Vector;
+const Node = lib.Node;
 const utils = @import("utils.zig");
 
 const tileSize = config.tileSize;
@@ -21,7 +22,7 @@ pub const LayoutScene = LayoutGeneric(.scene, draw, menu, handleInput);
 
 fn draw(context: *Context, sceneDocument: *SceneDocument) void {
     for (sceneDocument.getEntities().items) |entity| {
-        sceneDocument.drawEntity(context, entity.*);
+        sceneDocument.drawEntity(context, entity);
     }
 
     for (sceneDocument.getSelectedEntities().items) |selectedEntity| {
@@ -30,10 +31,8 @@ fn draw(context: *Context, sceneDocument: *SceneDocument) void {
     }
 
     if (sceneDocument.getDragPayload().*) |payload| {
-        const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(context) else utils.gridPositionToEntityPosition(utils.getMouseSceneGridPosition(context), payload);
-        var entity: SceneEntity = .init(context.allocator, position, payload);
-        defer entity.deinit(context.allocator);
-        sceneDocument.drawEntity(context, entity);
+        const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(context) else utils.gridPositionToEntityPosition(context, utils.getMouseSceneGridPosition(context), payload);
+        sceneDocument.drawEntityEx(context, payload, position);
     }
 }
 
@@ -61,10 +60,9 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
     }
     if (z.button("Set Tilemap", .{})) {
         if (context.openFileWithDialog(.tilemap)) |document| {
-            std.log.debug("opened tilemap {s}", .{document.filePath});
             for (sceneDocument.getEntities().items) |entity| {
                 if (entity.type == .tilemap) {
-                    entity.type.tilemap.setFileName(context.allocator, document.filePath);
+                    entity.type.tilemap.tilemapId = document.getId();
                 }
             }
         }
@@ -90,21 +88,12 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
         switch (selectedEntity.type) {
             .exit => |*exit| {
                 utils.scaleInput(&exit.scale.?);
-                if (z.button("Set Target", .{})) {
-                    if (context.openFileWithDialog(.scene)) |document| {
-                        // TODO: Check if there's an issue with this path being relative to root
-                        exit.setSceneFileName(context.allocator, document.filePath);
-                    }
-                }
+                sceneExitTargetInput(context, exit);
 
-                if (exit.sceneFileName) |scf| {
-                    const baseName = std.fs.path.basename(scf);
-                    var it = std.mem.splitScalar(u8, baseName, '.');
-                    const name = it.next().?;
-                    z.text("{s}", .{name});
+                if (exit.sceneId) |sId| {
                     if (z.button("Open Target Scene", .{})) {
                         // const targetEntranceKey = getTargetEntranceKey(exit);
-                        context.openEditor(scf);
+                        context.openEditorById(sId);
                         // const targetEntrance = getEntranceByKey(context, targetEntranceKey);
                         // moveCameraToEntity(context, targetEntrance.*);
                         utils.resetCamera(context);
@@ -115,28 +104,26 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
             .entrance => |*entrance| {
                 utils.scaleInput(&entrance.scale.?);
                 _ = z.inputText("Key", .{
-                    .buf = entrance.keyImguiBuffer(),
+                    .buf = entrance.key.buffer,
                 });
-                entrance.imguiCommit();
             },
             else => {},
         }
         z.text("Metadata:", .{});
-        z.pushPtrId(selectedEntity.metadata.ptr);
+        z.pushPtrId(&selectedEntity.metadata);
         _ = z.inputTextMultiline("", .{
-            .buf = selectedEntity.metadataBuffer(),
+            .buf = selectedEntity.metadata.buffer,
         });
-        selectedEntity.imguiCommit();
         z.popId();
     }
 
     const entities: []const std.meta.FieldEnum(SceneEntityType) = &.{
-        .player,
-        .npc,
-        .klet,
-        .mossing,
-        .stening,
-        .barlingSpawner,
+        // .player,
+        // .npc,
+        // .klet,
+        // .mossing,
+        // .stening,
+        // .barlingSpawner,
         .exit,
         .entrance,
     };
@@ -144,9 +131,9 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
     inline for (entities) |tag| {
         switch (tag) {
             .player, .npc, .klet, .mossing, .stening, .barlingSpawner => {
-                const texture = sceneDocument.getTextureFromEntityType(tag);
-                const source = SceneDocument.getSourceRectFromEntityType(tag);
-                const size = SceneDocument.getSizeFromEntityType(tag);
+                const texture = sceneDocument.getTextureFromEntityType(tag) catch continue orelse continue;
+                const source = SceneDocument.getSourceRectFromEntityType(tag) catch continue orelse continue;
+                const size = SceneDocument.getSizeFromEntityType(tag) catch continue orelse continue;
                 const scaledSize = Vector{
                     @intFromFloat(size.x),
                     @intFromFloat(size.y),
@@ -193,18 +180,47 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
                     },
                 );
                 if (z.beginDragDropSource(.{ .source_allow_null_id = true })) {
-                    sceneDocument.getDragPayload().* = .{ .entrance = SceneEntityEntrance.init(context.allocator) };
+                    if (sceneDocument.getDragPayload().* == null) {
+                        sceneDocument.getDragPayload().* = .{ .entrance = SceneEntityEntrance.init(context.allocator) };
+                    }
                     z.endDragDropSource();
                 }
             },
-            .tilemap => {},
+            .tilemap, .custom => {},
         }
+    }
+}
+
+fn sceneExitTargetInput(context: *Context, exit: *SceneEntityExit) void {
+    const sceneId = exit.sceneId;
+    const sceneFilePath = (if (sceneId) |id| context.getFilePathById(id) else null) orelse "None";
+    const baseName = std.fs.path.basename(sceneFilePath);
+    var it = std.mem.splitScalar(u8, baseName, '.');
+    const name = it.next().?;
+    z.text("{s}", .{name});
+    if (z.beginDragDropTarget()) {
+        if (z.getDragDropPayload()) |payload| {
+            const node: *Node = @as(**Node, @ptrCast(@alignCast(payload.data.?))).*;
+
+            switch (node.*) {
+                .directory => {},
+                .file => |file| {
+                    if (file.documentType == .scene) {
+                        if (z.acceptDragDropPayload("asset", .{})) |_| {
+                            exit.sceneId = context.getIdByFilePath(file.path) orelse unreachable;
+                        }
+                    }
+                },
+            }
+        }
+        z.endDragDropTarget();
     }
 }
 
 fn handleInput(context: *Context, _: *Editor, sceneDocument: *SceneDocument) void {
     utils.cameraControls(context);
     sceneDocumentHandleInputCreateEntity(context, sceneDocument);
+    sceneDocumentHandleInputCreateEntityFromAssetsManager(context, sceneDocument);
     sceneDocumentHandleInputSelectEntity(context, sceneDocument);
     sceneDocumentHandleInputMoveEntity(context, sceneDocument);
     sceneDocumentHandleInputDeleteEntity(context, sceneDocument);
@@ -216,14 +232,36 @@ fn handleInput(context: *Context, _: *Editor, sceneDocument: *SceneDocument) voi
 
 fn sceneDocumentHandleInputCreateEntity(context: *Context, sceneDocument: *SceneDocument) void {
     const dragPayload = sceneDocument.getDragPayload();
-    if (dragPayload.*) |payload| {
-        if (rl.isMouseButtonReleased(.left)) {
-            const entity = context.allocator.create(SceneEntity) catch unreachable;
-            const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(context) else utils.gridPositionToEntityPosition(utils.getMouseSceneGridPosition(context), payload);
-            entity.* = SceneEntity.init(context.allocator, position, payload);
-            sceneDocument.getEntities().append(context.allocator, entity) catch unreachable;
-            dragPayload.* = null;
-        }
+    const payload = dragPayload.* orelse return;
+
+    if (rl.isMouseButtonReleased(.left)) {
+        const entity = context.allocator.create(SceneEntity) catch unreachable;
+        const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(context) else utils.gridPositionToEntityPosition(context, utils.getMouseSceneGridPosition(context), payload);
+        entity.* = SceneEntity.init(context.allocator, position, payload);
+        sceneDocument.getEntities().append(context.allocator, entity) catch unreachable;
+        dragPayload.* = null;
+    }
+}
+
+fn sceneDocumentHandleInputCreateEntityFromAssetsManager(
+    context: *Context,
+    sceneDocument: *SceneDocument,
+) void {
+    const assetsLibrary = &context.currentProject.?.assetsLibrary;
+    const dragPayload = assetsLibrary.dragPayload orelse return;
+
+    if (dragPayload.* == .directory) return;
+    if (dragPayload.file.documentType != .entityType) return;
+
+    const fileNode = dragPayload.file;
+
+    if (rl.isMouseButtonReleased(.left)) {
+        const entity = context.allocator.create(SceneEntity) catch unreachable;
+        const entityTypeTag = SceneEntityType{ .custom = context.allocator.dupeZ(u8, fileNode.path) catch unreachable };
+        const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(context) else utils.gridPositionToEntityPosition(context, utils.getMouseSceneGridPosition(context), entityTypeTag);
+        entity.* = SceneEntity.init(context.allocator, position, entityTypeTag);
+        sceneDocument.getEntities().append(context.allocator, entity) catch unreachable;
+        assetsLibrary.dragPayload = null;
     }
 }
 
@@ -251,7 +289,7 @@ fn sceneDocumentHandleInputMoveEntity(context: *Context, sceneDocument: *SceneDo
         if (sceneDocument.getIsDragging()) {
             if (rl.isMouseButtonDown(.left)) {
                 const entity = sceneDocument.getSelectedEntities().items[0];
-                const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(context) else utils.gridPositionToEntityPosition(utils.getMouseSceneGridPosition(context), entity.type);
+                const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(context) else utils.gridPositionToEntityPosition(context, utils.getMouseSceneGridPosition(context), entity.type);
                 entity.position = position;
             } else {
                 sceneDocument.setIsDragging(false);

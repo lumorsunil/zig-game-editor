@@ -12,6 +12,7 @@ const NonPersistentData = @import("non-persistent-data.zig").SceneNonPersistentD
 const DocumentGeneric = lib.documents.DocumentGeneric;
 const SceneEntity = @import("persistent-data.zig").SceneEntity;
 const SceneEntityType = @import("persistent-data.zig").SceneEntityType;
+const UUID = lib.UUIDSerializable;
 
 const tileSize = config.tileSize;
 
@@ -30,7 +31,15 @@ pub const SceneDocument = struct {
         self.document.deinit(allocator);
     }
 
-    pub fn getTextureFromEntityType(self: *SceneDocument, entityType: SceneEntityType) *rl.Texture2D {
+    pub fn getId(self: SceneDocument) UUID {
+        return self.document.persistentData.id;
+    }
+
+    pub fn getTextureFromEntityType(
+        self: *SceneDocument,
+        _: *Context,
+        entityType: std.meta.FieldEnum(SceneEntityType),
+    ) !?*rl.Texture2D {
         return switch (entityType) {
             .klet => &self.document.nonPersistentData.kletTexture,
             .mossing => &self.document.nonPersistentData.mossingTexture,
@@ -38,13 +47,20 @@ pub const SceneDocument = struct {
             .barlingSpawner => &self.document.nonPersistentData.barlingTexture,
             .player => &self.document.nonPersistentData.playerTexture,
             .npc => &self.document.nonPersistentData.npcTexture,
+            // .custom => |c| {
+            //     const document = try context.requestDocumentType(.entityType, c) orelse return null;
+            //     const textureFilePath = document.getTextureFilePath() orelse return null;
+            //     return try context.requestTexture(textureFilePath);
+            // },
+            .custom => return null,
             .exit, .entrance, .tilemap => unreachable,
         };
     }
 
     pub fn getSourceRectFromEntityType(
-        entityType: SceneEntityType,
-    ) rl.Rectangle {
+        _: *Context,
+        entityType: std.meta.FieldEnum(SceneEntityType),
+    ) !?rl.Rectangle {
         return switch (entityType) {
             .klet => rl.Rectangle.init(0, 0, 32, 32),
             .mossing => rl.Rectangle.init(0, 0, 32, 32),
@@ -52,13 +68,23 @@ pub const SceneDocument = struct {
             .barlingSpawner => rl.Rectangle.init(0, 0, 32, 32),
             .player => rl.Rectangle.init(1 * 16, 6 * 32, 16, 32),
             .npc => rl.Rectangle.init(0, 0, 32, 32),
+            // .custom => |c| {
+            //     const document = try context.requestDocumentType(.entityType, c) orelse return null;
+            //     const gridPosition = document.getGridPosition().*;
+            //     const cellSize = document.getCellSize().*;
+            //     const rectPos: @Vector(2, f32) = @floatFromInt(gridPosition * cellSize);
+            //     const rectSize: @Vector(2, f32) = @floatFromInt(cellSize);
+            //     return rl.Rectangle.init(rectPos[0], rectPos[1], rectSize[0], rectSize[1]);
+            // },
+            .custom => return null,
             .exit, .entrance, .tilemap => unreachable,
         };
     }
 
     pub fn getSizeFromEntityType(
+        context: *Context,
         entityType: SceneEntityType,
-    ) rl.Vector2 {
+    ) !?rl.Vector2 {
         return switch (entityType) {
             .klet => rl.Vector2.init(32, 32),
             .mossing => rl.Vector2.init(32, 32),
@@ -69,15 +95,33 @@ pub const SceneDocument = struct {
             .exit => rl.Vector2.init(16, 16),
             .entrance => rl.Vector2.init(16, 16),
             .tilemap => unreachable,
+            .custom => |c| {
+                const document = try context.requestDocumentType(.entityType, c) orelse return null;
+                const cellSize: @Vector(2, f32) = @floatFromInt(document.getCellSize().*);
+                return rl.Vector2.init(cellSize[0], cellSize[1]);
+            },
         };
     }
 
-    pub fn drawEntity(self: *SceneDocument, context: *Context, entity: SceneEntity) void {
+    pub fn drawEntity(self: *SceneDocument, context: *Context, entity: *SceneEntity) void {
         const scale: f32 = @floatFromInt(context.scale);
         switch (entity.type) {
-            .klet, .mossing, .stening, .barlingSpawner, .player, .npc => {
-                const source = getSourceRectFromEntityType(entity.type);
-                const texture = self.getTextureFromEntityType(entity.type);
+            .custom => |c| {
+                const entityType = context.requestDocumentType(.entityType, c) catch return orelse return;
+                const textureId = entityType.getTextureId() orelse return;
+                const texture = context.requestTextureById(textureId) catch return orelse return;
+
+                const gridPosition = entityType.getGridPosition().*;
+                const cellSize = entityType.getCellSize().*;
+                const rectPos: @Vector(2, f32) = @floatFromInt(gridPosition * cellSize);
+                const rectSize: @Vector(2, f32) = @floatFromInt(cellSize);
+                const source = rl.Rectangle.init(
+                    rectPos[0],
+                    rectPos[1],
+                    rectSize[0],
+                    rectSize[1],
+                );
+
                 const position: @Vector(2, f32) = @floatFromInt(entity.position);
                 const dest = rl.Rectangle.init(
                     position[0] * scale,
@@ -89,9 +133,27 @@ pub const SceneDocument = struct {
 
                 rl.drawTexturePro(texture.*, source, dest, origin, 0, rl.Color.white);
             },
-            .tilemap => |tilemap| {
-                const tilemapFileName = tilemap.fileName orelse return;
-                const tilemapDocument = &(context.requestDocument(tilemapFileName) orelse return).content.?.tilemap;
+            .klet, .mossing, .stening, .barlingSpawner, .player, .npc => {
+                const source = getSourceRectFromEntityType(context, entity.type) catch return orelse return;
+                const texture = self.getTextureFromEntityType(context, entity.type) catch return orelse return;
+                const position: @Vector(2, f32) = @floatFromInt(entity.position);
+                const dest = rl.Rectangle.init(
+                    position[0] * scale,
+                    position[1] * scale,
+                    source.width * scale,
+                    source.height * scale,
+                );
+                const origin = rl.Vector2.init(source.width / 2 * scale, source.height / 2 * scale);
+
+                rl.drawTexturePro(texture.*, source, dest, origin, 0, rl.Color.white);
+            },
+            .tilemap => |*tilemap| {
+                const tilemapId = tilemap.tilemapId orelse return;
+                const document = context.requestDocumentById(tilemapId) orelse {
+                    tilemap.tilemapId = null;
+                    return;
+                };
+                const tilemapDocument = &document.content.?.tilemap;
                 const tilemapSizeHalf = tilemapDocument.getTilemap().grid.size * tileSize * context.scaleV / Vector{ 2, 2 };
                 const position = entity.position - tilemapSizeHalf;
                 drawTilemap(context, tilemapDocument, position, true);
@@ -113,6 +175,49 @@ pub const SceneDocument = struct {
 
                 rl.drawRectanglePro(rec, rl.Vector2.zero(), 0, color);
             },
+        }
+    }
+
+    pub fn drawEntityEx(
+        self: *SceneDocument,
+        context: *Context,
+        tag: std.meta.FieldEnum(SceneEntityType),
+        position: Vector,
+    ) void {
+        const scale: f32 = @floatFromInt(context.scale);
+        switch (tag) {
+            .klet, .mossing, .stening, .barlingSpawner, .player, .npc => {
+                const source = getSourceRectFromEntityType(context, tag) catch return orelse return;
+                const texture = self.getTextureFromEntityType(context, tag) catch return orelse return;
+                const fPosition: @Vector(2, f32) = @floatFromInt(position);
+                const dest = rl.Rectangle.init(
+                    fPosition[0] * scale,
+                    fPosition[1] * scale,
+                    source.width * scale,
+                    source.height * scale,
+                );
+                const origin = rl.Vector2.init(source.width / 2 * scale, source.height / 2 * scale);
+
+                rl.drawTexturePro(texture.*, source, dest, origin, 0, rl.Color.white);
+            },
+            .custom => {},
+            inline .exit, .entrance => {
+                const sizeInt = tileSize * context.scaleV;
+                const size: @Vector(2, f32) = @floatFromInt(sizeInt);
+                const fPosition: @Vector(2, f32) = @floatFromInt(position * context.scaleV - sizeInt / Vector{ 2, 2 });
+
+                const rec = rl.Rectangle.init(
+                    fPosition[0],
+                    fPosition[1],
+                    size[0],
+                    size[1],
+                );
+
+                const color = if (tag == .exit) rl.Color.white.alpha(0.5) else rl.Color.yellow.alpha(0.5);
+
+                rl.drawRectanglePro(rec, rl.Vector2.zero(), 0, color);
+            },
+            .tilemap => {},
         }
     }
 

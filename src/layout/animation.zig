@@ -10,17 +10,17 @@ const Animation = lib.documents.animation.Animation;
 const Frame = lib.documents.animation.Frame;
 const LayoutGeneric = lib.LayoutGeneric;
 const Vector = lib.Vector;
+const Node = lib.Node;
 const utils = @import("utils.zig");
 const config = @import("../config.zig");
 
 pub const LayoutAnimation = LayoutGeneric(.animation, draw, menu, handleInput);
 
 fn draw(context: *Context, animationDocument: *AnimationDocument) void {
-    if (animationDocument.getTextureFilePath()) |textureFilePath| {
-        if (context.requestTexture(textureFilePath)) |texture| {
-            rl.drawTextureEx(texture.*, .{ .x = 0, .y = 0 }, 0, @floatFromInt(context.scale), rl.Color.white);
-        }
-    }
+    const textureId = animationDocument.getTextureId() orelse return;
+    const texture = context.requestTextureById(textureId) catch return orelse return;
+
+    rl.drawTextureEx(texture.*, .{ .x = 0, .y = 0 }, 0, @floatFromInt(context.scale), rl.Color.white);
 }
 
 fn menu(
@@ -43,15 +43,11 @@ fn menu(
         context.saveEditorFile(editor);
     }
 
-    if (z.button("Set Texture", .{})) {
-        if (context.openFileWithDialog(.texture)) |textureDocument| {
-            animationDocument.setTexture(context.allocator, textureDocument.filePath);
-        }
-    }
+    textureInput(context, animationDocument);
 
     if (z.button("Reload Texture", .{})) {
-        if (animationDocument.getTextureFilePath()) |textureFilePath| {
-            context.reloadDocument(textureFilePath);
+        if (animationDocument.getTextureId()) |textureId| {
+            context.reloadDocumentById(textureId);
         }
     }
 
@@ -97,6 +93,30 @@ fn menu(
         if (animationDocument.getSelectedFrame()) |frame| {
             frameDetailsMenu(animationDocument, animation, frame);
         }
+    }
+}
+
+fn textureInput(context: *Context, animationDocument: *AnimationDocument) void {
+    const textureId = animationDocument.getTextureId();
+    const textureFilePath = (if (textureId) |id| context.getFilePathById(id) else null) orelse "None";
+    z.text("{s}", .{textureFilePath});
+    if (z.beginDragDropTarget()) {
+        if (z.getDragDropPayload()) |payload| {
+            const node: *Node = @as(**Node, @ptrCast(@alignCast(payload.data.?))).*;
+
+            switch (node.*) {
+                .directory => {},
+                .file => |file| {
+                    if (file.documentType == .texture) {
+                        if (z.acceptDragDropPayload("asset", .{})) |_| {
+                            const newTextureId = context.getIdByFilePath(file.path) orelse unreachable;
+                            animationDocument.setTexture(newTextureId);
+                        }
+                    }
+                },
+            }
+        }
+        z.endDragDropTarget();
     }
 }
 
@@ -155,8 +175,6 @@ fn frameWindow(
             var buffer: [4:0]u8 = undefined;
             const label = std.fmt.bufPrintZ(&buffer, "{d}", .{i}) catch unreachable;
             const isSelected = if (animationDocument.getSelectedFrameIndex()) |si| si == i else false;
-            const selectableCursorPos = z.getCursorPos();
-            const fGridSize: @Vector(2, f32) = @floatFromInt(animation.gridSize);
             const fGridSizeScaled: @Vector(2, f32) = @floatFromInt(animation.gridSize * context.scaleV);
             if (z.selectable(
                 label,
@@ -169,25 +187,7 @@ fn frameWindow(
                 animationDocument.setSelectedFrameIndex(i);
             }
 
-            if (animationDocument.getTextureFilePath()) |textureFilePath| {
-                if (context.requestTexture(textureFilePath)) |texture| {
-                    const gridPosition = frame.gridPos;
-                    const sourceRectMin = @as(@Vector(2, f32), @floatFromInt(gridPosition * animation.gridSize));
-                    const sourceRect = c.Rectangle{
-                        .x = sourceRectMin[0],
-                        .y = sourceRectMin[1],
-                        .width = fGridSize[0],
-                        .height = fGridSize[1],
-                    };
-                    z.setCursorPos(selectableCursorPos);
-                    c.rlImGuiImageRect(
-                        @ptrCast(texture),
-                        animation.gridSize[0] * context.scale,
-                        animation.gridSize[1] * context.scale,
-                        sourceRect,
-                    );
-                }
-            }
+            drawFrame(context, animationDocument, animation, frame);
 
             if (i < animation.frames.items.len - 1) z.sameLine(.{});
         }
@@ -195,6 +195,33 @@ fn frameWindow(
     }
     z.popId();
     z.end();
+}
+
+fn drawFrame(
+    context: *Context,
+    animationDocument: *AnimationDocument,
+    animation: *Animation,
+    frame: Frame,
+) void {
+    const textureId = animationDocument.getTextureId() orelse return;
+    const texture = context.requestTextureById(textureId) catch return orelse return;
+
+    const fGridSize: @Vector(2, f32) = @floatFromInt(animation.gridSize);
+    const gridPosition = frame.gridPos;
+    const sourceRectMin = @as(@Vector(2, f32), @floatFromInt(gridPosition * animation.gridSize));
+    const sourceRect = c.Rectangle{
+        .x = sourceRectMin[0],
+        .y = sourceRectMin[1],
+        .width = fGridSize[0],
+        .height = fGridSize[1],
+    };
+    z.setCursorPos(z.getCursorPos());
+    c.rlImGuiImageRect(
+        @ptrCast(texture),
+        animation.gridSize[0] * context.scale,
+        animation.gridSize[1] * context.scale,
+        sourceRect,
+    );
 }
 
 fn previewWindow(
@@ -213,8 +240,8 @@ fn previewWindow(
     _ = z.begin("Preview", .{ .flags = .{ .no_title_bar = true, .no_scrollbar = true, .always_auto_resize = true } });
     defer z.end();
 
-    const textureFilePath = animationDocument.getTextureFilePath() orelse return;
-    const texture = context.requestTexture(textureFilePath) orelse return;
+    const textureId = animationDocument.getTextureId() orelse return;
+    const texture = context.requestTextureById(textureId) catch return orelse return;
     const currentFrame = animationDocument.getPreviewFrame() orelse return;
 
     const gridPosition = currentFrame.gridPos;
@@ -256,8 +283,8 @@ fn handleAnimationInput(
     animation: *Animation,
 ) void {
     const gridPosition = utils.getMouseGridPositionWithSize(context, animation.gridSize);
-    const textureFilePath = animationDocument.getTextureFilePath() orelse return;
-    const texture = context.requestTexture(textureFilePath) orelse return;
+    const textureId = animationDocument.getTextureId() orelse return;
+    const texture = context.requestTextureById(textureId) catch return orelse return;
 
     const textureSize: Vector = .{ texture.width, texture.height };
     const textureGridSize: Vector = @divFloor(textureSize, animation.gridSize);

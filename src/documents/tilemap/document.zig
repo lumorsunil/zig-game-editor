@@ -1,6 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const lib = @import("root").lib;
+const Context = lib.Context;
 const Tilemap = lib.Tilemap;
 const History = lib.History;
 const Vector = lib.Vector;
@@ -11,6 +12,7 @@ const DocumentGeneric = lib.documents.DocumentGeneric;
 const TilemapData = @import("persistent-data.zig").TilemapData;
 const TilemapLayer = lib.TilemapLayer;
 const NonPersistentData = @import("non-persistent-data.zig").NonPersistentData;
+const UUID = lib.UUIDSerializable;
 
 pub const TilemapDocument = struct {
     document: DocumentType,
@@ -25,6 +27,10 @@ pub const TilemapDocument = struct {
 
     pub fn deinit(self: *TilemapDocument, allocator: Allocator) void {
         self.document.deinit(allocator);
+    }
+
+    pub fn getId(self: TilemapDocument) UUID {
+        return self.document.persistentData.id;
     }
 
     pub fn getTilemap(self: TilemapDocument) *Tilemap {
@@ -140,8 +146,9 @@ pub const TilemapDocument = struct {
     pub fn setToolByType(
         self: *TilemapDocument,
         comptime toolType: std.meta.FieldEnum(ImplTool),
+        context: *Context,
     ) void {
-        self.document.nonPersistentData.setTool(toolType);
+        self.document.nonPersistentData.setTool(toolType, context);
     }
 
     pub fn setTool(
@@ -151,8 +158,8 @@ pub const TilemapDocument = struct {
         self.document.nonPersistentData.currentTool = tool;
     }
 
-    pub fn getTools(self: *TilemapDocument) []Tool {
-        return self.document.nonPersistentData.tools;
+    pub fn getTools(_: *TilemapDocument, context: *Context) []Tool {
+        return &context.tools;
     }
 
     pub fn hasTool(self: TilemapDocument) bool {

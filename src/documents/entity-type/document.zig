@@ -43,11 +43,11 @@ pub const EntityTypeDocument = struct {
         self.document.persistentData.icon.gridPosition = gridPosition;
     }
 
-    pub fn getTextureFilePath(self: EntityTypeDocument) ?[:0]const u8 {
-        return self.document.persistentData.icon.texturePath;
+    pub fn getTextureId(self: EntityTypeDocument) ?UUID {
+        return self.document.persistentData.icon.textureId;
     }
 
-    pub fn setTextureFilePath(self: *EntityTypeDocument, allocator: Allocator, texturePath: [:0]const u8) void {
-        self.document.persistentData.icon.setTexturePath(allocator, texturePath);
+    pub fn setTextureId(self: *EntityTypeDocument, textureId: UUID) void {
+        self.document.persistentData.icon.textureId = textureId;
     }
 };

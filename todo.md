@@ -10,8 +10,25 @@
 - [x] Load editor state on startup
 - [ ] Quitting with changes dialog
 - [ ] Interruption handling
-- [ ] Able to visually see or draw the hitbox of entities somehow
 - [x] Update to 0.14.1
+
+### References
+
+- [x] Each asset should have an ID
+- [x] Assets should be indexed to an index file
+  - [x] Load index on startup
+  - [x] Save index on update
+- [x] Each asset referencing other assets should use the asset ID instead
+  - [x] Animations (texture)
+  - [x] Tilemap (texture)
+  - [x] Entity Type (texture)
+  - [x] Scenes (tilemap)
+- [x] Document container should use asset ID as keys
+- [x] Whenever an action is made that should update index, we update the index
+  - [ ] Moving an asset
+  - [x] Creating an asset
+  - [ ] Deleting an asset
+- [x] All assets require a json file that includes the ID (i.e. textures)
 
 ### Undo/redo
 
@@ -39,12 +56,6 @@
 - [x] Save history in document?
   - [ ] Binary format? Gzip? (jq can be used to query a document in a streaming manner [https://stackoverflow.com/questions/67414225/is-it-possible-to-read-gzip-file-directly-with-jq])
 
-### Multiple documents opened
-
-- [ ] Storage
-- [ ] Able to switch between documents
-- [ ] Tabs/thumbnails buttons for switching between documents
-
 ### Multiple editors
 
 - [x] Different documents activates corresponding editor
@@ -69,6 +80,9 @@
   - [x] Go up a directory
   - [ ] Move files
   - [ ] Delete files
+  - [x] Drag and drop asset basic functionality
+  - [x] Filter
+  - [ ] Search bar
 
 ## Resource manager
 
@@ -144,14 +158,12 @@
 ## Entity type editor
 
 - [ ] Custom entities
-  - [ ] Custom entity editor
-    - [ ] Add new custom entity
-    - [ ] List of custom entities
-      - [ ] Delete custom entity
-    - [ ] Custom entity details
-      - [ ] Set name
-      - [ ] Set icon
-      - [ ] Set size
+  - [x] Custom entity editor
+    - [x] Add new custom entity
+    - [x] Custom entity details
+      - [x] Set name
+      - [x] Set icon
+      - [x] Set size
       - [ ] Property editor
   - [x] Data structure
     - [x] Type ID
@@ -178,6 +190,7 @@
     - [x] Open target scene
   - [x] Entrance entities
     - [x] Set key
+  - [x] Add entity from assets library
 - [x] Add Play button
   - [x] Preview scene in game (run command with arguments --scene etc)
   - [x] F5 shortcut

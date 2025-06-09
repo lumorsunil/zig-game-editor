@@ -12,51 +12,32 @@ const StringZ = lib.StringZ;
 const tileSize = config.tileSize;
 
 pub const EntityTypeIcon = struct {
-    texturePath: ?[:0]const u8,
+    textureId: ?UUID,
     gridPosition: Vector,
     cellSize: Vector,
 
     pub const empty = EntityTypeIcon{
-        .texturePath = null,
+        .textureId = null,
         .gridPosition = .{ 0, 0 },
         .cellSize = .{ 0, 0 },
     };
 
     pub fn init(
-        allocator: Allocator,
-        texturePath: ?[:0]const u8,
+        textureId: ?UUID,
         gridPosition: Vector,
         cellSize: Vector,
     ) EntityTypeIcon {
         return EntityTypeIcon{
-            .texturePath = if (texturePath) |t| allocator.dupeZ(u8, t) catch unreachable else null,
+            .textureId = textureId,
             .gridPosition = gridPosition,
             .cellSize = cellSize,
         };
     }
 
-    pub fn deinit(self: EntityTypeIcon, allocator: Allocator) void {
-        if (self.texturePath) |t| allocator.free(t);
-    }
-
-    pub fn clone(self: EntityTypeIcon, allocator: Allocator) EntityTypeIcon {
-        return EntityTypeIcon.init(
-            allocator,
-            self.texturePath,
-            self.gridPosition,
-            self.cellSize,
-        );
-    }
-
-    pub fn setTexturePath(self: *EntityTypeIcon, allocator: Allocator, texturePath: [:0]const u8) void {
-        if (self.texturePath) |t| allocator.free(t);
-        self.texturePath = allocator.dupeZ(u8, texturePath) catch unreachable;
-    }
-
     pub fn draw(self: EntityTypeIcon, context: *Context, position: Vector) void {
-        const texturePath = self.texturePath orelse return;
+        const textureId = self.textureId orelse return;
 
-        if (context.requestTexture(texturePath)) |texture| {
+        if (context.requestTextureById(textureId)) |texture| {
             const scale = context.scale;
             const sourcePosition: @Vector(2, f32) = @floatFromInt(self.gridPosition * self.cellSize);
             const source = rl.Rectangle.init(
@@ -94,14 +75,13 @@ pub const EntityType = struct {
 
     pub fn deinit(self: *EntityType, allocator: Allocator) void {
         self.name.deinit(allocator);
-        self.icon.deinit(allocator);
     }
 
     pub fn clone(self: EntityType, allocator: Allocator) EntityType {
-        var cloned = EntityType.init(allocator);
+        var cloned: EntityType = undefined;
         cloned.id = self.id;
         cloned.name = .init(allocator, self.name.buffer);
-        cloned.icon = self.icon.clone(allocator);
+        cloned.icon = self.icon;
         return cloned;
     }
 };

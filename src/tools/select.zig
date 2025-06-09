@@ -147,7 +147,7 @@ pub const SelectTool = struct {
                 self.floatingSelectionDragPoint = null;
             },
             .mergeFloating => {
-                self.mergeFloatingLayer(context, tilemapDocument);
+                self.mergeFloatingLayer(tilemapDocument);
                 self.floatingLayer.?.deinit(context.allocator);
                 self.floatingLayer = null;
                 self.floatingSelectionDragPoint = null;
@@ -183,8 +183,8 @@ pub const SelectTool = struct {
                 if (self.selectedTiles.isSelected(v)) {
                     const tile = sourceLayer.getTileByV(v);
                     const newTile = newLayer.getTileByV(rv);
-                    TileSource.set(&newTile.source, context.allocator, &tile.source);
-                    if (clearSource) TileSource.clear(&tile.source, context.allocator);
+                    TileSource.set(&newTile.source, &tile.source);
+                    if (clearSource) TileSource.clear(&tile.source);
                 }
             }
         }
@@ -205,7 +205,7 @@ pub const SelectTool = struct {
         }
     }
 
-    fn mergeFloatingLayer(self: *SelectTool, context: *Context, tilemapDocument: *TilemapDocument) void {
+    fn mergeFloatingLayer(self: *SelectTool, tilemapDocument: *TilemapDocument) void {
         const tilemap = tilemapDocument.getTilemap();
 
         const size: @Vector(2, usize) = @intCast(self.selectedTiles.size);
@@ -224,7 +224,7 @@ pub const SelectTool = struct {
 
                 if (self.selectedTiles.isSelected(v) and sourceTile.source != null) {
                     const destTile = activeLayer.getTileByV(v);
-                    TileSource.set(&destTile.source, context.allocator, &sourceTile.source);
+                    TileSource.set(&destTile.source, &sourceTile.source);
                 }
             }
         }
@@ -254,7 +254,7 @@ pub const SelectTool = struct {
 
         for (selectedTiles) |v| {
             const tile = sourceLayer.getTileByV(v);
-            TileSource.clear(&tile.source, context.allocator);
+            TileSource.clear(&tile.source);
         }
     }
 };

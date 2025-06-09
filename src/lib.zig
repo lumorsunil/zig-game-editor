@@ -39,3 +39,4 @@ pub usingnamespace @import("string.zig");
 pub usingnamespace @import("editor.zig");
 pub usingnamespace @import("assets-library.zig");
 pub const json = @import("json.zig");
+pub usingnamespace @import("id-array-hash-map.zig");

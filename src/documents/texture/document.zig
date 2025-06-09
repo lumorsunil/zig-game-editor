@@ -5,6 +5,7 @@ const lib = @import("root").lib;
 const DocumentGeneric = lib.documents.DocumentGeneric;
 const PersistentData = @import("persistent-data.zig").TexturePersistentData;
 const NonPersistentData = @import("non-persistent-data.zig").TextureNonPersistentData;
+const UUID = lib.UUIDSerializable;
 
 pub const TextureDocument = struct {
     document: DocumentType,
@@ -12,7 +13,7 @@ pub const TextureDocument = struct {
     pub const DocumentType = DocumentGeneric(
         PersistentData,
         NonPersistentData,
-        .{ .isDeserializable = false },
+        .{},
     );
 
     pub fn init(allocator: Allocator) TextureDocument {
@@ -25,7 +26,22 @@ pub const TextureDocument = struct {
         self.document.deinit(allocator);
     }
 
+    pub fn getId(self: TextureDocument) UUID {
+        return self.document.persistentData.id;
+    }
+
     pub fn getTexture(self: TextureDocument) ?*rl.Texture2D {
         return if (self.document.nonPersistentData.texture) |*texture| texture else null;
+    }
+
+    pub fn setTextureFilePath(
+        self: *TextureDocument,
+        allocator: Allocator,
+        textureFilePath: [:0]const u8,
+    ) void {
+        if (self.document.persistentData.textureFilePath.len > 0) {
+            allocator.free(self.document.persistentData.textureFilePath);
+        }
+        self.document.persistentData.textureFilePath = allocator.dupeZ(u8, textureFilePath) catch unreachable;
     }
 };

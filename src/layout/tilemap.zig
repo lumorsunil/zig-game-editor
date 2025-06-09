@@ -127,8 +127,8 @@ fn tilemapMenu(context: *Context, tilemapDocument: *TilemapDocument) void {
     }
 }
 
-fn toolPickerMenu(_: *Context, tilemapDocument: *TilemapDocument) void {
-    for (tilemapDocument.getTools(), 0..) |*tool, i| {
+fn toolPickerMenu(context: *Context, tilemapDocument: *TilemapDocument) void {
+    for (tilemapDocument.getTools(context), 0..) |*tool, i| {
         if (i > 0) z.sameLine(.{});
         if (z.button(tool.name, .{})) {
             tilemapDocument.setTool(tool);
@@ -150,7 +150,7 @@ fn brushToolDetailsMenu(context: *Context, tilemapDocument: *TilemapDocument, br
         brush.isSelectingTileSource = true;
     }
     if (brush.source) |source| {
-        const texture = context.textures.getPtr(source.tileset).?;
+        const texture = context.requestTextureById(source.tileset) catch return orelse return;
         const sourceRect = source.getSourceRect(tilemapDocument.getTileSize());
         c.rlImGuiImageRect(@ptrCast(texture), 64, 64, @bitCast(sourceRect));
     }
@@ -273,7 +273,7 @@ fn handleBrush(context: *Context, tilemapDocument: *TilemapDocument, brush: *Bru
 
         if (gridPosition == null) return;
 
-        brush.onAlternateUse(context, tilemapDocument.getTilemap(), gridPosition.?);
+        brush.onAlternateUse(tilemapDocument.getTilemap(), gridPosition.?);
     } else {
         tilemapDocument.endGenericAction(Action.BrushDelete, context.allocator);
     }
@@ -322,7 +322,7 @@ fn selectTileSourceMenu(
     z.setNextWindowSize(.{ .w = 1024, .h = 800 });
     _ = z.begin("Select Tile Source", .{ .popen = &brush.isSelectingTileSource, .flags = .{ .no_scrollbar = true } });
 
-    const texture = context.textures.getPtr(brush.tileset).?;
+    const texture = context.requestTextureById(brush.tileset) catch return orelse return;
     const spacing = 4;
     const tileWidth = tilemapDocument.getTileSize()[0];
     const totalTileWidth = tileWidth + spacing;
@@ -372,7 +372,7 @@ fn selectTileSourceMenu(
                 if (rl.isKeyDown(.left_shift)) {
                     brush.selectedSourceTiles.togglePoint(context.allocator, gridPosition);
                 } else {
-                    TileSource.set(&brush.source, context.allocator, &TileSource{
+                    TileSource.set(&brush.source, &TileSource{
                         .tileset = brush.tileset,
                         .gridPosition = gridPosition,
                     });
@@ -435,11 +435,11 @@ fn handleShortcuts(context: *Context, editor: *Editor) void {
         }
     } else if (rl.isKeyPressed(.n)) {
         if (editor.document.content.? == .tilemap) {
-            editor.document.content.?.tilemap.setToolByType(.brush);
+            editor.document.content.?.tilemap.setToolByType(.brush, context);
         }
     } else if (rl.isKeyPressed(.r)) {
         if (editor.document.content.? == .tilemap) {
-            editor.document.content.?.tilemap.setToolByType(.select);
+            editor.document.content.?.tilemap.setToolByType(.select, context);
         }
     }
 }

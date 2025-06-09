@@ -9,6 +9,7 @@ const Frame = @import("animation.zig").Frame;
 const DocumentGeneric = lib.documents.DocumentGeneric;
 const PersistentData = @import("persistent-data.zig").PersistentData;
 const NonPersistentData = @import("non-persistent-data.zig").NonPersistentData;
+const UUID = lib.UUIDSerializable;
 
 const defaultGridSize: Vector = .{ 32, 32 };
 
@@ -31,18 +32,20 @@ pub const AnimationDocument = struct {
         self.document.deinit(allocator);
     }
 
+    pub fn getId(self: AnimationDocument) UUID {
+        return self.document.persistentData.id;
+    }
+
     pub fn getAnimations(self: *AnimationDocument) *ArrayList(Animation) {
         return &self.document.persistentData.animations;
     }
 
-    pub fn getTextureFilePath(self: AnimationDocument) ?[:0]const u8 {
-        return self.document.persistentData.texturePath;
+    pub fn getTextureId(self: AnimationDocument) ?UUID {
+        return self.document.persistentData.textureId;
     }
 
-    pub fn setTexture(self: *AnimationDocument, allocator: Allocator, path: [:0]const u8) void {
-        const data = self.document.persistentData;
-        if (data.texturePath) |tp| allocator.free(tp);
-        data.texturePath = allocator.dupeZ(u8, path) catch unreachable;
+    pub fn setTexture(self: *AnimationDocument, textureId: UUID) void {
+        self.document.persistentData.textureId = textureId;
     }
 
     pub fn setSelectedAnimationIndex(self: *AnimationDocument, index: ?usize) void {

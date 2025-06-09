@@ -12,6 +12,15 @@ pub const UUIDSerializable = struct {
         };
     }
 
+    pub fn format(
+        self: UUIDSerializable,
+        comptime _: []const u8,
+        _: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        try writer.writeAll(&uuid.urn.serialize(self.uuid));
+    }
+
     pub fn jsonStringify(self: *const UUIDSerializable, jw: anytype) !void {
         try jw.write(uuid.urn.serialize(self.uuid));
     }
