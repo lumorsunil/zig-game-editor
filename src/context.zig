@@ -21,6 +21,7 @@ const nfd = @import("nfd");
 const UUID = lib.UUIDSerializable;
 const uuid = @import("uuid");
 const IdArrayHashMap = lib.IdArrayHashMap;
+const drawTilemap = lib.drawTilemap;
 
 pub const ContextError = error{DocumentTagNotMatching};
 
@@ -61,6 +62,8 @@ pub const Context = struct {
     isNewSceneDialogOpen: bool = false,
     isNewAnimationDocumentDialogOpen: bool = false,
     isNewEntityTypeDocumentDialogOpen: bool = false,
+
+    updateThumbnailForCurrentDocument: bool = false,
 
     pub const PlayState = enum {
         notRunning,
@@ -165,11 +168,11 @@ pub const Context = struct {
 
         if (parsed.value.currentProject) |p| {
             self.currentProject = Project.init(self.allocator, p);
-            self.currentProject.?.assetsLibrary.setCurrentDirectory(self.allocator, ".") catch |err| {
-                std.log.err("Could not set current directory in assets manager: {}", .{err});
-            };
-            self.currentProject.?.assetIndex.load(self.allocator, p) catch |err| {
+            self.currentProject.?.loadIndex(self.allocator) catch |err| {
                 std.log.err("Could not load/build asset index: {}", .{err});
+            };
+            self.currentProject.?.setCurrentDirectory(self.allocator, ".") catch |err| {
+                std.log.err("Could not set current directory in assets manager: {}", .{err});
             };
         }
 
@@ -191,7 +194,7 @@ pub const Context = struct {
     pub fn updateIndex(self: *Context) void {
         const p = self.currentProject orelse return;
         std.log.debug("Updating index", .{});
-        p.assetIndex.save(p.assetsLibrary.root) catch |err| {
+        p.saveIndex() catch |err| {
             std.log.err("Could not save asset index: {}", .{err});
         };
     }
@@ -374,12 +377,11 @@ pub const Context = struct {
         defer self.allocator.free(relativeToRoot);
         const relativeToRootZ = self.allocator.dupeZ(u8, relativeToRoot) catch unreachable;
         defer self.allocator.free(relativeToRootZ);
-        self.currentProject.?.assetsLibrary.appendNewFile(self.allocator, relativeToRootZ);
 
         const storedDocument = self.documents.map.getPtr(document.getId()) orelse unreachable;
         const content = &@field(storedDocument.content.?, @tagName(documentType));
-
         self.currentProject.?.assetIndex.addIndex(self.allocator, content.getId(), relativeToRootZ);
+        self.currentProject.?.assetsLibrary.appendNewFile(self.allocator, self.currentProject.?.assetIndex, relativeToRootZ);
 
         return content;
     }
@@ -421,7 +423,7 @@ pub const Context = struct {
     }
 
     pub fn setCurrentDirectory(self: *Context, path: [:0]const u8) void {
-        self.currentProject.?.assetsLibrary.setCurrentDirectory(self.allocator, path) catch |err| {
+        self.currentProject.?.setCurrentDirectory(self.allocator, path) catch |err| {
             self.showError("Could not set current directory {s}: {}", .{ path, err });
             return;
         };
@@ -523,6 +525,143 @@ pub const Context = struct {
     pub fn requestTexture(self: *Context, path: [:0]const u8) !?*rl.Texture2D {
         const content = try self.requestDocumentType(.texture, path) orelse return null;
         return content.getTexture();
+    }
+
+    pub fn requestThumbnail(self: *Context, path: [:0]const u8) !?*rl.Texture2D {
+        const id = self.getIdByFilePath(path) orelse return null;
+        return try self.requestThumbnailById(id);
+    }
+
+    pub fn requestThumbnailById(self: *Context, id: UUID) !?*rl.Texture2D {
+        const p = &(self.currentProject orelse return null);
+        return p.requestThumbnailById(self.allocator, id);
+    }
+
+    pub fn updateThumbnailById(self: *Context, id: UUID) void {
+        const p = &(self.currentProject orelse return);
+        const path = self.getFilePathById(id) orelse return;
+        const document = self.requestDocumentById(id) orelse return;
+        const image = self.generateThumbnail(document) catch |err| {
+            self.showError("Could not update thumbnail for document {s}: {}", .{ path, err });
+            return;
+        } orelse return;
+        defer rl.unloadImage(image);
+
+        p.updateThumbnailById(self.allocator, id, image) catch |err| {
+            self.showError("Could not update thumbnail for document {s}: {}", .{ path, err });
+        };
+    }
+
+    pub fn updateThumbnail(self: *Context, path: [:0]const u8) void {
+        const id = self.getIdByFilePath(path) orelse return null;
+        self.updateThumbnailById(id);
+    }
+
+    // TODO: Refactor into it's own file
+    fn generateThumbnail(self: *Context, document: *Document) !?rl.Image {
+        const content = &(document.content orelse return null);
+
+        switch (content.*) {
+            .texture => |texture| {
+                return try rl.loadImageFromTexture(texture.getTexture().?.*);
+            },
+            .animation => |*animationDocument| {
+                const animations = animationDocument.getAnimations();
+                if (animations.items.len == 0) return null;
+                const textureId = animationDocument.getTextureId() orelse return null;
+                const texture = (self.requestTextureById(textureId) catch return null) orelse return null;
+                const animation = animations.items[0];
+                if (animation.frames.items.len == 0) return null;
+                const frame = animation.frames.items[0];
+                const gridPosition = frame.gridPos;
+                const sourceRectMin = @as(
+                    @Vector(2, f32),
+                    @floatFromInt(gridPosition * animation.gridSize),
+                );
+                const fCellSize: @Vector(2, f32) = @floatFromInt(animation.gridSize);
+                const sourceRect = rl.Rectangle.init(
+                    sourceRectMin[0],
+                    sourceRectMin[1],
+                    fCellSize[0],
+                    fCellSize[1],
+                );
+                const dstRect = rl.Rectangle.init(0, 0, fCellSize[0], fCellSize[1]);
+                var image = rl.genImageColor(animation.gridSize[0], animation.gridSize[1], rl.Color.white);
+                const srcImage = try rl.loadImageFromTexture(texture.*);
+                defer rl.unloadImage(srcImage);
+                rl.imageDraw(&image, srcImage, sourceRect, dstRect, rl.Color.white);
+                return image;
+            },
+            .entityType => |*entityTypeDocument| {
+                const textureId = entityTypeDocument.getTextureId() orelse return null;
+                const texture = (self.requestTextureById(textureId) catch return null) orelse return null;
+
+                const gridPosition = entityTypeDocument.getGridPosition().*;
+                const cellSize = entityTypeDocument.getCellSize().*;
+                const srcRectMin: @Vector(2, f32) = @floatFromInt(gridPosition * cellSize);
+                const fCellSize: @Vector(2, f32) = @floatFromInt(cellSize);
+                const srcRect = rl.Rectangle.init(
+                    srcRectMin[0],
+                    srcRectMin[1],
+                    fCellSize[0],
+                    fCellSize[1],
+                );
+                const dstRect = rl.Rectangle.init(0, 0, fCellSize[0], fCellSize[1]);
+                var image = rl.genImageColor(cellSize[0], cellSize[1], rl.Color.white);
+                const srcImage = try rl.loadImageFromTexture(texture.*);
+                defer rl.unloadImage(srcImage);
+                rl.imageDraw(&image, srcImage, srcRect, dstRect, rl.Color.white);
+                return image;
+            },
+            .tilemap => |*tilemapDocument| {
+                // 1. Calculate image size and create render texture
+                const tileSize = tilemapDocument.getTileSize();
+                const gridSize = tilemapDocument.getGridSize();
+                const tilemapSize = gridSize * tileSize;
+                const renderTexture = try rl.loadRenderTexture(tilemapSize[0], tilemapSize[1]);
+                defer rl.unloadRenderTexture(renderTexture);
+
+                // 2. Call draw tilemap with render texture as target
+                rl.beginTextureMode(renderTexture);
+                drawTilemap(self, tilemapDocument, .{ 0, 0 }, 1, true);
+                rl.endTextureMode();
+
+                // 3. Create image from renderTexture.texture
+                var image = try rl.loadImageFromTexture(renderTexture.texture);
+                rl.imageFlipVertical(&image);
+
+                return image;
+            },
+            .scene => |*sceneDocument| {
+                const entities = sceneDocument.getEntities();
+                const tilemapId = for (entities.items) |entity|
+                    switch (entity.type) {
+                        .tilemap => |tilemap| break tilemap.tilemapId orelse return null,
+                        else => continue,
+                    }
+                else
+                    return null;
+                const tilemapDocument = (self.requestDocumentTypeById(.tilemap, tilemapId) catch return null) orelse return null;
+
+                // 1. Calculate image size and create render texture
+                const tileSize = tilemapDocument.getTileSize();
+                const gridSize = tilemapDocument.getGridSize();
+                const tilemapSize = gridSize * tileSize;
+                const renderTexture = try rl.loadRenderTexture(tilemapSize[0], tilemapSize[1]);
+                defer rl.unloadRenderTexture(renderTexture);
+
+                // 2. Call draw tilemap with render texture as target
+                rl.beginTextureMode(renderTexture);
+                drawTilemap(self, tilemapDocument, .{ 0, 0 }, 1, true);
+                rl.endTextureMode();
+
+                // 3. Create image from renderTexture.texture
+                var image = try rl.loadImageFromTexture(renderTexture.texture);
+                rl.imageFlipVertical(&image);
+
+                return image;
+            },
+        }
     }
 
     pub fn unloadDocumentById(self: *Context, id: UUID) void {

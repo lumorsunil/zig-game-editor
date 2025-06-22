@@ -83,6 +83,15 @@
   - [x] Drag and drop asset basic functionality
   - [x] Filter
   - [ ] Search bar
+  - [x] Thumbnails
+    - [x] Store persistent thumbnails (file system)
+    - [x] Request thumbnail for document
+    - [x] Update thumbnail
+      - [x] Texture
+      - [x] Entity Type
+      - [x] Animation
+      - [x] Tilemap
+      - [x] Scene (only tilemap)
 
 ## Resource manager
 

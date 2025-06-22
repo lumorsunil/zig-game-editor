@@ -75,6 +75,13 @@ pub fn layout(context: *Context) !void {
 
     c.rlImGuiEnd();
 
+    if (context.updateThumbnailForCurrentDocument) {
+        if (context.getCurrentEditor()) |editor| {
+            context.updateThumbnailById(editor.document.getId());
+        }
+        context.updateThumbnailForCurrentDocument = false;
+    }
+
     if (context.getCurrentEditor()) |editor| {
         if (!z.io.getWantCaptureMouse()) {
             editorHandleInput(context, editor);

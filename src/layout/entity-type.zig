@@ -40,6 +40,7 @@ fn menu(context: *Context, editor: *Editor, entityTypeDocument: *EntityTypeDocum
 
     if (z.button("Save", .{})) {
         context.saveEditorFile(editor);
+        context.updateThumbnailById(entityTypeDocument.getId());
     }
     z.text("ID: {s}", .{std.json.fmt(entityTypeDocument.getId(), .{})});
     if (z.isItemHovered(.{ .delay_short = true })) {

@@ -156,7 +156,7 @@ pub const SceneDocument = struct {
                 const tilemapDocument = &document.content.?.tilemap;
                 const tilemapSizeHalf = tilemapDocument.getTilemap().grid.size * tileSize * context.scaleV / Vector{ 2, 2 };
                 const position = entity.position - tilemapSizeHalf;
-                drawTilemap(context, tilemapDocument, position, true);
+                drawTilemap(context, tilemapDocument, position, context.scale, true);
             },
             inline .exit, .entrance => |e| {
                 const sizeInt = tileSize * context.scaleV;

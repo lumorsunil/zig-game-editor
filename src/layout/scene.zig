@@ -57,6 +57,7 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
 
     if (z.button("Save", .{})) {
         context.saveEditorFile(editor);
+        context.updateThumbnailForCurrentDocument = true;
     }
     if (z.button("Set Tilemap", .{})) {
         if (context.openFileWithDialog(.tilemap)) |document| {

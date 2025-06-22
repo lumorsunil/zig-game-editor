@@ -12,11 +12,12 @@ pub fn drawTilemap(
     context: *Context,
     tilemapDocument: *TilemapDocument,
     position: Vector,
+    scale: VectorInt,
     overrideFocus: bool,
 ) void {
     const tilemap = tilemapDocument.getTilemap();
     for (tilemap.layers.items) |layer| {
-        drawLayer(context, tilemapDocument, layer, tilemap.tileSize, position, overrideFocus);
+        drawLayer(context, tilemapDocument, layer, tilemap.tileSize, position, scale, overrideFocus);
     }
 }
 
@@ -26,6 +27,7 @@ pub fn drawLayer(
     layer: *TilemapLayer,
     tileSize: Vector,
     offset: Vector,
+    scale: VectorInt,
     overrideFocus: bool,
 ) void {
     for (0..@intCast(layer.grid.size[0])) |x| {
@@ -40,7 +42,7 @@ pub fn drawLayer(
             const texture = context.requestTextureById(tileSource.tileset) catch continue orelse continue;
             const origin = rl.Vector2.init(0, 0);
             const gridPosition: Vector = .{ ux, uy };
-            const scaleV: Vector = .{ context.scale, context.scale };
+            const scaleV: Vector = .{ scale, scale };
 
             const source = tileSource.getSourceRect(tileSize);
 

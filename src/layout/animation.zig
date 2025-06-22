@@ -41,6 +41,7 @@ fn menu(
 
     if (z.button("Save", .{})) {
         context.saveEditorFile(editor);
+        context.updateThumbnailById(animationDocument.getId());
     }
 
     textureInput(context, animationDocument);

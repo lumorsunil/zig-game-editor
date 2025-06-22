@@ -54,7 +54,7 @@ pub const SelectTool = struct {
         const scale = context.scaleV * tileSize;
 
         if (self.floatingLayer) |*layer| {
-            drawLayer(context, tilemapDocument, layer, tileSize, self.selectedTiles.offset * scale, true);
+            drawLayer(context, tilemapDocument, layer, tileSize, self.selectedTiles.offset * scale, context.scale, true);
         }
 
         var it = self.selectedTiles.lineIterator();

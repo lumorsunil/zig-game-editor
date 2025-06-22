@@ -29,7 +29,7 @@ fn draw(context: *Context, document: *TilemapDocument) void {
         @floatFromInt(size[1] + thickness * 2),
     );
     rl.drawRectangleLinesEx(rect, thickness / context.camera.zoom, rl.Color.black);
-    drawTilemap(context, document, .{ 0, 0 }, false);
+    drawTilemap(context, document, .{ 0, 0 }, context.scale, false);
 
     if (document.getCurrentTool()) |currentTool| {
         switch (currentTool.impl) {
@@ -66,7 +66,7 @@ fn mainMenu(context: *Context, editor: *Editor, tilemapDocument: *TilemapDocumen
     utils.activeDocumentLabel(context, editor);
 
     z.separatorText("File");
-    fileMenu(context, editor);
+    fileMenu(context, editor, tilemapDocument);
     z.separatorText("Edit");
     editMenu(context, tilemapDocument);
     z.separatorText("Tilemap");
@@ -84,18 +84,18 @@ fn mainMenu(context: *Context, editor: *Editor, tilemapDocument: *TilemapDocumen
     historyMenu(context, tilemapDocument);
 }
 
-fn fileMenu(context: *Context, editor: *Editor) void {
+fn fileMenu(context: *Context, editor: *Editor, tilemapDocument: *TilemapDocument) void {
     if (z.button("Save", .{})) {
-        context.saveEditorFile(editor);
+        save(context, editor, tilemapDocument);
     }
-    switch (editor.document.content.?) {
-        .tilemap => |tilemap| {
-            if (z.button("Squash History", .{})) {
-                tilemap.squashHistory(context.allocator);
-            }
-        },
-        else => {},
+    if (z.button("Squash History", .{})) {
+        tilemapDocument.squashHistory(context.allocator);
     }
+}
+
+fn save(context: *Context, editor: *Editor, _: *TilemapDocument) void {
+    context.saveEditorFile(editor);
+    context.updateThumbnailForCurrentDocument = true;
 }
 
 fn editMenu(context: *Context, tilemapDocument: *TilemapDocument) void {
@@ -411,35 +411,25 @@ fn handleInput(context: *Context, editor: *Editor, tilemapDocument: *TilemapDocu
         }
     }
 
-    handleShortcuts(context, editor);
+    handleShortcuts(context, editor, tilemapDocument);
 }
 
-fn handleShortcuts(context: *Context, editor: *Editor) void {
+fn handleShortcuts(context: *Context, editor: *Editor, tilemapDocument: *TilemapDocument) void {
     if (rl.isKeyDown(.left_control)) {
-        if (rl.isKeyDown(.s)) return context.saveEditorFile(editor);
+        if (rl.isKeyDown(.s)) return save(context, editor, tilemapDocument);
         if (rl.isKeyPressed(.z)) {
             if (rl.isKeyDown(.left_shift)) {
-                if (editor.document.content.? == .tilemap) {
-                    return editor.document.content.?.tilemap.redo(context.allocator);
-                }
+                return tilemapDocument.redo(context.allocator);
             } else {
-                if (editor.document.content.? == .tilemap) {
-                    return editor.document.content.?.tilemap.undo(context.allocator);
-                }
+                return tilemapDocument.undo(context.allocator);
             }
         }
         if (rl.isKeyPressed(.y)) {
-            if (editor.document.content.? == .tilemap) {
-                return editor.document.content.?.tilemap.redo(context.allocator);
-            }
+            return tilemapDocument.redo(context.allocator);
         }
     } else if (rl.isKeyPressed(.n)) {
-        if (editor.document.content.? == .tilemap) {
-            editor.document.content.?.tilemap.setToolByType(.brush, context);
-        }
+        tilemapDocument.setToolByType(.brush, context);
     } else if (rl.isKeyPressed(.r)) {
-        if (editor.document.content.? == .tilemap) {
-            editor.document.content.?.tilemap.setToolByType(.select, context);
-        }
+        tilemapDocument.setToolByType(.select, context);
     }
 }

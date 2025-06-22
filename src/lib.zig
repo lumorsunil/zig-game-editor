@@ -38,5 +38,6 @@ pub usingnamespace @import("draw-tilemap.zig");
 pub usingnamespace @import("string.zig");
 pub usingnamespace @import("editor.zig");
 pub usingnamespace @import("assets-library.zig");
+pub usingnamespace @import("asset-index.zig");
 pub const json = @import("json.zig");
 pub usingnamespace @import("id-array-hash-map.zig");

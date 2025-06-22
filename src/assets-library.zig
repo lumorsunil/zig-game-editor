@@ -4,12 +4,15 @@ const ArrayList = std.ArrayListUnmanaged;
 const lib = @import("root").lib;
 const Document = lib.Document;
 const Serializer = lib.Serializer;
+const AssetIndex = lib.AssetIndex;
+const UUID = lib.UUIDSerializable;
 
 pub const Node = union(enum) {
     file: File,
     directory: Directory,
 
     pub const File = struct {
+        id: ?UUID,
         path: [:0]const u8,
         name: [:0]const u8,
         documentType: lib.DocumentTag,
@@ -71,17 +74,23 @@ pub const AssetsLibrary = struct {
     pub fn setCurrentDirectory(
         self: *AssetsLibrary,
         allocator: Allocator,
+        assetIndex: AssetIndex,
         path: []const u8,
     ) !void {
         if (!self.isValidDirectory(allocator, path)) return SetCurrentDirectoryError.InvalidDirectory;
         const dupedPath = allocator.dupe(u8, path) catch unreachable;
         self.deinitCurrentFilesAndDirectories(allocator);
-        self.currentFilesAndDirectories = self.readDirectory(allocator, dupedPath);
+        self.currentFilesAndDirectories = self.readDirectory(allocator, assetIndex, dupedPath);
         self.currentDirectory = dupedPath;
     }
 
-    pub fn appendNewFile(self: *AssetsLibrary, allocator: Allocator, path: [:0]const u8) void {
-        const fileNode = createNodeFromFilePath(allocator, path) catch unreachable;
+    pub fn appendNewFile(
+        self: *AssetsLibrary,
+        allocator: Allocator,
+        assetIndex: AssetIndex,
+        path: [:0]const u8,
+    ) void {
+        const fileNode = createNodeFromFilePath(allocator, assetIndex, path) catch unreachable;
 
         if (self.currentFilesAndDirectories) |c| {
             self.currentFilesAndDirectories = std.mem.concat(allocator, Node, &.{
@@ -126,7 +135,12 @@ pub const AssetsLibrary = struct {
     }
 
     /// Assumes that path is a valid directory
-    fn readDirectory(self: AssetsLibrary, allocator: Allocator, path: []const u8) []Node {
+    fn readDirectory(
+        self: AssetsLibrary,
+        allocator: Allocator,
+        assetIndex: AssetIndex,
+        path: []const u8,
+    ) []Node {
         var rootDir = self.openRoot();
         defer rootDir.close();
         var targetDir = rootDir.openDir(
@@ -150,7 +164,7 @@ pub const AssetsLibrary = struct {
             const withoutDotSlash = if (std.mem.startsWith(u8, entryPath, ".\\")) entryPath[2..] else entryPath;
 
             const node: Node = switch (entry.kind) {
-                .file => createNodeFromFilePath(allocator, withoutDotSlash) catch continue,
+                .file => createNodeFromFilePath(allocator, assetIndex, withoutDotSlash) catch continue,
                 .directory => createNodeFromDirectoryPath(allocator, withoutDotSlash),
                 else => continue,
             };
@@ -161,12 +175,18 @@ pub const AssetsLibrary = struct {
         return list.toOwnedSlice(allocator) catch unreachable;
     }
 
-    pub fn createNodeFromFilePath(allocator: Allocator, path: [:0]const u8) !Node {
+    pub fn createNodeFromFilePath(
+        allocator: Allocator,
+        assetIndex: AssetIndex,
+        path: [:0]const u8,
+    ) !Node {
         const documentType = try Document.getTagByFilePath(path);
         const pathZ = allocator.dupeZ(u8, path) catch unreachable;
         const nameZ = allocator.dupeZ(u8, std.mem.sliceTo(std.fs.path.basename(path), '.')) catch unreachable;
+        const id = assetIndex.getId(pathZ);
 
         return .{ .file = .{
+            .id = id,
             .path = pathZ,
             .name = nameZ,
             .documentType = documentType,

@@ -25,17 +25,22 @@ pub const AssetIndex = struct {
         self.hashMap.deinit(allocator);
     }
 
-    pub fn load(self: *AssetIndex, allocator: Allocator, projectDirectory: []const u8) !void {
-        if (try self.loadExistingIndex(allocator, projectDirectory)) return;
+    pub fn load(
+        self: *AssetIndex,
+        allocator: Allocator,
+        projectDirectory: []const u8,
+        cacheDirectory: []const u8,
+    ) !void {
+        if (try self.loadExistingIndex(allocator, cacheDirectory)) return;
         try self.rebuildIndex(allocator, projectDirectory);
     }
 
     fn loadExistingIndex(
         self: *AssetIndex,
         allocator: Allocator,
-        projectDirectory: []const u8,
+        cacheDirectory: []const u8,
     ) !bool {
-        var dir = try std.fs.openDirAbsolute(projectDirectory, .{});
+        var dir = try std.fs.openDirAbsolute(cacheDirectory, .{});
         defer dir.close();
 
         const file = dir.openFile(indexJsonFileName, .{}) catch |err| {
@@ -85,8 +90,8 @@ pub const AssetIndex = struct {
         }
     }
 
-    pub fn save(self: AssetIndex, projectDirectory: []const u8) !void {
-        var dir = try std.fs.openDirAbsolute(projectDirectory, .{});
+    pub fn save(self: AssetIndex, cacheDirectory: []const u8) !void {
+        var dir = try std.fs.openDirAbsolute(cacheDirectory, .{});
         defer dir.close();
         const file = try dir.createFile(indexJsonFileName, .{});
         defer file.close();

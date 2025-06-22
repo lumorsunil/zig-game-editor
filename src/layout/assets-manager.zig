@@ -59,6 +59,7 @@ pub fn assetsManager(context: *Context) void {
 
     if (assetsLibrary.currentFilesAndDirectories) |*cfad| {
         for (cfad.*) |*node| {
+            if (node.* == .directory and std.mem.eql(u8, node.directory.path, "cache")) continue;
             if (assetsLibrary.enableAssetTypeFilter and node.* == .file and node.file.documentType != assetsLibrary.assetTypeFilter) {
                 continue;
             }
@@ -117,42 +118,20 @@ const NodeIcon = struct {
     source: rl.Rectangle,
 };
 
-fn nodeDrawIcon(_: *Context, node: *Node) void {
+fn nodeDrawIcon(context: *Context, node: *Node) void {
     switch (node.*) {
-        .file => |_| {
-            // const icon = getNodeIcon(context, file) orelse return;
-            // c.rlImGuiImageRect(
-            //     @ptrCast(icon.texture),
-            //     iconSize,
-            //     iconSize,
-            //     @bitCast(icon.source),
-            // );
+        .file => |file| {
+            const id = file.id orelse return;
+            const thumbnail = switch (Document.getTagByFilePath(file.path) catch return) {
+                .texture => context.requestThumbnailById(id) catch {
+                    context.updateThumbnailById(id);
+                    return;
+                },
+                .animation, .entityType, .tilemap, .scene => context.requestThumbnailById(id) catch return,
+            };
+            c.rlImGuiImageSize(@ptrCast(thumbnail), iconSize, iconSize);
         },
         .directory => {},
-    }
-}
-
-fn getNodeIcon(context: *Context, fileNode: Node.File) ?NodeIcon {
-    switch (fileNode.documentType) {
-        .entityType => {
-            const entityType = (context.requestDocumentType(.entityType, fileNode.path) catch return null) orelse return null;
-            const textureId = entityType.getTextureId() orelse return null;
-            const texture = (context.requestTextureById(textureId) catch return null) orelse return null;
-
-            const gridPosition = entityType.getGridPosition().*;
-            const cellSize = entityType.getCellSize().*;
-            const rectPos: @Vector(2, f32) = @floatFromInt(gridPosition * cellSize);
-            const rectSize: @Vector(2, f32) = @floatFromInt(cellSize);
-            const source = rl.Rectangle.init(
-                rectPos[0],
-                rectPos[1],
-                rectSize[0],
-                rectSize[1],
-            );
-
-            return .{ .texture = texture, .source = source };
-        },
-        else => return null,
     }
 }
 
