@@ -38,12 +38,19 @@ pub const Node = union(enum) {
             inline else => |n| n.deinit(allocator),
         }
     }
+
+    pub fn getPath(self: Node) [:0]const u8 {
+        return switch (self) {
+            inline else => |n| n.path,
+        };
+    }
 };
 
 pub const AssetsLibrary = struct {
     root: []const u8,
+    // TODO: Refactor into arraylist
     currentFilesAndDirectories: ?[]Node = null,
-    currentDirectory: ?[]const u8 = null,
+    currentDirectory: ?[:0]const u8 = null,
     dragPayload: ?*Node = null,
     assetTypeFilter: lib.DocumentTag = .scene,
     enableAssetTypeFilter: bool = false,
@@ -75,10 +82,10 @@ pub const AssetsLibrary = struct {
         self: *AssetsLibrary,
         allocator: Allocator,
         assetIndex: AssetIndex,
-        path: []const u8,
+        path: [:0]const u8,
     ) !void {
         if (!self.isValidDirectory(allocator, path)) return SetCurrentDirectoryError.InvalidDirectory;
-        const dupedPath = allocator.dupe(u8, path) catch unreachable;
+        const dupedPath = allocator.dupeZ(u8, path) catch unreachable;
         self.deinitCurrentFilesAndDirectories(allocator);
         self.currentFilesAndDirectories = self.readDirectory(allocator, assetIndex, dupedPath);
         self.currentDirectory = dupedPath;
@@ -94,13 +101,57 @@ pub const AssetsLibrary = struct {
 
         if (self.currentFilesAndDirectories) |c| {
             self.currentFilesAndDirectories = std.mem.concat(allocator, Node, &.{
-                c,
                 &.{fileNode},
+                c,
             }) catch unreachable;
             allocator.free(c);
         } else {
             self.currentFilesAndDirectories = allocator.alloc(Node, 1) catch unreachable;
             self.currentFilesAndDirectories.?[0] = fileNode;
+        }
+    }
+
+    pub fn appendNewDirectory(
+        self: *AssetsLibrary,
+        allocator: Allocator,
+        path: [:0]const u8,
+    ) void {
+        const dirNode = createNodeFromDirectoryPath(allocator, path);
+
+        if (self.currentFilesAndDirectories) |c| {
+            self.currentFilesAndDirectories = std.mem.concat(allocator, Node, &.{
+                &.{dirNode},
+                c,
+            }) catch unreachable;
+            allocator.free(c);
+        } else {
+            self.currentFilesAndDirectories = allocator.alloc(Node, 1) catch unreachable;
+            self.currentFilesAndDirectories.?[0] = dirNode;
+        }
+    }
+
+    pub fn removeNode(self: *AssetsLibrary, allocator: Allocator, path: [:0]const u8) void {
+        const cfad = self.currentFilesAndDirectories orelse return;
+
+        for (0..cfad.len) |i| {
+            const node = cfad[i];
+            if (std.mem.eql(u8, path, node.getPath())) {
+                defer node.deinit(allocator);
+                const start = if (i == 0) &.{} else cfad[0..i];
+                const end = if (i == cfad.len - 1) &.{} else cfad[i + 1 ..];
+                const newCfad = allocator.alloc(Node, start.len + end.len) catch unreachable;
+                self.currentFilesAndDirectories = newCfad;
+                defer allocator.free(cfad);
+
+                for (0..start.len) |j| {
+                    newCfad[j] = start[j];
+                }
+                for (0..end.len) |j| {
+                    newCfad[start.len + j] = end[j];
+                }
+
+                return;
+            }
         }
     }
 
@@ -116,7 +167,7 @@ pub const AssetsLibrary = struct {
     pub fn isValidDirectory(
         self: AssetsLibrary,
         allocator: Allocator,
-        path: []const u8,
+        path: [:0]const u8,
     ) bool {
         var rootDir = self.openRoot();
         defer rootDir.close();
@@ -139,7 +190,7 @@ pub const AssetsLibrary = struct {
         self: AssetsLibrary,
         allocator: Allocator,
         assetIndex: AssetIndex,
-        path: []const u8,
+        path: [:0]const u8,
     ) []Node {
         var rootDir = self.openRoot();
         defer rootDir.close();

@@ -65,6 +65,8 @@ pub const Context = struct {
 
     updateThumbnailForCurrentDocument: bool = false,
 
+    iconsTexture: ?rl.Texture2D = null,
+
     pub const PlayState = enum {
         notRunning,
         starting,
@@ -99,6 +101,10 @@ pub const Context = struct {
             .exitTexture = undefined,
             .entranceTexture = undefined,
             .currentProject = null,
+            .iconsTexture = rl.loadTexture("assets/icons.png") catch |err| brk: {
+                std.log.err("Could not load icons texture: {}", .{err});
+                break :brk null;
+            },
         };
     }
 
@@ -114,6 +120,8 @@ pub const Context = struct {
         if (self.currentProject) |*p| p.deinit(self.allocator);
         self.currentProject = null;
         for (&self.tools) |*tool| tool.deinit(self.allocator);
+        if (self.iconsTexture) |iconsTexture| rl.unloadTexture(iconsTexture);
+        self.iconsTexture = null;
     }
 
     pub fn getCurrentEditor(self: *Context) ?*Editor {
@@ -307,18 +315,22 @@ pub const Context = struct {
     }
 
     pub fn newDirectory(self: *Context, name: []const u8) void {
-        var rootDir = self.currentProject.?.assetsLibrary.openRoot();
+        const p = &(self.currentProject orelse return);
+        const cd = p.assetsLibrary.currentDirectory orelse return;
+        var rootDir = p.assetsLibrary.openRoot();
         defer rootDir.close();
-        var targetDir = rootDir.openDir(
-            self.currentProject.?.assetsLibrary.currentDirectory.?,
-            .{},
-        ) catch unreachable;
+        var targetDir = rootDir.openDir(cd, .{}) catch unreachable;
         defer targetDir.close();
 
         targetDir.makeDir(name) catch |err| {
-            self.showError("Could not create directory {s} in {s}: {}", .{ name, self.currentProject.?.assetsLibrary.currentDirectory.?, err });
+            self.showError("Could not create directory {s} in {s}: {}", .{ name, cd, err });
             return;
         };
+
+        const relativeToRootZ = std.fs.path.joinZ(self.allocator, &.{ cd, name }) catch unreachable;
+        defer self.allocator.free(relativeToRootZ);
+
+        p.assetsLibrary.appendNewDirectory(self.allocator, relativeToRootZ);
     }
 
     pub fn newAsset(

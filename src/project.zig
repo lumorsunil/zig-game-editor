@@ -9,7 +9,7 @@ const AssetsLibrary = @import("assets-library.zig").AssetsLibrary;
 const AssetIndex = @import("asset-index.zig").AssetIndex;
 const Thumbnails = @import("thumbnails.zig").Thumbnails;
 
-const cacheDirectoryName = "cache";
+pub const cacheDirectoryName = "cache";
 
 pub const Project = struct {
     assetsLibrary: AssetsLibrary,
@@ -36,7 +36,7 @@ pub const Project = struct {
     pub fn setCurrentDirectory(
         self: *Project,
         allocator: Allocator,
-        path: []const u8,
+        path: [:0]const u8,
     ) !void {
         try self.assetsLibrary.setCurrentDirectory(allocator, self.assetIndex, path);
     }
@@ -47,6 +47,10 @@ pub const Project = struct {
 
     pub fn saveIndex(self: Project) !void {
         try self.assetIndex.save(self.cacheDirectory);
+    }
+
+    pub fn updateIndex(self: *Project, allocator: Allocator) !void {
+        try self.assetIndex.rebuildIndex(allocator, self.assetsLibrary.root);
     }
 
     pub fn requestThumbnailById(self: *Project, allocator: Allocator, id: UUID) !?*rl.Texture2D {

@@ -29,6 +29,10 @@
   - [x] Creating an asset
   - [ ] Deleting an asset
 - [x] All assets require a json file that includes the ID (i.e. textures)
+- [ ] Reference index
+  - [ ] Interface function for documents to produce a list of references to other documents
+  - [ ] Store reference index on file system
+  - [ ] References lookup function
 
 ### Undo/redo
 
@@ -78,11 +82,23 @@
   - [x] List assets as icons
     - [x] Double-click to open editor for asset
   - [x] Go up a directory
-  - [ ] Move files
+  - [x] Move files
+    - [x] Asset library needs to be updated
+    - [x] Asset index needs to be updated after move
+    - [x] Allow moving file to parent directory
+    - [x] BUG: When having an asset filter on, moving a file crashes the program
   - [ ] Delete files
+    - [ ] Asset library needs to be updated
+    - [ ] Asset index needs to be updated after deletion
+    - [ ] Show error label on reference inputs with missing documents
+  - [ ] Selecting multiple files
+    - [ ] Move multiple files
+    - [ ] Delete multiple files
   - [x] Drag and drop asset basic functionality
   - [x] Filter
   - [ ] Search bar
+  - [x] Asset Type Icons
+    - [x] Add icon types for all document types
   - [x] Thumbnails
     - [x] Store persistent thumbnails (file system)
     - [x] Request thumbnail for document

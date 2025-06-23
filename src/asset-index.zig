@@ -4,6 +4,7 @@ const lib = @import("root").lib;
 const UUID = lib.UUIDSerializable;
 const uuid = @import("uuid");
 const IdArrayHashMap = lib.IdArrayHashMap;
+const cacheDirectoryName = lib.cacheDirectoryName;
 
 const indexJsonFileName = "index.json";
 
@@ -59,7 +60,14 @@ pub const AssetIndex = struct {
         return true;
     }
 
-    fn rebuildIndex(self: *AssetIndex, allocator: Allocator, projectDirectory: []const u8) !void {
+    pub fn rebuildIndex(
+        self: *AssetIndex,
+        allocator: Allocator,
+        projectDirectory: []const u8,
+    ) !void {
+        self.deinit(allocator);
+        self.hashMap = .empty;
+
         var dir = try std.fs.openDirAbsolute(projectDirectory, .{ .iterate = true });
         defer dir.close();
 
@@ -69,6 +77,7 @@ pub const AssetIndex = struct {
             switch (entry.kind) {
                 .file => {
                     if (std.mem.eql(u8, entry.path, indexJsonFileName)) continue;
+                    if (std.fs.path.dirname(entry.path)) |dirname| if (std.mem.eql(u8, dirname, cacheDirectoryName)) continue;
                     if (!std.mem.endsWith(u8, entry.path, ".json")) continue;
 
                     const file = try dir.openFile(entry.path, .{});

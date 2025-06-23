@@ -177,6 +177,7 @@ fn frameWindow(
             const label = std.fmt.bufPrintZ(&buffer, "{d}", .{i}) catch unreachable;
             const isSelected = if (animationDocument.getSelectedFrameIndex()) |si| si == i else false;
             const fGridSizeScaled: @Vector(2, f32) = @floatFromInt(animation.gridSize * context.scaleV);
+            const selectablePos = z.getCursorPos();
             if (z.selectable(
                 label,
                 .{
@@ -187,8 +188,10 @@ fn frameWindow(
             )) {
                 animationDocument.setSelectedFrameIndex(i);
             }
-
+            const nextPos = z.getCursorPos();
+            z.setCursorPos(selectablePos);
             drawFrame(context, animationDocument, animation, frame);
+            z.setCursorPos(nextPos);
 
             if (i < animation.frames.items.len - 1) z.sameLine(.{});
         }
@@ -216,7 +219,6 @@ fn drawFrame(
         .width = fGridSize[0],
         .height = fGridSize[1],
     };
-    z.setCursorPos(z.getCursorPos());
     c.rlImGuiImageRect(
         @ptrCast(texture),
         animation.gridSize[0] * context.scale,

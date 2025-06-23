@@ -27,7 +27,7 @@ pub fn main() !void {
     style.setColor(.window_bg, .{ 0, 0, 0, 0.6 });
     style.setColor(.title_bg_active, .{ 0.3, 0.4, 0.3, 1 });
     style.setColor(.frame_bg, .{ 0.3, 0.4, 0.3, 1 });
-    style.setColor(.header, .{ 0.3, 0.4, 0.3, 1 });
+    style.setColor(.header, .{ 0.4, 0.7, 0.4, 0.6 });
     style.setColor(.button, .{ 0.3, 0.4, 0.3, 1 });
     style.setColor(.button_hovered, .{ 0.4, 0.7, 0.4, 1 });
     style.setColor(.separator_hovered, .{ 0.4, 0.7, 0.4, 1 });

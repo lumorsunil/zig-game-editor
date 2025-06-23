@@ -46,12 +46,16 @@ pub fn assetsManager(context: *Context) void {
 
     if (assetsLibrary.currentDirectory) |cd| {
         if (!std.mem.eql(u8, cd, ".")) {
+            z.sameLine(.{});
             if (z.button("..", .{ .w = iconSize, .h = iconSize })) {
                 z.setCursorPos(.{ nodeSpacing, nodeSpacing });
                 const newDir = context.allocator.dupeZ(u8, std.fs.path.dirname(cd) orelse ".") catch unreachable;
                 defer context.allocator.free(newDir);
                 context.setCurrentDirectory(newDir);
+                return;
             }
+            const targetDirectory = std.fs.path.dirname(cd) orelse ".";
+            if (moveFileDropTarget(context, targetDirectory)) return;
         }
     }
 
@@ -63,22 +67,15 @@ pub fn assetsManager(context: *Context) void {
             if (assetsLibrary.enableAssetTypeFilter and node.* == .file and node.file.documentType != assetsLibrary.assetTypeFilter) {
                 continue;
             }
-            nodeMenu(context, node);
+            if (nodeMenu(context, node)) return;
         }
     }
 
     newAssetUI(context);
 }
 
-fn nodeMenu(context: *Context, node: *Node) void {
-    const id: [:0]const u8 = switch (node.*) {
-        inline else => |n| n.path,
-    };
-    _ = id; // autofix
-    const label: [:0]const u8 = switch (node.*) {
-        .file => |f| Document.getTypeLabel(f.documentType),
-        .directory => "Directory",
-    };
+// Returns true if nodes were invalidated
+fn nodeMenu(context: *Context, node: *Node) bool {
     const name: [:0]const u8 = switch (node.*) {
         inline else => |n| n.name,
     };
@@ -91,15 +88,20 @@ fn nodeMenu(context: *Context, node: *Node) void {
 
     z.pushPtrId(node);
     const selectablePos = z.getCursorPos();
+    nodeDrawThumbnail(context, node);
+    var iconPos = selectablePos;
+    iconPos[0] -= 5;
+    iconPos[1] -= 5;
+    z.setCursorPos(iconPos);
     nodeDrawIcon(context, node);
     z.setCursorPos(selectablePos);
-    if (z.selectable(label, .{ .w = iconSize, .h = iconSize, .flags = .{ .allow_double_click = true } }) and z.isMouseDoubleClicked(.left)) {
+    if (z.selectable("", .{ .w = iconSize, .h = iconSize, .flags = .{ .allow_double_click = true } }) and z.isMouseDoubleClicked(.left)) {
         switch (node.*) {
             .file => |file| context.openFileNode(file),
             .directory => |directory| {
                 context.setCurrentDirectory(directory.path);
                 z.popId();
-                return;
+                return true;
             },
         }
     }
@@ -108,9 +110,58 @@ fn nodeMenu(context: *Context, node: *Node) void {
         _ = z.setDragDropPayload("asset", std.mem.asBytes(&node), .once);
         z.endDragDropSource();
     }
+    if (node.* == .directory) {
+        if (moveFileDropTarget(context, node.directory.path)) return true;
+    }
     z.setCursorPos(labelPos);
     z.text("{s}", .{name});
     z.setCursorPos(nextPos);
+
+    return false;
+}
+
+// Returns true if nodes are invalidated
+fn moveFileDropTarget(context: *Context, targetDirectory: []const u8) bool {
+    if (z.beginDragDropTarget()) {
+        if (z.getDragDropPayload()) |payload| {
+            const draggedNode: *Node = @as(**Node, @ptrCast(@alignCast(payload.data.?))).*;
+
+            switch (draggedNode.*) {
+                .directory => {},
+                .file => |file| {
+                    if (z.acceptDragDropPayload("asset", .{})) |_| {
+                        const dTargetDirectory = context.allocator.dupe(u8, targetDirectory) catch unreachable;
+                        defer context.allocator.free(dTargetDirectory);
+                        // Move the file in the file system
+                        const p = &(context.currentProject orelse return false);
+                        var rootDir = p.assetsLibrary.openRoot();
+                        defer rootDir.close();
+                        const basename = std.fs.path.basename(file.path);
+                        const targetPath = std.fs.path.joinZ(context.allocator, &.{ dTargetDirectory, basename }) catch unreachable;
+                        defer context.allocator.free(targetPath);
+                        rootDir.renameZ(file.path, targetPath) catch |err| {
+                            context.showError("Could not move file {s} to {s}: {}", .{ file.path, targetPath, err });
+                            return false;
+                        };
+
+                        // Update the asset index to match the new path for the node id
+                        p.updateIndex(context.allocator) catch |err| {
+                            context.showError("Could not update index when moving file {s} to {s}: {}", .{ file.path, targetPath, err });
+                            return false;
+                        };
+
+                        // Update the asset library to match the file system
+                        p.assetsLibrary.removeNode(context.allocator, file.path);
+
+                        return true;
+                    }
+                },
+            }
+        }
+        z.endDragDropTarget();
+    }
+
+    return false;
 }
 
 const NodeIcon = struct {
@@ -118,11 +169,11 @@ const NodeIcon = struct {
     source: rl.Rectangle,
 };
 
-fn nodeDrawIcon(context: *Context, node: *Node) void {
+fn nodeDrawThumbnail(context: *Context, node: *Node) void {
     switch (node.*) {
         .file => |file| {
             const id = file.id orelse return;
-            const thumbnail = switch (Document.getTagByFilePath(file.path) catch return) {
+            const thumbnail = switch (file.documentType) {
                 .texture => context.requestThumbnailById(id) catch {
                     context.updateThumbnailById(id);
                     return;
@@ -133,6 +184,29 @@ fn nodeDrawIcon(context: *Context, node: *Node) void {
         },
         .directory => {},
     }
+}
+
+fn nodeDrawIcon(context: *Context, node: *Node) void {
+    const iconsTexture = &(context.iconsTexture orelse return);
+    const cellSize: Vector = .{ 32, 32 };
+    const gridPosition: Vector = switch (node.*) {
+        .file => |file| switch (file.documentType) {
+            .animation => .{ 0, 1 },
+            .scene => .{ 1, 1 },
+            .tilemap => .{ 2, 1 },
+            .entityType => .{ 3, 1 },
+            .texture => .{ 4, 1 },
+        },
+        .directory => .{ 5, 1 },
+    };
+    const srcRectMin = gridPosition * cellSize;
+    const srcRect = c.Rectangle{
+        .x = @floatFromInt(srcRectMin[0]),
+        .y = @floatFromInt(srcRectMin[1]),
+        .width = @floatFromInt(cellSize[0]),
+        .height = @floatFromInt(cellSize[1]),
+    };
+    c.rlImGuiImageRect(@ptrCast(iconsTexture), cellSize[0], cellSize[1], srcRect);
 }
 
 fn newAssetUI(context: *Context) void {

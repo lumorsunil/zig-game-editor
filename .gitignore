@@ -8,6 +8,7 @@ imgui.ini
 *.scene.json
 *.animations.json
 *.png
+*.xcf
 projects
 todo-kottefolket.md
 *.sh
