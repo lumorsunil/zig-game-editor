@@ -130,30 +130,7 @@ fn moveFileDropTarget(context: *Context, targetDirectory: []const u8) bool {
                 .directory => {},
                 .file => |file| {
                     if (z.acceptDragDropPayload("asset", .{})) |_| {
-                        const dTargetDirectory = context.allocator.dupe(u8, targetDirectory) catch unreachable;
-                        defer context.allocator.free(dTargetDirectory);
-                        // Move the file in the file system
-                        const p = &(context.currentProject orelse return false);
-                        var rootDir = p.assetsLibrary.openRoot();
-                        defer rootDir.close();
-                        const basename = std.fs.path.basename(file.path);
-                        const targetPath = std.fs.path.joinZ(context.allocator, &.{ dTargetDirectory, basename }) catch unreachable;
-                        defer context.allocator.free(targetPath);
-                        rootDir.renameZ(file.path, targetPath) catch |err| {
-                            context.showError("Could not move file {s} to {s}: {}", .{ file.path, targetPath, err });
-                            return false;
-                        };
-
-                        // Update the asset index to match the new path for the node id
-                        p.updateIndex(context.allocator) catch |err| {
-                            context.showError("Could not update index when moving file {s} to {s}: {}", .{ file.path, targetPath, err });
-                            return false;
-                        };
-
-                        // Update the asset library to match the file system
-                        p.assetsLibrary.removeNode(context.allocator, file.path);
-
-                        return true;
+                        return moveNode(context, targetDirectory, file);
                     }
                 },
             }
@@ -162,6 +139,54 @@ fn moveFileDropTarget(context: *Context, targetDirectory: []const u8) bool {
     }
 
     return false;
+}
+
+// Returns true if nodes are invalidated
+fn moveNode(context: *Context, targetDirectory: []const u8, file: Node.File) bool {
+    const dTargetDirectory = context.allocator.dupe(u8, targetDirectory) catch unreachable;
+    defer context.allocator.free(dTargetDirectory);
+
+    // Create target path
+    const p = &(context.currentProject orelse return false);
+    var rootDir = p.assetsLibrary.openRoot();
+    defer rootDir.close();
+    const basename = std.fs.path.basename(file.path);
+    const targetPath = std.fs.path.joinZ(context.allocator, &.{ dTargetDirectory, basename }) catch unreachable;
+    defer context.allocator.free(targetPath);
+
+    // Check if target path exists
+    const stat = rootDir.statFile(targetPath) catch |err| brk: {
+        switch (err) {
+            std.fs.Dir.StatFileError.FileNotFound => break :brk null,
+            else => {
+                context.showError("Could not move file {s} to {s}: {}", .{ file.path, targetPath, err });
+                return false;
+            },
+        }
+    };
+
+    // File exists, show error
+    if (stat) |_| {
+        context.showError("Could not move file {s} to {s}: Target exists", .{ file.path, targetPath });
+        return false;
+    }
+
+    // Move file in file system
+    rootDir.renameZ(file.path, targetPath) catch |err| {
+        context.showError("Could not move file {s} to {s}: {}", .{ file.path, targetPath, err });
+        return false;
+    };
+
+    // Update the asset index to match the new path for the node id
+    p.updateIndex(context.allocator) catch |err| {
+        context.showError("Could not update index when moving file {s} to {s}: {}", .{ file.path, targetPath, err });
+        return false;
+    };
+
+    // Update the asset library to match the file system
+    p.assetsLibrary.removeNode(context.allocator, file.path);
+
+    return true;
 }
 
 const NodeIcon = struct {

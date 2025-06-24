@@ -86,6 +86,11 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
         const selectedEntity = sceneDocument.getSelectedEntities().items[0];
 
         // Entity details menu
+        z.text("Entity: {s}", .{@tagName(selectedEntity.type)});
+        if (selectedEntity.type == .custom) {
+            const entityType = context.requestDocumentTypeById(.entityType, selectedEntity.type.custom) catch unreachable orelse unreachable;
+            z.text("Custom: {}", .{entityType.getName()});
+        }
         switch (selectedEntity.type) {
             .exit => |*exit| {
                 utils.scaleInput(&exit.scale.?);
@@ -248,21 +253,21 @@ fn sceneDocumentHandleInputCreateEntityFromAssetsManager(
     context: *Context,
     sceneDocument: *SceneDocument,
 ) void {
-    const assetsLibrary = &context.currentProject.?.assetsLibrary;
-    const dragPayload = assetsLibrary.dragPayload orelse return;
+    const dragPayload = z.getDragDropPayload() orelse return;
+    const draggedNode: *Node = @as(**Node, @ptrCast(@alignCast(dragPayload.data.?))).*;
 
-    if (dragPayload.* == .directory) return;
-    if (dragPayload.file.documentType != .entityType) return;
+    if (draggedNode.* == .directory) return;
+    if (draggedNode.file.documentType != .entityType) return;
 
-    const fileNode = dragPayload.file;
+    const fileNode = draggedNode.file;
+    const id = fileNode.id orelse return;
 
     if (rl.isMouseButtonReleased(.left)) {
         const entity = context.allocator.create(SceneEntity) catch unreachable;
-        const entityTypeTag = SceneEntityType{ .custom = context.allocator.dupeZ(u8, fileNode.path) catch unreachable };
+        const entityTypeTag = SceneEntityType{ .custom = id };
         const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(context) else utils.gridPositionToEntityPosition(context, utils.getMouseSceneGridPosition(context), entityTypeTag);
         entity.* = SceneEntity.init(context.allocator, position, entityTypeTag);
         sceneDocument.getEntities().append(context.allocator, entity) catch unreachable;
-        assetsLibrary.dragPayload = null;
     }
 }
 

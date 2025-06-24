@@ -9,6 +9,7 @@ const Context = lib.Context;
 const Editor = lib.Editor;
 const EntityTypeDocument = lib.documents.EntityTypeDocument;
 const Vector = lib.Vector;
+const Node = lib.Node;
 const utils = @import("utils.zig");
 
 pub const LayoutEntityType = LayoutGeneric(.entityType, draw, menu, handleInput);
@@ -60,15 +61,33 @@ fn menu(context: *Context, editor: *Editor, entityTypeDocument: *EntityTypeDocum
             entityTypeDocument.setTextureId(textureDocument.getId());
         }
     }
-    z.text("Texture: {?s}", .{entityTypeDocument.getTextureId()});
-    if (z.isItemHovered(.{ .delay_short = true })) {
-        if (z.beginTooltip()) {
-            z.text("{?s}", .{entityTypeDocument.getTextureId()});
-        }
-        z.endTooltip();
-    }
+    textureInput(context, entityTypeDocument);
     drawIconMenu(context, entityTypeDocument);
     // TODO: Icon select cell from texture
+}
+
+fn textureInput(context: *Context, entityTypeDocument: *EntityTypeDocument) void {
+    const textureId = entityTypeDocument.getTextureId();
+    const textureFilePath = (if (textureId) |id| context.getFilePathById(id) else null) orelse "None";
+    z.text("{s}", .{textureFilePath});
+    if (z.beginDragDropTarget()) {
+        if (z.getDragDropPayload()) |payload| {
+            const node: *Node = @as(**Node, @ptrCast(@alignCast(payload.data.?))).*;
+
+            switch (node.*) {
+                .directory => {},
+                .file => |file| {
+                    if (file.documentType == .texture) {
+                        if (z.acceptDragDropPayload("asset", .{})) |_| {
+                            const newTextureId = context.getIdByFilePath(file.path) orelse unreachable;
+                            entityTypeDocument.setTextureId(newTextureId);
+                        }
+                    }
+                },
+            }
+        }
+        z.endDragDropTarget();
+    }
 }
 
 fn drawIconMenu(context: *Context, entityTypeDocument: *EntityTypeDocument) void {

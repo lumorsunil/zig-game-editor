@@ -47,11 +47,6 @@ pub const SceneDocument = struct {
             .barlingSpawner => &self.document.nonPersistentData.barlingTexture,
             .player => &self.document.nonPersistentData.playerTexture,
             .npc => &self.document.nonPersistentData.npcTexture,
-            // .custom => |c| {
-            //     const document = try context.requestDocumentType(.entityType, c) orelse return null;
-            //     const textureFilePath = document.getTextureFilePath() orelse return null;
-            //     return try context.requestTexture(textureFilePath);
-            // },
             .custom => return null,
             .exit, .entrance, .tilemap => unreachable,
         };
@@ -68,14 +63,6 @@ pub const SceneDocument = struct {
             .barlingSpawner => rl.Rectangle.init(0, 0, 32, 32),
             .player => rl.Rectangle.init(1 * 16, 6 * 32, 16, 32),
             .npc => rl.Rectangle.init(0, 0, 32, 32),
-            // .custom => |c| {
-            //     const document = try context.requestDocumentType(.entityType, c) orelse return null;
-            //     const gridPosition = document.getGridPosition().*;
-            //     const cellSize = document.getCellSize().*;
-            //     const rectPos: @Vector(2, f32) = @floatFromInt(gridPosition * cellSize);
-            //     const rectSize: @Vector(2, f32) = @floatFromInt(cellSize);
-            //     return rl.Rectangle.init(rectPos[0], rectPos[1], rectSize[0], rectSize[1]);
-            // },
             .custom => return null,
             .exit, .entrance, .tilemap => unreachable,
         };
@@ -96,7 +83,7 @@ pub const SceneDocument = struct {
             .entrance => rl.Vector2.init(16, 16),
             .tilemap => unreachable,
             .custom => |c| {
-                const document = try context.requestDocumentType(.entityType, c) orelse return null;
+                const document = try context.requestDocumentTypeById(.entityType, c) orelse return null;
                 const cellSize: @Vector(2, f32) = @floatFromInt(document.getCellSize().*);
                 return rl.Vector2.init(cellSize[0], cellSize[1]);
             },
@@ -107,10 +94,9 @@ pub const SceneDocument = struct {
         const scale: f32 = @floatFromInt(context.scale);
         switch (entity.type) {
             .custom => |c| {
-                const entityType = context.requestDocumentType(.entityType, c) catch return orelse return;
+                const entityType = context.requestDocumentTypeById(.entityType, c) catch return orelse return;
                 const textureId = entityType.getTextureId() orelse return;
                 const texture = context.requestTextureById(textureId) catch return orelse return;
-
                 const gridPosition = entityType.getGridPosition().*;
                 const cellSize = entityType.getCellSize().*;
                 const rectPos: @Vector(2, f32) = @floatFromInt(gridPosition * cellSize);

@@ -88,7 +88,7 @@ pub const Context = struct {
         const rootDir = std.fs.cwd().realpathAlloc(allocator, ".") catch unreachable;
         defer allocator.free(rootDir);
 
-        return Context{
+        var context = Context{
             .allocator = allocator,
             .openedEditors = .empty,
             .documents = .empty,
@@ -106,6 +106,10 @@ pub const Context = struct {
                 break :brk null;
             },
         };
+
+        context.documents.map.ensureTotalCapacity(allocator, 100000) catch unreachable;
+
+        return context;
     }
 
     pub fn deinit(self: *Context) void {
@@ -131,8 +135,18 @@ pub const Context = struct {
 
     fn createEditorSession(self: *Context) EditorSession {
         return EditorSession{
-            .currentProject = if (self.currentProject) |p| p.assetsLibrary.root else null,
-            .openedEditorFilePath = if (self.getCurrentEditor()) |e| e.document.filePath else null,
+            .currentProject = if (self.currentProject) |p| self.allocator.dupe(u8, p.assetsLibrary.root) catch unreachable else null,
+            .openedEditorFilePath = if (self.getCurrentEditor()) |e| brk: {
+                const p = self.currentProject orelse break :brk null;
+                const relativeToRoot = std.fs.path.relative(
+                    self.allocator,
+                    p.assetsLibrary.root,
+                    e.document.filePath,
+                ) catch unreachable;
+                defer self.allocator.free(relativeToRoot);
+                const relativeToRootZ = self.allocator.dupeZ(u8, relativeToRoot) catch unreachable;
+                break :brk relativeToRootZ;
+            } else null,
             .camera = self.camera,
             .windowSize = .{ rl.getScreenWidth(), rl.getScreenHeight() },
             .windowPos = brk: {
@@ -148,7 +162,9 @@ pub const Context = struct {
         const file = try std.fs.cwd().createFile(sessionFileName, .{});
         defer file.close();
         const writer = file.writer();
-        try std.json.stringify(self.createEditorSession(), .{}, writer);
+        var session = self.createEditorSession();
+        try std.json.stringify(session, .{}, writer);
+        session.deinit(self.allocator);
         self.updateIndex();
     }
 
@@ -378,10 +394,7 @@ pub const Context = struct {
             return null;
         };
 
-        self.documents.map.put(self.allocator, document.getId(), document) catch |err| {
-            self.showError("Could not store document in hash map {s}: {}", .{ absoluteFilePathZ, err });
-            return null;
-        };
+        self.documents.map.putAssumeCapacity(document.getId(), document);
 
         const rootDirAbsolutePath = rootDir.realpathAlloc(self.allocator, ".") catch unreachable;
         defer self.allocator.free(rootDirAbsolutePath);
@@ -394,6 +407,9 @@ pub const Context = struct {
         const content = &@field(storedDocument.content.?, @tagName(documentType));
         self.currentProject.?.assetIndex.addIndex(self.allocator, content.getId(), relativeToRootZ);
         self.currentProject.?.assetsLibrary.appendNewFile(self.allocator, self.currentProject.?.assetIndex, relativeToRootZ);
+
+        // Update the asset index to match the new path for the node id
+        self.updateIndex();
 
         return content;
     }
@@ -414,7 +430,10 @@ pub const Context = struct {
     }
 
     pub fn openEditor(self: *Context, path: [:0]const u8) void {
-        const id = self.getIdByFilePath(path) orelse return;
+        const id = self.getIdByFilePath(path) orelse {
+            std.log.warn("Could not open document, id not found for {s}", .{path});
+            return;
+        };
         self.openEditorById(id);
     }
 
@@ -459,7 +478,7 @@ pub const Context = struct {
     }
 
     pub fn requestDocumentById(self: *Context, id: UUID) ?*Document {
-        const entry = self.documents.map.getOrPut(self.allocator, id) catch unreachable;
+        const entry = self.documents.map.getOrPutAssumeCapacity(id);
 
         if (!entry.found_existing) {
             std.log.debug("Requested document {} not found, loading", .{id});
@@ -521,12 +540,8 @@ pub const Context = struct {
         comptime tag: DocumentTag,
         path: [:0]const u8,
     ) !?*std.meta.TagPayload(DocumentContent, tag) {
-        const document = self.requestDocument(path) orelse return null;
-
-        switch (document.content.?) {
-            tag => |*content| return content,
-            else => return ContextError.DocumentTagNotMatching,
-        }
+        const id = self.getIdByFilePath(path) orelse return null;
+        return try self.requestDocumentTypeById(tag, id);
     }
 
     pub fn requestTextureById(self: *Context, id: UUID) !?*rl.Texture2D {

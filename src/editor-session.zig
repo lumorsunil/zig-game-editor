@@ -1,3 +1,5 @@
+const std = @import("std");
+const Allocator = std.mem.Allocator;
 const rl = @import("raylib");
 const Vector = @import("vector.zig").Vector;
 const Tool = @import("tool.zig").Tool;
@@ -9,4 +11,11 @@ pub const EditorSession = struct {
     camera: rl.Camera2D,
     windowSize: Vector,
     windowPos: Vector,
+
+    pub fn deinit(self: *EditorSession, allocator: Allocator) void {
+        if (self.currentProject) |p| allocator.free(p);
+        self.currentProject = null;
+        if (self.openedEditorFilePath) |p| allocator.free(p);
+        self.openedEditorFilePath = null;
+    }
 };

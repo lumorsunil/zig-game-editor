@@ -63,8 +63,16 @@ pub fn DocumentGeneric(
             defer reader.deinit();
 
             const parsed = std.json.parseFromTokenSource(PersistentData, allocator, &reader, .{}) catch |err| {
+                const padding = 50;
+                const stdout = std.io.getStdOut();
+
                 std.log.err("Error parsing json at {d}: {}", .{ reader.scanner.cursor, err });
-                std.log.err("Input: {s}", .{reader.scanner.input[reader.scanner.cursor - 100 .. reader.scanner.cursor + 100]});
+                std.log.err("Input: {s}", .{reader.scanner.input[reader.scanner.cursor - padding .. reader.scanner.cursor + padding]});
+                for (0..padding + "error: Input: ".len) |_| {
+                    stdout.writeAll(" ") catch unreachable;
+                }
+                stdout.writeAll("^\n") catch unreachable;
+
                 return err;
             };
             const persistentData = allocator.create(PersistentData) catch unreachable;

@@ -49,23 +49,21 @@ pub const SceneEntityType = union(enum) {
     barlingSpawner,
     player,
     npc,
-    custom: [:0]const u8,
+    custom: UUID,
     exit: SceneEntityExit,
     entrance: SceneEntityEntrance,
     tilemap: SceneEntityTilemap,
 
     pub fn deinit(self: *SceneEntityType, allocator: Allocator) void {
         switch (self.*) {
-            .klet, .mossing, .stening, .barlingSpawner, .player, .npc, .exit, .tilemap => {},
-            .custom => |c| allocator.free(c),
+            .klet, .mossing, .stening, .barlingSpawner, .player, .npc, .exit, .tilemap, .custom => {},
             inline else => |*e| e.deinit(allocator),
         }
     }
 
     pub fn clone(self: SceneEntityType, allocator: Allocator) SceneEntityType {
         return switch (self) {
-            .klet, .mossing, .stening, .barlingSpawner, .player, .npc, .exit, .tilemap => self,
-            .custom => |c| .{ .custom = allocator.dupeZ(u8, c) catch unreachable },
+            .klet, .mossing, .stening, .barlingSpawner, .player, .npc, .exit, .tilemap, .custom => self,
             .entrance => |entrance| .{ .entrance = entrance.clone(allocator) },
         };
     }

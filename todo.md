@@ -9,7 +9,6 @@
 - [x] Store editor state on quit
 - [x] Load editor state on startup
 - [ ] Quitting with changes dialog
-- [ ] Interruption handling
 - [x] Update to 0.14.1
 
 ### References
@@ -25,7 +24,7 @@
   - [x] Scenes (tilemap)
 - [x] Document container should use asset ID as keys
 - [x] Whenever an action is made that should update index, we update the index
-  - [ ] Moving an asset
+  - [x] Moving an asset
   - [x] Creating an asset
   - [ ] Deleting an asset
 - [x] All assets require a json file that includes the ID (i.e. textures)
@@ -87,6 +86,7 @@
     - [x] Asset index needs to be updated after move
     - [x] Allow moving file to parent directory
     - [x] BUG: When having an asset filter on, moving a file crashes the program
+  - [ ] Rename file
   - [ ] Delete files
     - [ ] Asset library needs to be updated
     - [ ] Asset index needs to be updated after deletion
@@ -128,6 +128,7 @@
 - [x] Brush tool
   - [x] Randomize tile
     - [x] (Bug) Randomize only when painting on next cell
+  - [x] Line drawing with shift-click
 - [ ] Bucket tool
 - [x] Select tool
   - [x] Copy/paste tiles
@@ -182,9 +183,10 @@
 
 ## Entity type editor
 
-- [ ] Custom entities
+- [x] Custom entities
   - [x] Custom entity editor
     - [x] Add new custom entity
+      - [ ] Set name of new entity to same name as filename
     - [x] Custom entity details
       - [x] Set name
       - [x] Set icon

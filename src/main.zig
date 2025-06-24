@@ -54,11 +54,7 @@ pub fn main() !void {
     // Tileset hardcoded
 
     if (context.currentProject) |_| {
-        // const document = context.requestDocument();
-        // const entry = context.documents.getOrPut(allocator, config.tilesetPath) catch unreachable;
-        // const id = entry.value_ptr.getId();
         const id = UUID{ .uuid = uuid.urn.deserialize("1e5874c6-0090-4017-ac61-ba85afe94b63") catch unreachable };
-        // p.assetIndex.addIndex(allocator, id, config.assetsRootDir ++ config.tilesetPath);
         context.tilesetId = id;
         context.tools[0].impl.brush.tileset = id;
     }
