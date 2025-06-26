@@ -10,6 +10,8 @@ const Editor = lib.Editor;
 const EntityTypeDocument = lib.documents.EntityTypeDocument;
 const Vector = lib.Vector;
 const Node = lib.Node;
+const DocumentTag = lib.DocumentTag;
+const UUID = lib.UUIDSerializable;
 const utils = @import("utils.zig");
 
 pub const LayoutEntityType = LayoutGeneric(.entityType, draw, menu, handleInput);
@@ -22,13 +24,14 @@ fn draw(context: *Context, entityTypeDocument: *EntityTypeDocument) void {
 
 fn menu(context: *Context, editor: *Editor, entityTypeDocument: *EntityTypeDocument) void {
     const screenSize: @Vector(2, f32) = @floatFromInt(Vector{ rl.getScreenWidth(), rl.getScreenHeight() });
-    z.setNextWindowPos(.{ .x = 0, .y = config.topBarOffset });
-    z.setNextWindowSize(.{ .w = 200, .h = screenSize[1] - config.topBarOffset });
+    z.setNextWindowPos(.{ .x = 0, .y = config.editorContentOffset });
+    z.setNextWindowSize(.{ .w = 200, .h = screenSize[1] - config.editorContentOffset });
     _ = z.begin("Entity Type Menu", .{ .flags = .{
         .no_title_bar = true,
         .no_resize = true,
         .no_move = true,
         .no_collapse = true,
+        .no_bring_to_front_on_focus = true,
     } });
     defer z.end();
 
@@ -56,38 +59,10 @@ fn menu(context: *Context, editor: *Editor, entityTypeDocument: *EntityTypeDocum
     _ = z.inputInt2("Cell Size", .{ .v = entityTypeDocument.getCellSize() });
     const gridPosition = entityTypeDocument.getGridPosition().*;
     z.text("Cell: {d:0.0},{d:0.0}", .{ gridPosition[0], gridPosition[1] });
-    if (z.button("Set Icon Texture", .{})) {
-        if (context.openFileWithDialog(.texture)) |textureDocument| {
-            entityTypeDocument.setTextureId(textureDocument.getId());
-        }
+    if (utils.assetInput(.texture, context, entityTypeDocument.getTextureId())) |id| {
+        entityTypeDocument.setTextureId(id);
     }
-    textureInput(context, entityTypeDocument);
     drawIconMenu(context, entityTypeDocument);
-    // TODO: Icon select cell from texture
-}
-
-fn textureInput(context: *Context, entityTypeDocument: *EntityTypeDocument) void {
-    const textureId = entityTypeDocument.getTextureId();
-    const textureFilePath = (if (textureId) |id| context.getFilePathById(id) else null) orelse "None";
-    z.text("{s}", .{textureFilePath});
-    if (z.beginDragDropTarget()) {
-        if (z.getDragDropPayload()) |payload| {
-            const node: *Node = @as(**Node, @ptrCast(@alignCast(payload.data.?))).*;
-
-            switch (node.*) {
-                .directory => {},
-                .file => |file| {
-                    if (file.documentType == .texture) {
-                        if (z.acceptDragDropPayload("asset", .{})) |_| {
-                            const newTextureId = context.getIdByFilePath(file.path) orelse unreachable;
-                            entityTypeDocument.setTextureId(newTextureId);
-                        }
-                    }
-                },
-            }
-        }
-        z.endDragDropTarget();
-    }
 }
 
 fn drawIconMenu(context: *Context, entityTypeDocument: *EntityTypeDocument) void {

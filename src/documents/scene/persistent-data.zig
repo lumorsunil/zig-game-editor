@@ -1,7 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayListUnmanaged;
-const uuid = @import("uuid");
 const lib = @import("root").lib;
 const UUID = lib.UUIDSerializable;
 const Vector = lib.Vector;
@@ -84,7 +83,7 @@ pub const SceneEntityEntrance = struct {
 
     pub fn init(allocator: Allocator) SceneEntityEntrance {
         return SceneEntityEntrance{
-            .key = .initFmt(allocator, "{s}", .{uuid.urn.serialize(uuid.v4.new())}),
+            .key = .initFmt(allocator, "{s}", .{UUID.init().serialize()}),
         };
     }
 

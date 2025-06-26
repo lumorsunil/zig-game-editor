@@ -12,6 +12,16 @@ pub const UUIDSerializable = struct {
         };
     }
 
+    pub fn serialize(self: UUIDSerializable) uuid.urn.Urn {
+        return uuid.urn.serialize(self.uuid);
+    }
+
+    pub fn deserialize(k: []const u8) !UUIDSerializable {
+        return UUIDSerializable{
+            .uuid = try uuid.urn.deserialize(k),
+        };
+    }
+
     pub fn format(
         self: UUIDSerializable,
         comptime _: []const u8,

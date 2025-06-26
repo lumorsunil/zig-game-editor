@@ -5,6 +5,7 @@ const c = @import("c");
 const rl = @import("raylib");
 const nfd = @import("nfd");
 const lib = @import("root").lib;
+const config = @import("root").config;
 const Context = lib.Context;
 const BrushTool = lib.tools.BrushTool;
 const SelectTool = lib.tools.SelectTool;
@@ -14,6 +15,7 @@ const TileSource = lib.TileSource;
 const TilemapLayer = lib.TilemapLayer;
 const Action = lib.Action;
 const Editor = lib.Editor;
+const UUID = lib.UUIDSerializable;
 const SceneEntity = lib.documents.scene.SceneEntity;
 const SceneEntityType = lib.documents.scene.SceneEntityType;
 const SceneEntityExit = lib.documents.scene.SceneEntityExit;
@@ -23,6 +25,7 @@ const TilemapDocument = lib.documents.TilemapDocument;
 const AnimationDocument = lib.documents.AnimationDocument;
 const assetsManager = @import("layout/assets-manager.zig").assetsManager;
 const layouts = @import("layout/layouts.zig");
+const utils = @import("layout/utils.zig");
 
 pub fn layout(context: *Context) !void {
     const screenSize: Vector = .{ rl.getScreenWidth(), rl.getScreenHeight() };
@@ -41,21 +44,13 @@ pub fn layout(context: *Context) !void {
 
     c.rlImGuiBegin();
 
-    _ = z.begin("demo-button", .{});
-    if (z.button("Demo", .{})) {
-        context.isDemoWindowEnabled = true;
-    }
-    z.end();
-
-    if (context.isDemoWindowEnabled) {
-        z.showDemoWindow(&context.isDemoWindowOpen);
-    }
-
     if (context.currentProject) |_| {
         if (projectMenu(context)) {
             c.rlImGuiEnd();
             return;
         }
+
+        documentTabs(context);
 
         if (context.getCurrentEditor()) |editor| {
             editorMenu(context, editor);
@@ -159,4 +154,66 @@ fn editorMenu(context: *Context, editor: *Editor) void {
 
 fn editorHandleInput(context: *Context, editor: *Editor) void {
     layouts.handleInput(context, editor, &editor.document);
+}
+
+fn demoButton(context: *Context) void {
+    _ = z.begin("demo-button", .{});
+    if (z.button("Demo", .{})) {
+        context.isDemoWindowEnabled = true;
+    }
+    z.end();
+
+    if (context.isDemoWindowEnabled) {
+        z.showDemoWindow(&context.isDemoWindowOpen);
+    }
+}
+
+fn documentTabs(context: *Context) void {
+    const screenW: f32 = @floatFromInt(rl.getScreenWidth());
+    z.setNextWindowPos(.{ .cond = .once, .x = 0, .y = 24 });
+    z.setNextWindowSize(.{ .cond = .always, .w = screenW, .h = config.documentTabsHeight });
+    _ = z.begin("Document Tabs", .{ .flags = .{ .no_title_bar = true, .no_resize = true, .no_move = true, .no_collapse = true } });
+    defer z.end();
+
+    if (z.beginTabBar("Opened Documents", .{ .reorderable = false, .no_close_with_middle_mouse_button = true })) {
+        defer z.endTabBar();
+        var it = context.openedEditors.map.iterator();
+        var idToOpen: ?UUID = null;
+        var idsToClose = std.BoundedArray(UUID, 256).init(0) catch unreachable;
+        while (it.next()) |entry| {
+            const id = entry.value_ptr.document.getId();
+            const isActive = if (context.currentEditor) |ce| ce.uuid == id.uuid else false;
+            const filePath = context.getFilePathById(id) orelse unreachable;
+            z.pushStrId(&id.serialize());
+            const shortName = utils.assetShortName(filePath);
+            var open: bool = true;
+            if (z.beginTabItem(
+                @ptrCast(shortName),
+                .{
+                    .p_open = &open,
+                    .flags = .{
+                        .no_close_with_middle_mouse_button = true,
+                        .set_selected = isActive,
+                        .no_assumed_closure = true,
+                    },
+                },
+            )) {
+                defer z.endTabItem();
+                if (z.isItemActive() and !isActive) {
+                    idToOpen = id;
+                }
+            }
+            z.popId();
+
+            if (!open) {
+                idsToClose.appendAssumeCapacity(id);
+            }
+        }
+        if (idToOpen) |id| {
+            context.openEditorById(id);
+        }
+        for (idsToClose.slice()) |id| {
+            context.closeEditorById(id);
+        }
+    }
 }

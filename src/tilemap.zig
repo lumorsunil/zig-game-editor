@@ -2,10 +2,10 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayListUnmanaged;
 const rl = @import("raylib");
-const Vector = @import("vector.zig").Vector;
-const VectorInt = @import("vector.zig").VectorInt;
-const UUID = @import("uuid.zig").UUIDSerializable;
 const lib = @import("root").lib;
+const Vector = lib.Vector;
+const VectorInt = lib.VectorInt;
+const UUID = lib.UUIDSerializable;
 const json = lib.json;
 
 pub const Grid = struct {

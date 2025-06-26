@@ -53,13 +53,14 @@ fn menu(
 
 fn mainMenu(context: *Context, editor: *Editor, tilemapDocument: *TilemapDocument) void {
     const screenSize: @Vector(2, f32) = @floatFromInt(Vector{ rl.getScreenWidth(), rl.getScreenHeight() });
-    z.setNextWindowPos(.{ .x = 0, .y = config.topBarOffset });
-    z.setNextWindowSize(.{ .w = 200, .h = screenSize[1] - config.topBarOffset });
+    z.setNextWindowPos(.{ .x = 0, .y = config.editorContentOffset });
+    z.setNextWindowSize(.{ .w = 200, .h = screenSize[1] - config.editorContentOffset });
     _ = z.begin("Menu", .{ .flags = .{
         .no_title_bar = true,
         .no_resize = true,
         .no_move = true,
         .no_collapse = true,
+        .no_bring_to_front_on_focus = true,
     } });
     defer z.end();
 
@@ -175,22 +176,6 @@ fn layersMenu(context: *Context, tilemapDocument: *TilemapDocument) void {
     for (tilemap.layers.items, 0..) |*layer_ptr, i| {
         const layer = layer_ptr.*;
         const isActiveLayer = layer.id.uuid == tilemap.activeLayer.uuid;
-
-        // Active layer highlighting
-        if (isActiveLayer) {
-            const x = z.getWindowContentRegionMin()[0] - 2;
-            const y = z.getCursorPosY() - 2;
-            const w = z.getWindowContentRegionMax()[0] - 2;
-            const h = 20 + 4;
-            z.getWindowDrawList().addRect(.{
-                .pmin = .{ x, y },
-                .pmax = .{ x + w, y + h },
-                .col = @bitCast(c.ColorToInt(c.WHITE)),
-                .rounding = 0.0,
-                .flags = .{ .closed = true },
-                .thickness = 1.0,
-            });
-        }
 
         // Layer name
         if (i == 0 or !isActiveLayer) {

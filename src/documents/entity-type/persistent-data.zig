@@ -1,6 +1,5 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const uuid = @import("uuid");
 const lib = @import("root").lib;
 const UUID = lib.UUIDSerializable;
 const Vector = lib.Vector;

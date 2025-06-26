@@ -7,24 +7,38 @@ const AnimationDocument = lib.documents.AnimationDocument;
 const TextureDocument = lib.documents.TextureDocument;
 const EntityTypeDocument = lib.documents.EntityTypeDocument;
 const DocumentGenericConfig = lib.documents.DocumentGenericConfig;
+const Project = lib.Project;
 const UUID = lib.UUIDSerializable;
 
-pub const DocumentError = error{FileExtensionInvalid};
+pub const DocumentError = error{ FileExtensionInvalid, IndexNotFound };
+
+pub const DocumentState = union(enum) {
+    loaded,
+    unloaded,
+    err: anyerror,
+};
 
 pub const Document = struct {
-    filePath: [:0]const u8,
     content: ?DocumentContent = null,
+    state: DocumentState,
 
-    pub fn init(allocator: Allocator, filePath: [:0]const u8) Document {
+    pub fn init() Document {
         return Document{
-            .filePath = allocator.dupeZ(u8, filePath) catch unreachable,
+            .state = .unloaded,
+        };
+    }
+
+    pub fn initWithError(err: anyerror) Document {
+        return Document{
+            .state = .{ .err = err },
         };
     }
 
     pub fn deinit(self: *Document, allocator: Allocator) void {
-        allocator.free(self.filePath);
+        if (self.state == .err) return;
         if (self.content) |*content| content.deinit(allocator);
         self.content = null;
+        self.state = .unloaded;
     }
 
     pub fn getId(self: Document) UUID {
@@ -33,55 +47,52 @@ pub const Document = struct {
         };
     }
 
-    /// filePath needs to be absolute
     pub fn open(
         allocator: Allocator,
+        project: *Project,
         filePath: [:0]const u8,
-        documentType: DocumentTag,
     ) !Document {
-        var document = Document.init(allocator, filePath);
-        document.loadContent(allocator, documentType) catch |err| {
-            document.deinit(allocator);
-            return err;
-        };
-
+        var document = Document.init();
+        try document.loadContent(allocator, project, filePath);
         return document;
     }
 
-    /// filePath needs to be absolute
     pub fn loadContent(
         self: *Document,
         allocator: Allocator,
-        documentType: DocumentTag,
+        project: *Project,
+        filePath: [:0]const u8,
     ) !void {
+        std.debug.assert(self.state == .unloaded or self.state == .err);
+        errdefer |err| {
+            std.log.err("Could not load document content for {s}: {}", .{ filePath, err });
+            self.state = .{ .err = err };
+        }
+        const documentType = try getTagByFilePath(filePath);
         switch (documentType) {
             inline else => |tag| {
-                if (tag == documentType) {
-                    const DocumentContentPayload = std.meta.TagPayload(DocumentContent, tag);
-                    const config: DocumentGenericConfig = DocumentContentPayload.DocumentType._config;
+                std.debug.assert(tag == documentType);
 
-                    if (config.isDeserializable) {
-                        const content = DocumentContent.deserialize(allocator, self.filePath, documentType) catch |err| {
-                            std.log.err("Error reading file: {s} {}", .{ self.filePath, err });
-                            return err;
-                        };
+                var rootDir = project.assetsLibrary.openRoot();
+                defer rootDir.close();
+                const content = try DocumentContent.deserialize(allocator, rootDir, filePath, documentType);
 
-                        self.content = content;
-                    } else {
-                        self.content = DocumentContent.init(allocator, tag);
-                        self.content.?.load(self.filePath);
-                    }
-                }
+                self.content = content;
+                self.state = .loaded;
             },
         }
     }
 
     pub const DocumentSaveError = error{NoContent};
 
-    pub fn save(self: Document) !void {
+    pub fn save(self: Document, project: *Project) !void {
+        const filePath = project.assetIndex.getIndex(self.getId()) orelse std.debug.panic("Could not save document {}: Could not find index", .{self.getId()});
+        std.debug.assert(self.state == .loaded);
         if (self.content == null) return DocumentSaveError.NoContent;
-        const file = std.fs.createFileAbsolute(self.filePath, .{}) catch |err| {
-            std.log.err("Could not save file {s}: {}", .{ self.filePath, err });
+        var rootDir = project.assetsLibrary.openRoot();
+        defer rootDir.close();
+        const file = rootDir.createFile(filePath, .{}) catch |err| {
+            std.log.err("Could not save file {s}: {}", .{ filePath, err });
             return err;
         };
         defer file.close();
@@ -94,7 +105,9 @@ pub const Document = struct {
         allocator: Allocator,
         comptime documentType: DocumentTag,
     ) void {
+        std.debug.assert(self.state != .loaded);
         self.content = DocumentContent.init(allocator, documentType);
+        self.state = .loaded;
     }
 
     pub fn getFileFilter(tag: DocumentTag) [:0]const u8 {
@@ -170,11 +183,12 @@ pub const DocumentContent = union(enum) {
 
     pub fn deserialize(
         allocator: Allocator,
+        dir: std.fs.Dir,
         path: [:0]const u8,
         documentType: DocumentTag,
     ) !DocumentContent {
         return switch (documentType) {
-            inline else => |d| @unionInit(DocumentContent, @tagName(d), .{ .document = try DocumentPayload(d).DocumentType.deserialize(allocator, path) }),
+            inline else => |d| @unionInit(DocumentContent, @tagName(d), .{ .document = try DocumentPayload(d).DocumentType.deserialize(allocator, dir, path) }),
         };
     }
 

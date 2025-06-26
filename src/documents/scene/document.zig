@@ -94,7 +94,10 @@ pub const SceneDocument = struct {
         const scale: f32 = @floatFromInt(context.scale);
         switch (entity.type) {
             .custom => |c| {
-                const entityType = context.requestDocumentTypeById(.entityType, c) catch return orelse return;
+                const entityType = context.requestDocumentTypeById(.entityType, c) catch return orelse {
+                    std.log.debug("entity {} not found while drawing", .{c});
+                    return;
+                };
                 const textureId = entityType.getTextureId() orelse return;
                 const texture = context.requestTextureById(textureId) catch return orelse return;
                 const gridPosition = entityType.getGridPosition().*;
@@ -229,15 +232,24 @@ pub const SceneDocument = struct {
         _ = self.getSelectedEntities().swapRemove(selectedEntitiesIndex);
     }
 
-    pub fn getTilemapFileName(self: *SceneDocument) ?[]const u8 {
+    pub fn getTilemapId(self: *SceneDocument) ?UUID {
         for (self.document.persistentData.entities.items) |entity| {
             switch (entity.type) {
-                .tilemap => |tilemap| return tilemap.fileName,
+                .tilemap => |tilemap| return tilemap.tilemapId,
                 else => continue,
             }
         }
 
         return null;
+    }
+
+    pub fn setTilemapId(self: *SceneDocument, id: UUID) void {
+        for (self.getEntities().items) |entity| {
+            if (entity.type == .tilemap) {
+                entity.type.tilemap.tilemapId = id;
+                break;
+            }
+        }
     }
 
     pub fn getDragPayload(self: *SceneDocument) *?SceneEntityType {

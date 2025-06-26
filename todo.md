@@ -32,6 +32,8 @@
   - [ ] Interface function for documents to produce a list of references to other documents
   - [ ] Store reference index on file system
   - [ ] References lookup function
+- [ ] Sanity checks
+  - [ ] Rebuild index if duplicates found
 
 ### Undo/redo
 
@@ -69,6 +71,14 @@
   - [x] Animations
   - [x] Scenes
 - [x] Ability to switch between editors
+- [x] Tabs for each document
+  - [x] Click on a tab to go to that editor
+  - [x] X button to unload the document and close the editor for that document
+  - [ ] Context menu
+    - [ ] Go to document in assets library
+    - [ ] Close to the left
+    - [ ] Close to the right
+    - [ ] Close everything but this
 
 ## Assets manager
 
@@ -87,9 +97,10 @@
     - [x] Allow moving file to parent directory
     - [x] BUG: When having an asset filter on, moving a file crashes the program
   - [ ] Rename file
-  - [ ] Delete files
-    - [ ] Asset library needs to be updated
-    - [ ] Asset index needs to be updated after deletion
+  - [x] Delete files
+    - [x] Asset library needs to be updated
+    - [x] Asset index needs to be updated after deletion
+    - [x] Confirmation dialog
     - [ ] Show error label on reference inputs with missing documents
   - [ ] Selecting multiple files
     - [ ] Move multiple files
@@ -108,6 +119,7 @@
       - [x] Animation
       - [x] Tilemap
       - [x] Scene (only tilemap)
+    - [ ] Delete thumbnails that are no longer used
 
 ## Resource manager
 
@@ -244,3 +256,10 @@
 - [x] Delete entity
 - [x] Save to file
 - [x] Load from file
+
+## Bugs
+
+- [x] BUG: Thumbnails not showing after closing and opening a project
+- [x] Add no_bring_to_front_on_focus flag to all side menues
+- [x] When closing the current editor, open the next available tab
+- [x] Store multiple opened documents in the editor session

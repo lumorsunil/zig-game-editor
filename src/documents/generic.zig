@@ -3,9 +3,7 @@ const Allocator = std.mem.Allocator;
 const lib = @import("root").lib;
 const json = lib.json;
 
-pub const DocumentGenericConfig = struct {
-    isDeserializable: bool = true,
-};
+pub const DocumentGenericConfig = struct {};
 
 pub fn DocumentGeneric(
     comptime PersistentData: type,
@@ -52,8 +50,8 @@ pub fn DocumentGeneric(
             try std.json.stringify(self.persistentData.*, .{}, writer);
         }
 
-        pub fn deserialize(allocator: Allocator, path: [:0]const u8) !Self {
-            const file = std.fs.openFileAbsolute(path, .{}) catch |err| {
+        pub fn deserialize(allocator: Allocator, dir: std.fs.Dir, path: [:0]const u8) !Self {
+            const file = dir.openFile(path, .{}) catch |err| {
                 std.log.err("Could not open file {s}: {}", .{ path, err });
                 return err;
             };

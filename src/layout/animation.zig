@@ -29,13 +29,14 @@ fn menu(
     animationDocument: *AnimationDocument,
 ) void {
     const screenSize: @Vector(2, f32) = @floatFromInt(Vector{ rl.getScreenWidth(), rl.getScreenHeight() });
-    z.setNextWindowPos(.{ .x = 0, .y = config.topBarOffset });
-    z.setNextWindowSize(.{ .w = 300, .h = screenSize[1] - config.topBarOffset });
+    z.setNextWindowPos(.{ .x = 0, .y = config.editorContentOffset });
+    z.setNextWindowSize(.{ .w = 300, .h = screenSize[1] - config.editorContentOffset });
     _ = z.begin("Menu", .{ .flags = .{
         .no_title_bar = true,
         .no_resize = true,
         .no_move = true,
         .no_collapse = true,
+        .no_bring_to_front_on_focus = true,
     } });
     defer z.end();
 
@@ -44,7 +45,9 @@ fn menu(
         context.updateThumbnailById(animationDocument.getId());
     }
 
-    textureInput(context, animationDocument);
+    if (utils.assetInput(.texture, context, animationDocument.getTextureId())) |id| {
+        animationDocument.setTexture(id);
+    }
 
     if (z.button("Reload Texture", .{})) {
         if (animationDocument.getTextureId()) |textureId| {
@@ -94,30 +97,6 @@ fn menu(
         if (animationDocument.getSelectedFrame()) |frame| {
             frameDetailsMenu(animationDocument, animation, frame);
         }
-    }
-}
-
-fn textureInput(context: *Context, animationDocument: *AnimationDocument) void {
-    const textureId = animationDocument.getTextureId();
-    const textureFilePath = (if (textureId) |id| context.getFilePathById(id) else null) orelse "None";
-    z.text("{s}", .{textureFilePath});
-    if (z.beginDragDropTarget()) {
-        if (z.getDragDropPayload()) |payload| {
-            const node: *Node = @as(**Node, @ptrCast(@alignCast(payload.data.?))).*;
-
-            switch (node.*) {
-                .directory => {},
-                .file => |file| {
-                    if (file.documentType == .texture) {
-                        if (z.acceptDragDropPayload("asset", .{})) |_| {
-                            const newTextureId = context.getIdByFilePath(file.path) orelse unreachable;
-                            animationDocument.setTexture(newTextureId);
-                        }
-                    }
-                },
-            }
-        }
-        z.endDragDropTarget();
     }
 }
 

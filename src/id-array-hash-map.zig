@@ -1,6 +1,5 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const uuid = @import("uuid");
 const lib = @import("root").lib;
 const UUID = lib.UUIDSerializable;
 
@@ -12,10 +11,8 @@ const Value = std.json.Value;
 const K = UUID;
 
 fn deserializeKey(k: []const u8) !K {
-    return UUID{
-        .uuid = uuid.urn.deserialize(k) catch {
-            return std.json.Error.SyntaxError;
-        },
+    return UUID.deserialize(k) catch {
+        return std.json.Error.SyntaxError;
     };
 }
 
@@ -79,7 +76,7 @@ pub fn IdArrayHashMap(comptime T: type) type {
             try jws.beginObject();
             var it = self.map.iterator();
             while (it.next()) |kv| {
-                try jws.objectField(&uuid.urn.serialize(kv.key_ptr.*.uuid));
+                try jws.objectField(&kv.key_ptr.*.serialize());
                 try jws.write(kv.value_ptr.*);
             }
             try jws.endObject();

@@ -2,6 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const rl = @import("raylib");
 const z = @import("zgui");
+const c = @import("c");
 const lib = @import("root").lib;
 const config = @import("root").config;
 const Context = lib.Context;
@@ -10,6 +11,9 @@ const SceneDocument = lib.documents.SceneDocument;
 const SceneEntity = lib.documents.scene.SceneEntity;
 const SceneEntityType = lib.documents.scene.SceneEntityType;
 const TilemapDocument = lib.documents.TilemapDocument;
+const DocumentTag = lib.DocumentTag;
+const UUID = lib.UUIDSerializable;
+const Node = lib.Node;
 const Vector = lib.Vector;
 
 const tileSize = config.tileSize;
@@ -122,7 +126,8 @@ pub fn capitalize(allocator: Allocator, s: []const u8) []const u8 {
 }
 
 pub fn activeDocumentLabel(context: *Context, editor: *Editor) void {
-    const baseName = std.fs.path.basename(editor.document.filePath);
+    const filePath = context.getFilePathById(editor.document.getId()) orelse "null";
+    const baseName = std.fs.path.basename(filePath);
     var it = std.mem.splitScalar(u8, baseName, '.');
     const name = it.next().?;
     const typeLabel = capitalize(context.allocator, @tagName(editor.documentType));
@@ -130,7 +135,7 @@ pub fn activeDocumentLabel(context: *Context, editor: *Editor) void {
     z.text("{s}: {s}", .{ typeLabel, name });
     if (z.isItemHovered(.{ .delay_short = true })) {
         if (z.beginTooltip()) {
-            z.text("{s}", .{editor.document.filePath});
+            z.text("{s}", .{filePath});
         }
         z.endTooltip();
     }
@@ -186,4 +191,111 @@ pub fn highlightHoveredCell(context: *Context, cellSize: Vector, gridSize: Vecto
     rl.beginMode2D(context.camera);
     rl.drawRectangleLines(x, y, w, h, rl.Color.white);
     rl.endMode2D();
+}
+
+pub fn assetInput(
+    comptime documentType: DocumentTag,
+    context: *Context,
+    currentId: ?UUID,
+) ?UUID {
+    const emptyLabel = "None";
+    const currentFileName = if (currentId) |id| context.getFilePathById(id) else null;
+    const shortLabel = if (currentFileName) |cfn| assetShortName(cfn) else emptyLabel;
+
+    const inputPosMin = z.getCursorPos();
+    drawAssetIcon(context, .{ .documentType = documentType });
+    const inputPosMax = z.getCursorPos();
+    const inputHeightHalf = (inputPosMax[1] - inputPosMin[1]) / 2;
+    z.sameLine(.{ .spacing = 8 });
+    const textHeightHalf = z.getTextLineHeight() / 2;
+    z.setCursorPosY(z.getCursorPosY() + inputHeightHalf - textHeightHalf);
+    z.text("{s}", .{shortLabel});
+
+    if (currentFileName) |cfn| {
+        if (z.isItemClicked(.left)) {
+            const assetDirectory = context.allocator.dupeZ(u8, std.fs.path.dirname(cfn) orelse ".") catch unreachable;
+            defer context.allocator.free(assetDirectory);
+            context.setCurrentDirectory(assetDirectory);
+        }
+
+        if (z.isItemHovered(.{ .delay_short = true })) {
+            if (z.beginTooltip()) {
+                z.text("{s}", .{cfn});
+            }
+            z.endTooltip();
+        }
+    }
+
+    // Input border
+    const x = inputPosMin[0] + z.getWindowPos()[0] - 2;
+    const y = inputPosMin[1] + z.getWindowPos()[1] - 2;
+    const w = z.getWindowContentRegionMax()[0] - 4;
+    const h = inputPosMax[1] - inputPosMin[1];
+    z.getWindowDrawList().addRect(.{
+        .pmin = .{ x, y },
+        .pmax = .{ x + w, y + h },
+        .col = @bitCast(c.ColorToInt(c.WHITE)),
+        .rounding = 5.0,
+        .flags = .round_corners_all,
+        .thickness = 1.0,
+    });
+
+    if (z.beginDragDropTarget()) {
+        defer z.endDragDropTarget();
+        if (z.getDragDropPayload()) |payload| {
+            const node: *Node = @as(**Node, @ptrCast(@alignCast(payload.data.?))).*;
+
+            switch (node.*) {
+                .directory => {},
+                .file => |file| {
+                    if (file.documentType == documentType) {
+                        if (z.acceptDragDropPayload("asset", .{})) |_| {
+                            return file.id;
+                        }
+                    }
+                },
+            }
+        }
+    }
+
+    return null;
+}
+
+pub fn assetShortName(filePath: []const u8) []const u8 {
+    return std.mem.sliceTo(std.fs.path.basename(filePath), '.');
+}
+
+pub const DrawAssetIconSource = union(enum) {
+    node: Node,
+    documentType: DocumentTag,
+};
+
+pub fn drawAssetIcon(context: *Context, source: DrawAssetIconSource) void {
+    const iconsTexture = &(context.iconsTexture orelse return);
+    const cellSize: Vector = .{ 32, 32 };
+    const gridPosition: Vector = switch (source) {
+        .node => |node| switch (node) {
+            .file => |file| getAssetIconGridPosition(file.documentType),
+            .directory => .{ 5, 1 },
+        },
+        .documentType => |documentType| getAssetIconGridPosition(documentType),
+    };
+    const srcRectMin = gridPosition * cellSize;
+    const srcRect = c.Rectangle{
+        .x = @floatFromInt(srcRectMin[0]),
+        .y = @floatFromInt(srcRectMin[1]),
+        .width = @floatFromInt(cellSize[0]),
+        .height = @floatFromInt(cellSize[1]),
+    };
+    c.rlImGuiImageRect(@ptrCast(iconsTexture), cellSize[0], cellSize[1], srcRect);
+}
+
+fn getAssetIconGridPosition(documentType: DocumentTag) Vector {
+    return switch (documentType) {
+        .animation => .{ 0, 1 },
+        .scene => .{ 1, 1 },
+        .tilemap => .{ 2, 1 },
+        .entityType => .{ 3, 1 },
+        .texture => .{ 4, 1 },
+    };
 }

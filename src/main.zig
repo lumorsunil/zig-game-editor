@@ -4,7 +4,6 @@ const Context = @import("context.zig").Context;
 const layout = @import("layout.zig").layout;
 const rl = @import("raylib");
 const z = @import("zgui");
-const uuid = @import("uuid");
 const UUID = lib.UUIDSerializable;
 
 pub const lib = @import("lib.zig");
@@ -54,7 +53,7 @@ pub fn main() !void {
     // Tileset hardcoded
 
     if (context.currentProject) |_| {
-        const id = UUID{ .uuid = uuid.urn.deserialize("1e5874c6-0090-4017-ac61-ba85afe94b63") catch unreachable };
+        const id = UUID.deserialize("1e5874c6-0090-4017-ac61-ba85afe94b63") catch unreachable;
         context.tilesetId = id;
         context.tools[0].impl.brush.tileset = id;
     }

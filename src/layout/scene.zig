@@ -38,13 +38,14 @@ fn draw(context: *Context, sceneDocument: *SceneDocument) void {
 
 fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void {
     const screenSize: @Vector(2, f32) = @floatFromInt(Vector{ rl.getScreenWidth(), rl.getScreenHeight() });
-    z.setNextWindowPos(.{ .x = 0, .y = config.topBarOffset });
-    z.setNextWindowSize(.{ .w = 200, .h = screenSize[1] - config.topBarOffset });
+    z.setNextWindowPos(.{ .x = 0, .y = config.editorContentOffset });
+    z.setNextWindowSize(.{ .w = 200, .h = screenSize[1] - config.editorContentOffset });
     _ = z.begin("Scene Menu", .{ .flags = .{
         .no_title_bar = true,
         .no_resize = true,
         .no_move = true,
         .no_collapse = true,
+        .no_bring_to_front_on_focus = true,
     } });
     defer z.end();
 
@@ -59,15 +60,11 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
         context.saveEditorFile(editor);
         context.updateThumbnailForCurrentDocument = true;
     }
-    if (z.button("Set Tilemap", .{})) {
-        if (context.openFileWithDialog(.tilemap)) |document| {
-            for (sceneDocument.getEntities().items) |entity| {
-                if (entity.type == .tilemap) {
-                    entity.type.tilemap.tilemapId = document.getId();
-                }
-            }
-        }
+
+    if (utils.assetInput(.tilemap, context, sceneDocument.getTilemapId())) |id| {
+        sceneDocument.setTilemapId(id);
     }
+
     if (z.button("Play", .{})) {
         context.play();
     } else if (context.playState != .notRunning) {

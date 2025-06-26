@@ -5,12 +5,14 @@ const lib = @import("root").lib;
 const Vector = lib.Vector;
 const VectorInt = lib.VectorInt;
 const Project = lib.Project;
+const AssetIndex = lib.AssetIndex;
 const EditorSession = lib.EditorSession;
 const Editor = lib.Editor;
 const AssetsLibrary = lib.AssetsLibrary;
 const Document = lib.Document;
 const DocumentTag = lib.DocumentTag;
 const DocumentContent = lib.DocumentContent;
+const DocumentError = lib.DocumentError;
 const Node = lib.Node;
 const SceneEntity = lib.documents.scene.SceneEntity;
 const SceneEntityTilemap = lib.documents.scene.SceneEntityTilemap;
@@ -19,17 +21,16 @@ const BrushTool = lib.tools.BrushTool;
 const SelectTool = lib.tools.SelectTool;
 const nfd = @import("nfd");
 const UUID = lib.UUIDSerializable;
-const uuid = @import("uuid");
 const IdArrayHashMap = lib.IdArrayHashMap;
 const drawTilemap = lib.drawTilemap;
 
-pub const ContextError = error{DocumentTagNotMatching};
+pub const ContextError = error{ DocumentTagNotMatching, MissingDocumentFilePath };
 
 pub const Context = struct {
     allocator: Allocator,
 
     openedEditors: IdArrayHashMap(Editor),
-    currentEditor: ?usize = null,
+    currentEditor: ?UUID = null,
     documents: IdArrayHashMap(Document),
 
     backgroundColor: rl.Color = rl.Color.init(125, 125, 155, 255),
@@ -54,7 +55,8 @@ pub const Context = struct {
     playState: PlayState = .notRunning,
 
     reusableTextBuffer: [256:0]u8 = undefined,
-    errorMessage: [1024:0]u8 = undefined,
+    errorMessageBuffer: [1024:0]u8 = undefined,
+    errorMessage: [:0]const u8 = undefined,
     isErrorDialogOpen: bool = false,
 
     isNewDirectoryDialogOpen: bool = false,
@@ -62,6 +64,9 @@ pub const Context = struct {
     isNewSceneDialogOpen: bool = false,
     isNewAnimationDocumentDialogOpen: bool = false,
     isNewEntityTypeDocumentDialogOpen: bool = false,
+
+    deleteNodeTarget: ?*Node = null,
+    isDeleteNodeDialogOpen: bool = false,
 
     updateThumbnailForCurrentDocument: bool = false,
 
@@ -88,7 +93,7 @@ pub const Context = struct {
         const rootDir = std.fs.cwd().realpathAlloc(allocator, ".") catch unreachable;
         defer allocator.free(rootDir);
 
-        var context = Context{
+        return Context{
             .allocator = allocator,
             .openedEditors = .empty,
             .documents = .empty,
@@ -106,47 +111,25 @@ pub const Context = struct {
                 break :brk null;
             },
         };
-
-        context.documents.map.ensureTotalCapacity(allocator, 100000) catch unreachable;
-
-        return context;
     }
 
     pub fn deinit(self: *Context) void {
-        for (self.openedEditors.map.values()) |*editor| {
-            editor.deinit(self.allocator);
-        }
-        self.openedEditors.map.clearAndFree(self.allocator);
-        for (self.documents.map.values()) |*document| {
-            document.deinit(self.allocator);
-        }
-        self.documents.map.clearAndFree(self.allocator);
-        if (self.currentProject) |*p| p.deinit(self.allocator);
-        self.currentProject = null;
+        self.setProject(null);
         for (&self.tools) |*tool| tool.deinit(self.allocator);
         if (self.iconsTexture) |iconsTexture| rl.unloadTexture(iconsTexture);
         self.iconsTexture = null;
     }
 
     pub fn getCurrentEditor(self: *Context) ?*Editor {
-        const i = self.currentEditor orelse return null;
-        return &self.openedEditors.map.values()[i];
+        const id = self.currentEditor orelse return null;
+        return self.openedEditors.map.getPtr(id);
     }
 
     fn createEditorSession(self: *Context) EditorSession {
         return EditorSession{
             .currentProject = if (self.currentProject) |p| self.allocator.dupe(u8, p.assetsLibrary.root) catch unreachable else null,
-            .openedEditorFilePath = if (self.getCurrentEditor()) |e| brk: {
-                const p = self.currentProject orelse break :brk null;
-                const relativeToRoot = std.fs.path.relative(
-                    self.allocator,
-                    p.assetsLibrary.root,
-                    e.document.filePath,
-                ) catch unreachable;
-                defer self.allocator.free(relativeToRoot);
-                const relativeToRootZ = self.allocator.dupeZ(u8, relativeToRoot) catch unreachable;
-                break :brk relativeToRootZ;
-            } else null,
+            .openedEditor = self.currentEditor,
+            .openedDocuments = self.allocator.dupe(UUID, self.openedEditors.map.keys()) catch unreachable,
             .camera = self.camera,
             .windowSize = .{ rl.getScreenWidth(), rl.getScreenHeight() },
             .windowPos = brk: {
@@ -165,7 +148,7 @@ pub const Context = struct {
         var session = self.createEditorSession();
         try std.json.stringify(session, .{}, writer);
         session.deinit(self.allocator);
-        self.updateIndex();
+        _ = self.saveIndex();
     }
 
     pub fn restoreSession(self: *Context) !void {
@@ -191,17 +174,15 @@ pub const Context = struct {
         defer parsed.deinit();
 
         if (parsed.value.currentProject) |p| {
-            self.currentProject = Project.init(self.allocator, p);
-            self.currentProject.?.loadIndex(self.allocator) catch |err| {
-                std.log.err("Could not load/build asset index: {}", .{err});
-            };
-            self.currentProject.?.setCurrentDirectory(self.allocator, ".") catch |err| {
-                std.log.err("Could not set current directory in assets manager: {}", .{err});
-            };
+            self.setProject(Project.init(self.allocator, p));
         }
 
-        if (parsed.value.openedEditorFilePath) |oefp| {
-            self.openEditor(oefp);
+        for (parsed.value.openedDocuments) |id| {
+            self.openEditorById(id);
+        }
+
+        if (parsed.value.openedEditor) |id| {
+            self.openEditorById(id);
         }
 
         rl.setWindowSize(parsed.value.windowSize[0], parsed.value.windowSize[1]);
@@ -215,32 +196,47 @@ pub const Context = struct {
         self.entranceTexture = try rl.loadTextureFromImage(entranceImage);
     }
 
-    pub fn updateIndex(self: *Context) void {
-        const p = self.currentProject orelse return;
+    // Returns true if successful
+    pub fn saveIndex(self: *Context) bool {
+        const p = self.currentProject orelse return false;
         std.log.debug("Updating index", .{});
         p.saveIndex() catch |err| {
             std.log.err("Could not save asset index: {}", .{err});
+            return false;
         };
+        return true;
     }
 
     pub fn play(self: *Context) void {
+        self.playInner() catch |err| {
+            std.log.err("Error calling play: {}", .{err});
+        };
+    }
+
+    fn playInner(self: *Context) !void {
         const editor = self.getCurrentEditor() orelse return;
+        var focusedEditor = editor;
 
         if (editor.documentType != .scene) return;
 
         self.playState = .starting;
 
-        for (self.openedEditors.map.values()) |*openedEditor| {
-            openedEditor.saveFile() catch |err| {
-                std.log.err("Error saving {s}: {}", .{ openedEditor.document.filePath, err });
-                self.playState = .errorStarting;
-                return;
-            };
+        errdefer |err| {
+            const filePath = self.getFilePathById(focusedEditor.document.getId());
+            self.showError("Error starting scene {?s}: {}", .{ filePath, err });
+            self.playState = .errorStarting;
         }
 
-        const currentSceneFileName = editor.document.filePath;
+        for (self.openedEditors.map.values()) |*openedEditor| {
+            focusedEditor = openedEditor;
+            try openedEditor.saveFile(&self.currentProject.?);
+        }
 
-        const zigCommand = std.fmt.allocPrint(self.allocator, "zig build run -- --scene \"{s}\"", .{currentSceneFileName}) catch unreachable;
+        focusedEditor = editor;
+
+        const currentSceneFileName = self.getFilePathById(editor.document.getId()) orelse return error.MissingDocumentFilePath;
+
+        const zigCommand = try std.fmt.allocPrint(self.allocator, "zig build run -- --scene \"{s}\"", .{currentSceneFileName});
         defer self.allocator.free(zigCommand);
         const command = &.{
             "cmd.exe",
@@ -248,14 +244,10 @@ pub const Context = struct {
             zigCommand,
         };
         var child = std.process.Child.init(command, self.allocator);
-        child.cwd = std.fs.cwd().realpathAlloc(self.allocator, "../kottefolket") catch unreachable;
+        child.cwd = try std.fs.cwd().realpathAlloc(self.allocator, "../kottefolket");
         defer self.allocator.free(child.cwd.?);
 
-        const term = child.spawnAndWait() catch |err| {
-            std.log.err("Error spawning game: {}", .{err});
-            self.playState = .errorStarting;
-            return;
-        };
+        const term = try child.spawnAndWait();
 
         switch (term) {
             .Exited => |exitCode| {
@@ -291,8 +283,42 @@ pub const Context = struct {
         self.setProject(null);
     }
 
+    pub fn closeEditorById(self: *Context, id: UUID) void {
+        self.unloadDocumentById(id);
+        var indexToOpen: ?usize = null;
+        if (self.currentEditor) |ce| {
+            if (ce.uuid == id.uuid) {
+                self.currentEditor = null;
+
+                const cei = for (self.openedEditors.map.keys(), 0..) |k, i| {
+                    if (k.uuid == id.uuid) {
+                        break i;
+                    }
+                } else unreachable;
+
+                indexToOpen = if (cei == self.openedEditors.map.count() - 1) if (cei == 0) null else cei - 1 else cei;
+            }
+        }
+        var entry = self.openedEditors.map.fetchOrderedRemove(id) orelse return;
+        entry.value.deinit(self.allocator);
+        if (indexToOpen) |i| {
+            const idToOpen = self.openedEditors.map.keys()[i];
+            self.openEditorById(idToOpen);
+        }
+    }
+
+    pub fn closeEditorByNode(self: *Context, node: Node) void {
+        switch (node) {
+            .file => |file| {
+                if (file.id) |id| self.closeEditorById(id);
+            },
+            .directory => {},
+        }
+    }
+
     fn closeEditors(self: *Context) void {
         for (self.openedEditors.map.values()) |*editor| {
+            self.unloadDocumentById(editor.document.getId());
             editor.deinit(self.allocator);
         }
 
@@ -303,8 +329,8 @@ pub const Context = struct {
     fn setProject(self: *Context, project: ?Project) void {
         if (self.currentProject) |*p| {
             self.closeEditors();
-
             p.deinit(self.allocator);
+            self.unloadDocuments();
         }
         self.currentProject = project;
 
@@ -315,19 +341,11 @@ pub const Context = struct {
 
     /// Project needs to be set before this is called.
     fn loadProject(self: *Context) void {
+        self.documents.map.ensureTotalCapacity(self.allocator, 100000) catch unreachable;
+        self.currentProject.?.loadIndex(self.allocator) catch |err| {
+            std.log.err("Could not load/build asset index: {}", .{err});
+        };
         self.setCurrentDirectory(".");
-    }
-
-    pub fn toAbsolutePathZ(
-        allocator: Allocator,
-        dir: std.fs.Dir,
-        path: []const u8,
-    ) [:0]const u8 {
-        if (std.fs.path.isAbsolute(path)) return allocator.dupeZ(u8, path) catch unreachable;
-        const dirPath = dir.realpathAlloc(allocator, ".") catch unreachable;
-        defer allocator.free(dirPath);
-        const absoluteFilePath = std.fs.path.joinZ(allocator, &.{ dirPath, path }) catch unreachable;
-        return absoluteFilePath;
     }
 
     pub fn newDirectory(self: *Context, name: []const u8) void {
@@ -343,10 +361,10 @@ pub const Context = struct {
             return;
         };
 
-        const relativeToRootZ = std.fs.path.joinZ(self.allocator, &.{ cd, name }) catch unreachable;
-        defer self.allocator.free(relativeToRootZ);
+        const relativeToRoot = std.fs.path.joinZ(self.allocator, &.{ cd, name }) catch unreachable;
+        defer self.allocator.free(relativeToRoot);
 
-        p.assetsLibrary.appendNewDirectory(self.allocator, relativeToRootZ);
+        p.assetsLibrary.appendNewDirectory(self.allocator, relativeToRoot);
     }
 
     pub fn newAsset(
@@ -368,15 +386,21 @@ pub const Context = struct {
 
         // TODO: Catch file already exists
 
-        const absoluteFilePathZ = toAbsolutePathZ(self.allocator, targetDir, fileName);
-        defer self.allocator.free(absoluteFilePathZ);
-        var document = Document.init(self.allocator, absoluteFilePathZ);
+        const relativeToRoot = std.fs.path.joinZ(self.allocator, &.{ self.currentProject.?.assetsLibrary.currentDirectory.?, fileName }) catch unreachable;
+        defer self.allocator.free(relativeToRoot);
+        const normalized = AssetIndex.normalizeIndex(relativeToRoot);
+
+        var document = Document.init();
         errdefer document.deinit(self.allocator);
-
         document.newContent(self.allocator, documentType);
-        document.content.?.load(absoluteFilePathZ);
+        self.documents.map.putAssumeCapacity(document.getId(), document);
 
-        switch (document.content.?) {
+        const storedDocument = self.documents.map.getPtr(document.getId()) orelse unreachable;
+        const content = &@field(storedDocument.content.?, @tagName(documentType));
+        self.currentProject.?.assetIndex.addIndex(self.allocator, content.getId(), normalized);
+        storedDocument.content.?.load(normalized);
+
+        switch (storedDocument.content.?) {
             .scene => |*scene| {
                 const entity = self.allocator.create(SceneEntity) catch unreachable;
                 entity.* = SceneEntity.init(
@@ -389,34 +413,25 @@ pub const Context = struct {
             else => {},
         }
 
-        document.save() catch |err| {
-            self.showError("Could not save document {s}: {}", .{ absoluteFilePathZ, err });
+        storedDocument.save(&self.currentProject.?) catch |err| {
+            _ = self.documents.map.swapRemove(content.getId());
+            storedDocument.deinit(self.allocator);
+            _ = self.currentProject.?.assetIndex.removeIndex(self.allocator, content.getId());
+            self.showError("Could not save document {s}: {}", .{ normalized, err });
             return null;
         };
 
-        self.documents.map.putAssumeCapacity(document.getId(), document);
-
-        const rootDirAbsolutePath = rootDir.realpathAlloc(self.allocator, ".") catch unreachable;
-        defer self.allocator.free(rootDirAbsolutePath);
-        const relativeToRoot = std.fs.path.relative(self.allocator, rootDirAbsolutePath, absoluteFilePathZ) catch unreachable;
-        defer self.allocator.free(relativeToRoot);
-        const relativeToRootZ = self.allocator.dupeZ(u8, relativeToRoot) catch unreachable;
-        defer self.allocator.free(relativeToRootZ);
-
-        const storedDocument = self.documents.map.getPtr(document.getId()) orelse unreachable;
-        const content = &@field(storedDocument.content.?, @tagName(documentType));
-        self.currentProject.?.assetIndex.addIndex(self.allocator, content.getId(), relativeToRootZ);
-        self.currentProject.?.assetsLibrary.appendNewFile(self.allocator, self.currentProject.?.assetIndex, relativeToRootZ);
+        self.currentProject.?.assetsLibrary.appendNewFile(self.allocator, self.currentProject.?.assetIndex, normalized);
 
         // Update the asset index to match the new path for the node id
-        self.updateIndex();
+        _ = self.saveIndex();
 
         return content;
     }
 
     pub fn showError(self: *Context, comptime fmt: []const u8, args: anytype) void {
         std.log.err(fmt, args);
-        _ = std.fmt.bufPrintZ(&self.errorMessage, fmt, args) catch unreachable;
+        self.errorMessage = std.fmt.bufPrintZ(&self.errorMessageBuffer, fmt, args) catch unreachable;
         self.isErrorDialogOpen = true;
     }
 
@@ -450,7 +465,7 @@ pub const Context = struct {
             }
         }
 
-        self.currentEditor = entry.index;
+        self.currentEditor = id;
     }
 
     pub fn setCurrentDirectory(self: *Context, path: [:0]const u8) void {
@@ -461,8 +476,9 @@ pub const Context = struct {
     }
 
     pub fn saveEditorFile(self: *Context, editor: *Editor) void {
-        editor.saveFile() catch |err| {
-            self.showError("Could not save file {s}: {}", .{ editor.document.filePath, err });
+        editor.saveFile(&self.currentProject.?) catch |err| {
+            const filePath = self.getFilePathById(editor.document.getId());
+            self.showError("Could not save file {?s}: {}", .{ filePath, err });
             return;
         };
     }
@@ -483,35 +499,25 @@ pub const Context = struct {
         if (!entry.found_existing) {
             std.log.debug("Requested document {} not found, loading", .{id});
 
-            const path = self.getFilePathById(id) orelse return null;
-            var targetDir = self.currentProject.?.assetsLibrary.openRoot();
-            defer targetDir.close();
-            const absolutePath = toAbsolutePathZ(self.allocator, targetDir, path);
-            defer self.allocator.free(absolutePath);
-            const documentType = Document.getTagByFilePath(path) catch |err| {
-                self.showError("Could not open document {s}: {}", .{ path, err });
-                _ = self.documents.map.swapRemove(id);
+            const path = self.getFilePathById(id) orelse {
+                entry.value_ptr.* = .initWithError(DocumentError.IndexNotFound);
+                self.showError("Could not find document in index with id {}", .{id});
                 return null;
             };
-            entry.value_ptr.* = Document.open(self.allocator, absolutePath, documentType) catch |err| {
+            entry.value_ptr.* = Document.open(self.allocator, &self.currentProject.?, path) catch |err| {
                 self.showError("Could not open document {s}: {}", .{ path, err });
-                _ = self.documents.map.swapRemove(id);
                 return null;
             };
-        } else if (entry.value_ptr.content == null) {
+        } else if (entry.value_ptr.state == .unloaded) {
             std.log.debug("Requested document {} found with no content, loading", .{id});
-
-            const path = self.getFilePathById(id) orelse return null;
-            const documentType = Document.getTagByFilePath(path) catch |err| {
-                self.showError("Could not open document {s}: {}", .{ path, err });
-                _ = self.documents.map.swapRemove(id);
+            const filePath = self.getFilePathById(id) orelse return null;
+            std.log.debug("Loading content for document {?s}", .{filePath});
+            entry.value_ptr.loadContent(self.allocator, &self.currentProject.?, filePath) catch |err| {
+                self.showError("Could not load document: {}", .{err});
                 return null;
             };
-            std.log.debug("Loading content for document {s}", .{path});
-            entry.value_ptr.loadContent(self.allocator, documentType) catch |err| {
-                self.showError("Could not load document {s}: {}", .{ path, err });
-                return null;
-            };
+        } else if (entry.value_ptr.state == .err) {
+            return null;
         }
 
         return entry.value_ptr;
@@ -698,8 +704,15 @@ pub const Context = struct {
 
     pub fn unloadDocument(self: *Context, path: [:0]const u8) void {
         const id = self.getIdByFilePath(path) orelse return;
-        var entry = self.documents.map.fetchSwapRemove(id) orelse return;
-        entry.value.deinit(self.allocator);
+        self.unloadDocumentById(id);
+    }
+
+    pub fn unloadDocuments(self: *Context) void {
+        for (self.documents.map.values()) |*document| {
+            document.deinit(self.allocator);
+        }
+
+        self.documents.map.clearAndFree(self.allocator);
     }
 
     pub fn reloadDocumentById(self: *Context, id: UUID) void {
@@ -708,8 +721,8 @@ pub const Context = struct {
     }
 
     pub fn reloadDocument(self: *Context, path: [:0]const u8) void {
-        self.unloadDocument(path);
-        _ = self.requestDocument(path);
+        const id = self.getIdByFilePath(path) orelse return;
+        self.reloadDocumentById(id);
     }
 
     pub fn openFileWithDialog(self: *Context, documentType: DocumentTag) ?Document {

@@ -1,13 +1,14 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const rl = @import("raylib");
-const Vector = @import("vector.zig").Vector;
-const Tool = @import("tool.zig").Tool;
-const EditorMode = @import("context.zig").Context.EditorMode;
+const lib = @import("root").lib;
+const Vector = lib.Vector;
+const UUID = lib.UUIDSerializable;
 
 pub const EditorSession = struct {
     currentProject: ?[]const u8,
-    openedEditorFilePath: ?[:0]const u8,
+    openedEditor: ?UUID,
+    openedDocuments: []UUID,
     camera: rl.Camera2D,
     windowSize: Vector,
     windowPos: Vector,
@@ -15,7 +16,7 @@ pub const EditorSession = struct {
     pub fn deinit(self: *EditorSession, allocator: Allocator) void {
         if (self.currentProject) |p| allocator.free(p);
         self.currentProject = null;
-        if (self.openedEditorFilePath) |p| allocator.free(p);
-        self.openedEditorFilePath = null;
+        allocator.free(self.openedDocuments);
+        self.openedEditor = null;
     }
 };

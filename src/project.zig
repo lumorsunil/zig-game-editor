@@ -49,7 +49,7 @@ pub const Project = struct {
         try self.assetIndex.save(self.cacheDirectory);
     }
 
-    pub fn updateIndex(self: *Project, allocator: Allocator) !void {
+    pub fn rebuildIndex(self: *Project, allocator: Allocator) !void {
         try self.assetIndex.rebuildIndex(allocator, self.assetsLibrary.root);
     }
 

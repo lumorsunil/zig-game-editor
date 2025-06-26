@@ -2,7 +2,6 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const lib = @import("root").lib;
 const UUID = lib.UUIDSerializable;
-const uuid = @import("uuid");
 const IdArrayHashMap = lib.IdArrayHashMap;
 const cacheDirectoryName = lib.cacheDirectoryName;
 
@@ -36,6 +35,7 @@ pub const AssetIndex = struct {
         try self.rebuildIndex(allocator, projectDirectory);
     }
 
+    // Returns true if loaded successfully and has at least one index
     fn loadExistingIndex(
         self: *AssetIndex,
         allocator: Allocator,
@@ -54,8 +54,15 @@ pub const AssetIndex = struct {
         const reader = file.reader();
         var jsonReader = std.json.reader(allocator, reader);
         defer jsonReader.deinit();
-        const jsonData = try std.json.parseFromTokenSourceLeaky(IdArrayHashMap([:0]const u8), allocator, &jsonReader, .{ .ignore_unknown_fields = true });
+        const jsonData = std.json.parseFromTokenSourceLeaky(IdArrayHashMap([:0]const u8), allocator, &jsonReader, .{ .ignore_unknown_fields = true }) catch |err| {
+            std.log.err("Could not read {s}: {}", .{ indexJsonFileName, err });
+            return false;
+        };
         self.hashMap = jsonData;
+
+        if (jsonData.map.count() == 0) {
+            return false;
+        }
 
         return true;
     }
@@ -114,15 +121,44 @@ pub const AssetIndex = struct {
         key: UUID,
         filePath: [:0]const u8,
     ) void {
-        const filePath_ = allocator.dupeZ(u8, filePath) catch unreachable;
+        const filePath_ = allocator.dupeZ(u8, normalizeIndex(filePath)) catch unreachable;
         self.hashMap.map.put(allocator, key, filePath_) catch unreachable;
+    }
+
+    // Returns true if entry was removed
+    pub fn removeIndex(
+        self: *AssetIndex,
+        allocator: Allocator,
+        key: UUID,
+    ) bool {
+        const entry = self.hashMap.map.fetchSwapRemove(key) orelse return false;
+        allocator.free(entry.value);
+        return true;
+    }
+
+    pub fn updateIndex(
+        self: *AssetIndex,
+        allocator: Allocator,
+        key: UUID,
+        newIndex: [:0]const u8,
+    ) void {
+        const index = self.hashMap.map.getPtr(key) orelse return;
+        allocator.free(index.*);
+        index.* = allocator.dupeZ(u8, normalizeIndex(newIndex)) catch unreachable;
     }
 
     pub fn getIndex(
         self: AssetIndex,
         id: UUID,
     ) ?[:0]const u8 {
-        const filePath = self.hashMap.map.get(id) orelse {
+        return (self.getIndexPtr(id) orelse return null).*;
+    }
+
+    pub fn getIndexPtr(
+        self: AssetIndex,
+        id: UUID,
+    ) ?*[:0]const u8 {
+        const filePath = self.hashMap.map.getPtr(id) orelse {
             std.log.debug("Could not match id: {}", .{id});
             std.log.debug("Index:", .{});
             for (self.hashMap.map.keys(), 0..) |key, i| {
@@ -138,12 +174,21 @@ pub const AssetIndex = struct {
         self: AssetIndex,
         filePath: [:0]const u8,
     ) ?UUID {
+        const normalized = normalizeIndex(filePath);
+
         for (self.hashMap.map.values(), 0..) |value, i| {
-            if (std.mem.eql(u8, value, filePath)) {
+            if (std.mem.eql(u8, value, normalized)) {
                 return self.hashMap.map.keys()[i];
             }
         }
 
         return null;
+    }
+
+    pub fn normalizeIndex(index: [:0]const u8) [:0]const u8 {
+        return if (std.mem.startsWith(u8, index, "." ++ std.fs.path.sep_str))
+            index[1 + std.fs.path.sep_str.len ..]
+        else
+            index;
     }
 };
