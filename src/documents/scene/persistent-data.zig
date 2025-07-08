@@ -6,15 +6,15 @@ const UUID = lib.UUIDSerializable;
 const Vector = lib.Vector;
 const json = lib.json;
 const StringZ = lib.StringZ;
+const PropertyObject = lib.PropertyObject;
+const Context = lib.Context;
 
 pub const SceneEntity = struct {
     id: UUID,
     position: Vector,
     type: SceneEntityType,
-    metadata: StringZ(1024),
 
     pub fn init(
-        allocator: Allocator,
         position: Vector,
         entityType: SceneEntityType,
     ) SceneEntity {
@@ -22,12 +22,10 @@ pub const SceneEntity = struct {
             .id = UUID.init(),
             .position = position,
             .type = entityType,
-            .metadata = .init(allocator, ""),
         };
     }
 
     pub fn deinit(self: *SceneEntity, allocator: Allocator) void {
-        self.metadata.deinit(allocator);
         self.type.deinit(allocator);
     }
 
@@ -35,35 +33,56 @@ pub const SceneEntity = struct {
         return SceneEntity{
             .id = self.id,
             .position = self.position,
-            .metadata = .init(allocator, self.metadata.slice()),
             .type = self.type.clone(allocator),
         };
     }
 };
 
 pub const SceneEntityType = union(enum) {
-    klet,
-    mossing,
-    stening,
-    barlingSpawner,
-    player,
-    npc,
-    custom: UUID,
+    custom: SceneEntityCustom,
     exit: SceneEntityExit,
     entrance: SceneEntityEntrance,
     tilemap: SceneEntityTilemap,
 
     pub fn deinit(self: *SceneEntityType, allocator: Allocator) void {
         switch (self.*) {
-            .klet, .mossing, .stening, .barlingSpawner, .player, .npc, .exit, .tilemap, .custom => {},
+            .tilemap => {},
             inline else => |*e| e.deinit(allocator),
         }
     }
 
     pub fn clone(self: SceneEntityType, allocator: Allocator) SceneEntityType {
         return switch (self) {
-            .klet, .mossing, .stening, .barlingSpawner, .player, .npc, .exit, .tilemap, .custom => self,
-            .entrance => |entrance| .{ .entrance = entrance.clone(allocator) },
+            .tilemap => self,
+            inline .exit, .entrance, .custom => |e, t| @unionInit(SceneEntityType, @tagName(t), e.clone(allocator)),
+        };
+    }
+};
+
+pub const SceneEntityCustom = struct {
+    entityTypeId: UUID,
+    properties: PropertyObject,
+
+    pub fn init(context: *Context, id: UUID) SceneEntityCustom {
+        const properties: PropertyObject = brk: {
+            const entityTypeDocument = (context.requestDocumentTypeById(.entityType, id) catch break :brk .empty) orelse break :brk .empty;
+            break :brk entityTypeDocument.getProperties().clone(context.allocator);
+        };
+
+        return SceneEntityCustom{
+            .entityTypeId = id,
+            .properties = properties,
+        };
+    }
+
+    pub fn deinit(self: *SceneEntityCustom, allocator: Allocator) void {
+        self.properties.deinit(allocator);
+    }
+
+    pub fn clone(self: SceneEntityCustom, allocator: Allocator) SceneEntityCustom {
+        return SceneEntityCustom{
+            .entityTypeId = self.entityTypeId,
+            .properties = self.properties.clone(allocator),
         };
     }
 };
@@ -71,9 +90,26 @@ pub const SceneEntityType = union(enum) {
 pub const SceneEntityExit = struct {
     sceneId: ?UUID = null,
     scale: ?@Vector(2, f32) = .{ 1, 1 },
+    entranceKey: StringZ(64),
+    isVertical: bool = false,
 
-    pub fn init() SceneEntityExit {
-        return SceneEntityExit{};
+    pub fn init(allocator: Allocator) SceneEntityExit {
+        return SceneEntityExit{
+            .entranceKey = .init(allocator, ""),
+        };
+    }
+
+    pub fn deinit(self: SceneEntityExit, allocator: Allocator) void {
+        self.entranceKey.deinit(allocator);
+    }
+
+    pub fn clone(self: SceneEntityExit, allocator: Allocator) SceneEntityExit {
+        return SceneEntityExit{
+            .sceneId = self.sceneId,
+            .scale = self.scale,
+            .entranceKey = self.entranceKey.clone(allocator),
+            .isVertical = self.isVertical,
+        };
     }
 };
 
@@ -93,7 +129,7 @@ pub const SceneEntityEntrance = struct {
 
     pub fn clone(self: SceneEntityEntrance, allocator: Allocator) SceneEntityEntrance {
         return SceneEntityEntrance{
-            .key = .init(allocator, self.key.slice()),
+            .key = self.key.clone(allocator),
             .scale = self.scale,
         };
     }

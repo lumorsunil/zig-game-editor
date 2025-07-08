@@ -6,6 +6,8 @@ const uuid = @import("uuid");
 pub const UUIDSerializable = struct {
     uuid: uuid.Uuid,
 
+    pub const zero: UUIDSerializable = .{ .uuid = 0 };
+
     pub fn init() UUIDSerializable {
         return UUIDSerializable{
             .uuid = uuid.v4.new(),
@@ -14,6 +16,13 @@ pub const UUIDSerializable = struct {
 
     pub fn serialize(self: UUIDSerializable) uuid.urn.Urn {
         return uuid.urn.serialize(self.uuid);
+    }
+
+    pub fn serializeZ(self: UUIDSerializable) [37:0]u8 {
+        var buf: [37:0]u8 = undefined;
+        const s = uuid.urn.serialize(self.uuid);
+        _ = std.fmt.bufPrintZ(&buf, "{s}", .{s}) catch unreachable;
+        return buf;
     }
 
     pub fn deserialize(k: []const u8) !UUIDSerializable {

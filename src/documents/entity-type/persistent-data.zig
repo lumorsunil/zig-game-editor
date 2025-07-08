@@ -7,6 +7,7 @@ const rl = @import("raylib");
 const Context = lib.Context;
 const config = @import("root").config;
 const StringZ = lib.StringZ;
+const PropertyObject = @import("property.zig").PropertyObject;
 
 const tileSize = config.tileSize;
 
@@ -63,17 +64,20 @@ pub const EntityType = struct {
     id: UUID,
     name: StringZ(64),
     icon: EntityTypeIcon,
+    properties: PropertyObject,
 
     pub fn init(allocator: Allocator) EntityType {
         return EntityType{
             .id = UUID.init(),
             .name = .init(allocator, "new-entity-type"),
             .icon = .empty,
+            .properties = .empty,
         };
     }
 
     pub fn deinit(self: *EntityType, allocator: Allocator) void {
         self.name.deinit(allocator);
+        self.properties.deinit(allocator);
     }
 
     pub fn clone(self: EntityType, allocator: Allocator) EntityType {
@@ -81,6 +85,7 @@ pub const EntityType = struct {
         cloned.id = self.id;
         cloned.name = .init(allocator, self.name.buffer);
         cloned.icon = self.icon;
+        cloned.properties = self.properties.clone(allocator);
         return cloned;
     }
 };

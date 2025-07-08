@@ -122,11 +122,7 @@ pub const Document = struct {
 
     pub fn getFileExtension(tag: DocumentTag) [:0]const u8 {
         return switch (tag) {
-            .scene => ".scene.json",
-            .tilemap => ".tilemap.json",
-            .animation => ".animations.json",
-            .texture => ".texture.json",
-            .entityType => ".entity-type.json",
+            inline else => |t| "." ++ comptime getFileFilter(t),
         };
     }
 
@@ -150,7 +146,15 @@ pub const Document = struct {
     }
 };
 
-pub const DocumentContent = union(enum) {
+pub const DocumentTag = enum {
+    scene,
+    tilemap,
+    animation,
+    texture,
+    entityType,
+};
+
+pub const DocumentContent = union(DocumentTag) {
     scene: SceneDocument,
     tilemap: TilemapDocument,
     animation: AnimationDocument,
@@ -197,8 +201,6 @@ pub const DocumentContent = union(enum) {
         return DocumentPayload(tag).fileFilter;
     }
 };
-
-pub const DocumentTag = std.meta.Tag(DocumentContent);
 
 pub fn DocumentPayload(comptime tag: DocumentTag) type {
     return std.meta.TagPayload(DocumentContent, tag);

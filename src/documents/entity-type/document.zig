@@ -7,6 +7,7 @@ const DocumentGeneric = lib.documents.DocumentGeneric;
 const UUID = lib.UUIDSerializable;
 const StringZ = lib.StringZ;
 const Vector = lib.Vector;
+const PropertyObject = lib.PropertyObject;
 
 pub const EntityTypeDocument = struct {
     document: DocumentType,
@@ -49,5 +50,21 @@ pub const EntityTypeDocument = struct {
 
     pub fn setTextureId(self: *EntityTypeDocument, textureId: UUID) void {
         self.document.persistentData.icon.textureId = textureId;
+    }
+
+    pub fn addNewProperty(self: *EntityTypeDocument, allocator: Allocator) void {
+        self.document.persistentData.properties.addNewProperty(allocator);
+    }
+
+    pub fn deleteProperty(
+        self: *EntityTypeDocument,
+        allocator: Allocator,
+        key: PropertyObject.K,
+    ) void {
+        self.document.persistentData.properties.deleteProperty(allocator, key);
+    }
+
+    pub fn getProperties(self: *EntityTypeDocument) *PropertyObject {
+        return &self.document.persistentData.properties;
     }
 };

@@ -55,9 +55,9 @@ pub fn getMouseGridPositionSafe(context: *Context, tilemapDocument: *TilemapDocu
     return gridPosition;
 }
 
-pub fn getMousePosition(context: *Context) Vector {
+pub fn getMousePosition(context: *Context, camera: rl.Camera2D) Vector {
     const mp = rl.getMousePosition();
-    const mtrx = rl.getCameraMatrix2D(context.camera);
+    const mtrx = rl.getCameraMatrix2D(camera);
     const inv = mtrx.invert();
     const tr = mp.transform(inv);
     const ftr = @Vector(2, f32){ tr.x, tr.y };
@@ -69,7 +69,7 @@ pub fn getMousePosition(context: *Context) Vector {
 }
 
 pub fn getMouseSceneGridPosition(context: *Context) Vector {
-    const mp = getMousePosition(context);
+    const mp = getMousePosition(context, context.camera);
     const ftr: @Vector(2, f32) = @floatFromInt(mp);
     const fDivisor: @Vector(2, f32) = @floatFromInt(tileSize);
 
@@ -83,7 +83,7 @@ pub fn getMouseGridPosition(context: *Context) Vector {
 }
 
 pub fn getMouseGridPositionWithSize(context: *Context, cellSize: Vector) Vector {
-    const mp = getMousePosition(context);
+    const mp = getMousePosition(context, context.camera);
     const ftr: @Vector(2, f32) = @floatFromInt(mp);
     const fDivisor: @Vector(2, f32) = @floatFromInt(cellSize);
 
@@ -112,9 +112,10 @@ pub fn gridPositionToCenterOfTile(gridPosition: Vector) Vector {
 
 pub fn isMousePositionInsideEntityRect(
     context: *Context,
+    camera: rl.Camera2D,
     entity: SceneEntity,
 ) bool {
-    const point: @Vector(2, f32) = @floatFromInt(getMousePosition(context));
+    const point: @Vector(2, f32) = @floatFromInt(getMousePosition(context, camera));
     const rlPoint = rl.Vector2.init(point[0], point[1]);
     const rect = getEntityRect(context, entity);
 
@@ -123,6 +124,12 @@ pub fn isMousePositionInsideEntityRect(
 
 pub fn capitalize(allocator: Allocator, s: []const u8) []const u8 {
     return std.fmt.allocPrint(allocator, "{c}{s}", .{ std.ascii.toUpper(s[0]), s[1..] }) catch unreachable;
+}
+
+pub fn documentShortName(allocator: Allocator, filePath: []const u8) [:0]const u8 {
+    const baseName = std.fs.path.basename(filePath);
+    const name = std.mem.sliceTo(baseName, '.');
+    return allocator.dupeZ(u8, name) catch unreachable;
 }
 
 pub fn activeDocumentLabel(context: *Context, editor: *Editor) void {
@@ -141,16 +148,16 @@ pub fn activeDocumentLabel(context: *Context, editor: *Editor) void {
     }
 }
 
-pub fn cameraControls(context: *Context) void {
+pub fn cameraControls(camera: *rl.Camera2D) void {
     if (rl.isMouseButtonDown(.middle)) {
         const delta = rl.getMouseDelta();
-        context.camera.target.x -= delta.x / context.camera.zoom;
-        context.camera.target.y -= delta.y / context.camera.zoom;
+        camera.target.x -= delta.x / camera.zoom;
+        camera.target.y -= delta.y / camera.zoom;
     }
 
     if (rl.isKeyDown(.left_control)) {
-        context.camera.zoom *= 1 + rl.getMouseWheelMove() * 0.1;
-        context.camera.zoom = std.math.clamp(context.camera.zoom, 0.1, 10);
+        camera.zoom *= 1 + rl.getMouseWheelMove() * 0.1;
+        camera.zoom = std.math.clamp(camera.zoom, 0.1, 10);
     }
 }
 

@@ -13,6 +13,7 @@ const Node = lib.Node;
 const DocumentTag = lib.DocumentTag;
 const UUID = lib.UUIDSerializable;
 const utils = @import("utils.zig");
+const propertyEditor = @import("property.zig").propertyEditor;
 
 pub const LayoutEntityType = LayoutGeneric(.entityType, draw, menu, handleInput);
 
@@ -25,7 +26,7 @@ fn draw(context: *Context, entityTypeDocument: *EntityTypeDocument) void {
 fn menu(context: *Context, editor: *Editor, entityTypeDocument: *EntityTypeDocument) void {
     const screenSize: @Vector(2, f32) = @floatFromInt(Vector{ rl.getScreenWidth(), rl.getScreenHeight() });
     z.setNextWindowPos(.{ .x = 0, .y = config.editorContentOffset });
-    z.setNextWindowSize(.{ .w = 200, .h = screenSize[1] - config.editorContentOffset });
+    z.setNextWindowSize(.{ .w = 300, .h = screenSize[1] - config.editorContentOffset });
     _ = z.begin("Entity Type Menu", .{ .flags = .{
         .no_title_bar = true,
         .no_resize = true,
@@ -63,9 +64,10 @@ fn menu(context: *Context, editor: *Editor, entityTypeDocument: *EntityTypeDocum
         entityTypeDocument.setTextureId(id);
     }
     drawIconMenu(context, entityTypeDocument);
+    propertyEditor(context, .{ .entityType = entityTypeDocument });
 }
 
-fn drawIconMenu(context: *Context, entityTypeDocument: *EntityTypeDocument) void {
+pub fn drawIconMenu(context: *Context, entityTypeDocument: *EntityTypeDocument) void {
     const textureId = entityTypeDocument.getTextureId() orelse return;
     const texture = context.requestTextureById(textureId) catch return orelse return;
     const cellSize = entityTypeDocument.getCellSize().*;
@@ -81,7 +83,7 @@ fn drawIconMenu(context: *Context, entityTypeDocument: *EntityTypeDocument) void
 }
 
 fn handleInput(context: *Context, _: *Editor, entityTypeDocument: *EntityTypeDocument) void {
-    utils.cameraControls(context);
+    utils.cameraControls(&context.camera);
 
     const textureId = entityTypeDocument.getTextureId() orelse return;
     const texture = context.requestTextureById(textureId) catch return orelse return;

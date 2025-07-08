@@ -16,9 +16,9 @@ fn deserializeKey(k: []const u8) !K {
     };
 }
 
-pub fn IdArrayHashMap(comptime T: type) type {
+pub fn IdArrayHashMap(comptime V: type) type {
     return struct {
-        map: std.AutoArrayHashMapUnmanaged(K, T) = .empty,
+        map: std.AutoArrayHashMapUnmanaged(K, V) = .empty,
 
         pub const empty: @This() = .{};
 
@@ -27,7 +27,7 @@ pub fn IdArrayHashMap(comptime T: type) type {
         }
 
         pub fn jsonParse(allocator: Allocator, source: anytype, options: ParseOptions) !@This() {
-            var map: std.AutoArrayHashMapUnmanaged(K, T) = .empty;
+            var map: std.AutoArrayHashMapUnmanaged(K, V) = .empty;
             errdefer map.deinit(allocator);
 
             if (.object_begin != try source.next()) return error.UnexpectedToken;
@@ -43,14 +43,14 @@ pub fn IdArrayHashMap(comptime T: type) type {
                                 .use_first => {
                                     // Parse and ignore the redundant value.
                                     // We don't want to skip the value, because we want type checking.
-                                    _ = try innerParse(T, allocator, source, options);
+                                    _ = try innerParse(V, allocator, source, options);
                                     continue;
                                 },
                                 .@"error" => return error.DuplicateField,
                                 .use_last => {},
                             }
                         }
-                        gop.value_ptr.* = try innerParse(T, allocator, source, options);
+                        gop.value_ptr.* = try innerParse(V, allocator, source, options);
                     },
                     .object_end => break,
                     else => unreachable,
@@ -62,12 +62,12 @@ pub fn IdArrayHashMap(comptime T: type) type {
         pub fn jsonParseFromValue(allocator: Allocator, source: Value, options: ParseOptions) !@This() {
             if (source != .object) return error.UnexpectedToken;
 
-            var map: std.AutoArrayHashMapUnmanaged(K, T) = .empty;
+            var map: std.AutoArrayHashMapUnmanaged(K, V) = .empty;
             errdefer map.deinit(allocator);
 
             var it = source.object.iterator();
             while (it.next()) |kv| {
-                try map.put(allocator, try deserializeKey(kv.key_ptr.*), try innerParseFromValue(T, allocator, kv.value_ptr.*, options));
+                try map.put(allocator, try deserializeKey(kv.key_ptr.*), try innerParseFromValue(V, allocator, kv.value_ptr.*, options));
             }
             return .{ .map = map };
         }

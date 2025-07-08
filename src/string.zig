@@ -35,12 +35,20 @@ pub fn StringZ(comptime capacity: usize) type {
             allocator.free(self.buffer);
         }
 
+        pub fn clone(self: Self, allocator: Allocator) Self {
+            return .init(allocator, self.slice());
+        }
+
         pub fn slice(self: Self) [:0]const u8 {
             return std.mem.sliceTo(self.buffer, 0);
         }
 
         pub fn set(self: *Self, newSlice: [:0]const u8) void {
-            self.setFmt("{s}", .{std.mem.sliceTo(newSlice, 0)});
+            const len = for (0..newSlice.len) |i| {
+                if (newSlice[i] == 0) break i;
+            } else newSlice.len;
+
+            self.setFmt("{s}", .{newSlice[0..len]});
         }
 
         pub fn setFmt(self: *Self, comptime fmt: []const u8, args: anytype) void {

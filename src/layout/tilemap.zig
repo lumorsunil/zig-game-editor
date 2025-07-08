@@ -387,7 +387,7 @@ fn historyMenu(_: *Context, tilemapDocument: *TilemapDocument) void {
 }
 
 fn handleInput(context: *Context, editor: *Editor, tilemapDocument: *TilemapDocument) void {
-    utils.cameraControls(context);
+    utils.cameraControls(&context.camera);
 
     if (tilemapDocument.getCurrentTool()) |tool| {
         switch (tool.impl) {

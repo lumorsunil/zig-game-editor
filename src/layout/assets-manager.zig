@@ -282,16 +282,16 @@ fn newAssetUI(context: *Context) void {
             }
         }
         if (z.button("Scene", .{ .w = newAssetItemWidth, .h = 24 })) {
-            context.isNewSceneDialogOpen = true;
+            context.isNewAssetDialogOpen = .scene;
         }
         if (z.button("Tilemap", .{ .w = newAssetItemWidth, .h = 24 })) {
-            context.isNewTilemapDialogOpen = true;
+            context.isNewAssetDialogOpen = .tilemap;
         }
         if (z.button("Animation", .{ .w = newAssetItemWidth, .h = 24 })) {
-            context.isNewAnimationDocumentDialogOpen = true;
+            context.isNewAssetDialogOpen = .animation;
         }
         if (z.button("Entity Type", .{ .w = newAssetItemWidth, .h = 24 })) {
-            context.isNewEntityTypeDocumentDialogOpen = true;
+            context.isNewAssetDialogOpen = .entityType;
         }
     }
 
@@ -312,70 +312,26 @@ fn newAssetUI(context: *Context) void {
         }
     }
 
-    if (context.isNewTilemapDialogOpen) {
-        _ = z.begin("New Tilemap", .{});
+    if (context.isNewAssetDialogOpen) |documentType| {
+        const windowLabel = switch (documentType) {
+            inline else => |dt| "New " ++ comptime Document.getTypeLabel(dt),
+        };
+
+        _ = z.begin(windowLabel, .{});
         defer z.end();
 
-        z.pushStrId("new-tilemap-input");
+        z.pushStrId("new-asset-input");
         _ = z.inputText("", .{
             .buf = &context.reusableTextBuffer,
         });
         z.popId();
 
         if (z.button("Create", .{})) {
-            context.isNewTilemapDialogOpen = false;
-            _ = context.newAsset(std.mem.sliceTo(&context.reusableTextBuffer, 0), .tilemap);
-            context.reusableTextBuffer[0] = 0;
-        }
-    }
+            context.isNewAssetDialogOpen = null;
+            _ = switch (documentType) {
+                inline else => |dt| context.newAsset(std.mem.sliceTo(&context.reusableTextBuffer, 0), dt),
+            };
 
-    if (context.isNewSceneDialogOpen) {
-        _ = z.begin("New Scene", .{});
-        defer z.end();
-
-        z.pushStrId("new-scene-input");
-        _ = z.inputText("", .{
-            .buf = &context.reusableTextBuffer,
-        });
-        z.popId();
-
-        if (z.button("Create", .{})) {
-            context.isNewSceneDialogOpen = false;
-            _ = context.newAsset(std.mem.sliceTo(&context.reusableTextBuffer, 0), .scene);
-            context.reusableTextBuffer[0] = 0;
-        }
-    }
-
-    if (context.isNewAnimationDocumentDialogOpen) {
-        _ = z.begin("New Animation", .{});
-        defer z.end();
-
-        z.pushStrId("new-animation-input");
-        _ = z.inputText("", .{
-            .buf = &context.reusableTextBuffer,
-        });
-        z.popId();
-
-        if (z.button("Create", .{})) {
-            context.isNewAnimationDocumentDialogOpen = false;
-            _ = context.newAsset(std.mem.sliceTo(&context.reusableTextBuffer, 0), .animation);
-            context.reusableTextBuffer[0] = 0;
-        }
-    }
-
-    if (context.isNewEntityTypeDocumentDialogOpen) {
-        _ = z.begin("New Entity Type", .{});
-        defer z.end();
-
-        z.pushStrId("new-entity-type-input");
-        _ = z.inputText("", .{
-            .buf = &context.reusableTextBuffer,
-        });
-        z.popId();
-
-        if (z.button("Create", .{})) {
-            context.isNewEntityTypeDocumentDialogOpen = false;
-            _ = context.newAsset(std.mem.sliceTo(&context.reusableTextBuffer, 0), .entityType);
             context.reusableTextBuffer[0] = 0;
         }
     }

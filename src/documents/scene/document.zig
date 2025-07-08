@@ -21,6 +21,9 @@ pub const SceneDocument = struct {
 
     pub const DocumentType = DocumentGeneric(Scene, NonPersistentData, .{});
 
+    pub const setEntityReferenceWindowHeight = NonPersistentData.setEntityReferenceWindowHeight;
+    pub const setEntityReferenceWindowWidth = NonPersistentData.setEntityReferenceWindowHeight;
+
     pub fn init(allocator: Allocator) SceneDocument {
         return SceneDocument{
             .document = DocumentType.init(allocator),
@@ -35,66 +38,27 @@ pub const SceneDocument = struct {
         return self.document.persistentData.id;
     }
 
-    pub fn getTextureFromEntityType(
-        self: *SceneDocument,
-        _: *Context,
-        entityType: std.meta.FieldEnum(SceneEntityType),
-    ) !?*rl.Texture2D {
-        return switch (entityType) {
-            .klet => &self.document.nonPersistentData.kletTexture,
-            .mossing => &self.document.nonPersistentData.mossingTexture,
-            .stening => &self.document.nonPersistentData.steningTexture,
-            .barlingSpawner => &self.document.nonPersistentData.barlingTexture,
-            .player => &self.document.nonPersistentData.playerTexture,
-            .npc => &self.document.nonPersistentData.npcTexture,
-            .custom => return null,
-            .exit, .entrance, .tilemap => unreachable,
-        };
-    }
-
-    pub fn getSourceRectFromEntityType(
-        _: *Context,
-        entityType: std.meta.FieldEnum(SceneEntityType),
-    ) !?rl.Rectangle {
-        return switch (entityType) {
-            .klet => rl.Rectangle.init(0, 0, 32, 32),
-            .mossing => rl.Rectangle.init(0, 0, 32, 32),
-            .stening => rl.Rectangle.init(0, 0, 32, 32),
-            .barlingSpawner => rl.Rectangle.init(0, 0, 32, 32),
-            .player => rl.Rectangle.init(1 * 16, 6 * 32, 16, 32),
-            .npc => rl.Rectangle.init(0, 0, 32, 32),
-            .custom => return null,
-            .exit, .entrance, .tilemap => unreachable,
-        };
-    }
-
     pub fn getSizeFromEntityType(
         context: *Context,
         entityType: SceneEntityType,
     ) !?rl.Vector2 {
         return switch (entityType) {
-            .klet => rl.Vector2.init(32, 32),
-            .mossing => rl.Vector2.init(32, 32),
-            .stening => rl.Vector2.init(32, 32),
-            .barlingSpawner => rl.Vector2.init(32, 32),
-            .player => rl.Vector2.init(16, 32),
-            .npc => rl.Vector2.init(32, 32),
             .exit => rl.Vector2.init(16, 16),
             .entrance => rl.Vector2.init(16, 16),
             .tilemap => unreachable,
             .custom => |c| {
-                const document = try context.requestDocumentTypeById(.entityType, c) orelse return null;
+                const document = try context.requestDocumentTypeById(.entityType, c.entityTypeId) orelse return null;
                 const cellSize: @Vector(2, f32) = @floatFromInt(document.getCellSize().*);
                 return rl.Vector2.init(cellSize[0], cellSize[1]);
             },
         };
     }
 
-    pub fn drawEntity(self: *SceneDocument, context: *Context, entity: *SceneEntity) void {
+    pub fn drawEntity(_: *SceneDocument, context: *Context, entity: *SceneEntity) void {
         const scale: f32 = @floatFromInt(context.scale);
         switch (entity.type) {
             .custom => |c| {
-                const entityType = context.requestDocumentTypeById(.entityType, c) catch return orelse {
+                const entityType = context.requestDocumentTypeById(.entityType, c.entityTypeId) catch return orelse {
                     std.log.debug("entity {} not found while drawing", .{c});
                     return;
                 };
@@ -111,20 +75,6 @@ pub const SceneDocument = struct {
                     rectSize[1],
                 );
 
-                const position: @Vector(2, f32) = @floatFromInt(entity.position);
-                const dest = rl.Rectangle.init(
-                    position[0] * scale,
-                    position[1] * scale,
-                    source.width * scale,
-                    source.height * scale,
-                );
-                const origin = rl.Vector2.init(source.width / 2 * scale, source.height / 2 * scale);
-
-                rl.drawTexturePro(texture.*, source, dest, origin, 0, rl.Color.white);
-            },
-            .klet, .mossing, .stening, .barlingSpawner, .player, .npc => {
-                const source = getSourceRectFromEntityType(context, entity.type) catch return orelse return;
-                const texture = self.getTextureFromEntityType(context, entity.type) catch return orelse return;
                 const position: @Vector(2, f32) = @floatFromInt(entity.position);
                 const dest = rl.Rectangle.init(
                     position[0] * scale,
@@ -168,27 +118,12 @@ pub const SceneDocument = struct {
     }
 
     pub fn drawEntityEx(
-        self: *SceneDocument,
+        _: *SceneDocument,
         context: *Context,
         tag: std.meta.FieldEnum(SceneEntityType),
         position: Vector,
     ) void {
-        const scale: f32 = @floatFromInt(context.scale);
         switch (tag) {
-            .klet, .mossing, .stening, .barlingSpawner, .player, .npc => {
-                const source = getSourceRectFromEntityType(context, tag) catch return orelse return;
-                const texture = self.getTextureFromEntityType(context, tag) catch return orelse return;
-                const fPosition: @Vector(2, f32) = @floatFromInt(position);
-                const dest = rl.Rectangle.init(
-                    fPosition[0] * scale,
-                    fPosition[1] * scale,
-                    source.width * scale,
-                    source.height * scale,
-                );
-                const origin = rl.Vector2.init(source.width / 2 * scale, source.height / 2 * scale);
-
-                rl.drawTexturePro(texture.*, source, dest, origin, 0, rl.Color.white);
-            },
             .custom => {},
             inline .exit, .entrance => {
                 const sizeInt = tileSize * context.scaleV;
@@ -270,5 +205,69 @@ pub const SceneDocument = struct {
 
     pub fn setDragStartPoint(self: *SceneDocument, dragStartPoint: ?Vector) void {
         self.document.nonPersistentData.dragStartPoint = dragStartPoint;
+    }
+
+    pub fn openSetEntityWindow(
+        self: *SceneDocument,
+        targetSceneId: *?UUID,
+        targetEntityId: *?UUID,
+    ) void {
+        self.document.nonPersistentData.isSetEntityWindowOpen = true;
+        self.document.nonPersistentData.setEntityWindowSceneTarget = targetSceneId;
+        self.document.nonPersistentData.setEntityWindowEntityTarget = targetEntityId;
+    }
+
+    pub fn closeSetEntityWindow(self: *SceneDocument) void {
+        self.document.nonPersistentData.isSetEntityWindowOpen = false;
+    }
+
+    pub fn isSetEntityWindowOpen(self: *SceneDocument) bool {
+        return self.document.nonPersistentData.isSetEntityWindowOpen;
+    }
+
+    pub fn getSetEntityReferenceScene(self: *SceneDocument) ?UUID {
+        return self.document.nonPersistentData.setEntityWindowScene;
+    }
+
+    pub fn getSetEntityReferenceEntity(self: *SceneDocument) ?UUID {
+        return self.document.nonPersistentData.setEntityWindowEntity;
+    }
+
+    pub fn setSetEntityReferenceScene(self: *SceneDocument, sceneId: ?UUID) void {
+        self.document.nonPersistentData.setEntityWindowScene = sceneId;
+    }
+
+    pub fn setSetEntityReferenceEntity(self: *SceneDocument, entityId: ?UUID) void {
+        self.document.nonPersistentData.setEntityWindowEntity = entityId;
+    }
+
+    pub fn getSetEntityWindowRenderTexture(self: *SceneDocument) rl.RenderTexture {
+        return self.document.nonPersistentData.setEntityWindowRenderTexture;
+    }
+
+    pub fn getSetEntityWindowCamera(self: *SceneDocument) *rl.Camera2D {
+        return &self.document.nonPersistentData.setEntityWindowCamera;
+    }
+
+    pub fn commitSetEntityTarget(self: *SceneDocument) void {
+        const sceneTarget = self.document.nonPersistentData.setEntityWindowSceneTarget orelse return;
+        const entityTarget = self.document.nonPersistentData.setEntityWindowEntityTarget orelse return;
+        sceneTarget.* = self.getSetEntityReferenceScene() orelse unreachable;
+        entityTarget.* = self.getSetEntityReferenceEntity() orelse unreachable;
+    }
+
+    pub fn clearSetEntityTarget(self: *SceneDocument) void {
+        self.document.nonPersistentData.setEntityWindowSceneTarget = null;
+        self.document.nonPersistentData.setEntityWindowEntityTarget = null;
+    }
+
+    pub fn getEntityByInstanceId(self: *SceneDocument, id: UUID) ?*SceneEntity {
+        for (self.getEntities().items) |entity| {
+            if (entity.id.uuid == id.uuid) {
+                return entity;
+            }
+        }
+
+        return null;
     }
 };

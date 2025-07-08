@@ -3,6 +3,8 @@ const Allocator = std.mem.Allocator;
 const lib = @import("root").lib;
 const UUID = lib.UUIDSerializable;
 const IdArrayHashMap = lib.IdArrayHashMap;
+const DocumentTag = lib.DocumentTag;
+const Document = lib.Document;
 const cacheDirectoryName = lib.cacheDirectoryName;
 
 const indexJsonFileName = "index.json";
@@ -190,5 +192,26 @@ pub const AssetIndex = struct {
             index[1 + std.fs.path.sep_str.len ..]
         else
             index;
+    }
+
+    pub fn getIdsByDocumentType(
+        self: AssetIndex,
+        allocator: Allocator,
+        comptime documentType: DocumentTag,
+    ) []UUID {
+        var ids = std.ArrayListUnmanaged(UUID).initCapacity(allocator, 128) catch unreachable;
+
+        for (self.hashMap.map.values(), 0..) |filePath, i| {
+            const dt = Document.getTagByFilePath(filePath) catch |err| {
+                std.log.err("Could not get document type from {s}: {}", .{ filePath, err });
+                continue;
+            };
+            switch (dt) {
+                documentType => ids.append(allocator, self.hashMap.map.keys()[i]) catch unreachable,
+                else => continue,
+            }
+        }
+
+        return ids.toOwnedSlice(allocator) catch unreachable;
     }
 };

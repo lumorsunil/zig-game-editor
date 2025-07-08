@@ -60,10 +60,7 @@ pub const Context = struct {
     isErrorDialogOpen: bool = false,
 
     isNewDirectoryDialogOpen: bool = false,
-    isNewTilemapDialogOpen: bool = false,
-    isNewSceneDialogOpen: bool = false,
-    isNewAnimationDocumentDialogOpen: bool = false,
-    isNewEntityTypeDocumentDialogOpen: bool = false,
+    isNewAssetDialogOpen: ?DocumentTag = null,
 
     deleteNodeTarget: ?*Node = null,
     isDeleteNodeDialogOpen: bool = false,
@@ -404,7 +401,6 @@ pub const Context = struct {
             .scene => |*scene| {
                 const entity = self.allocator.create(SceneEntity) catch unreachable;
                 entity.* = SceneEntity.init(
-                    self.allocator,
                     .{ 0, 0 },
                     .{ .tilemap = SceneEntityTilemap.init() },
                 );
@@ -736,5 +732,10 @@ pub const Context = struct {
         const fileName = (nfd.openFileDialog(fileFilter, null) catch return null) orelse return null;
         defer nfd.freePath(fileName);
         return self.allocator.dupeZ(u8, fileName) catch unreachable;
+    }
+
+    pub fn getIdsByDocumentType(self: *Context, comptime documentType: DocumentTag) []UUID {
+        const p = &(self.currentProject orelse return &.{});
+        return p.assetIndex.getIdsByDocumentType(self.allocator, documentType);
     }
 };

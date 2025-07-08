@@ -10,6 +10,7 @@
 - [x] Load editor state on startup
 - [ ] Quitting with changes dialog
 - [x] Update to 0.14.1
+- [ ] Checkerboard background
 
 ### References
 
@@ -26,7 +27,7 @@
 - [x] Whenever an action is made that should update index, we update the index
   - [x] Moving an asset
   - [x] Creating an asset
-  - [ ] Deleting an asset
+  - [x] Deleting an asset
 - [x] All assets require a json file that includes the ID (i.e. textures)
 - [ ] Reference index
   - [ ] Interface function for documents to produce a list of references to other documents
@@ -146,6 +147,7 @@
   - [x] Copy/paste tiles
   - [x] Move tiles
   - [x] Delete tiles
+- [ ] Setting to disable/enable auto-expand when drawing outside of boundary
 
 ## Tilesheet editor
 
@@ -203,27 +205,44 @@
       - [x] Set name
       - [x] Set icon
       - [x] Set size
-      - [ ] Property editor
   - [x] Data structure
     - [x] Type ID
     - [x] Name
     - [x] Icon
     - [x] Size
-    - [ ] Properties (Object)
-      - [ ] Label
-      - [ ] Data type
-        - [ ] String
+    - [x] Properties
+      - [x] Add property
+      - [x] Delete property
+      - [x] Label
+      - [x] Data type
+        - [x] String
           - [ ] Max length
-        - [ ] Number
-        - [ ] Object
-        - [ ] Reference
-          - [ ] Entity
-          - [ ] Scene
+        - [x] Number
+        - [x] Object
+        - [x] Asset Reference
+        - [x] Entity Reference
+      - [x] Default property values
 
 ## Scene editor
 
 - [x] Entities
   - [x] Add metadata
+  - [ ] Scale vector for all entities
+  - [x] Entity instance details
+    - [x] Properties
+      - [x] Label
+      - [x] Data type
+        - [x] String
+          - [ ] Max length
+        - [x] Integer
+        - [x] Float
+        - [x] Object
+        - [x] Asset Reference
+        - [x] Entity Reference
+          - [x] Set entity
+          - [ ] Entity reference preview
+          - [ ] Button to go to entity reference
+  - [x] (Remove metadata feature once properties are implemented)
   - [x] Exit entities
     - [x] Set target scene
     - [x] Open target scene
@@ -233,7 +252,6 @@
 - [x] Add Play button
   - [x] Preview scene in game (run command with arguments --scene etc)
   - [x] F5 shortcut
-- [ ] Fill this space out
 
 ### Scene editor initial version 0.0.1
 
@@ -263,3 +281,4 @@
 - [x] Add no_bring_to_front_on_focus flag to all side menues
 - [x] When closing the current editor, open the next available tab
 - [x] Store multiple opened documents in the editor session
+- [ ] Crash when deleting an animation (created a new one without saving, added frames)

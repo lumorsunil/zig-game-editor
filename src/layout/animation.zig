@@ -252,7 +252,7 @@ fn handleInput(
     _: *Editor,
     animationDocument: *AnimationDocument,
 ) void {
-    utils.cameraControls(context);
+    utils.cameraControls(&context.camera);
 
     if (animationDocument.getSelectedAnimation()) |animation| {
         handleAnimationInput(context, animationDocument, animation);
