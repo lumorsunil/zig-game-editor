@@ -43,3 +43,4 @@ pub const json = @import("json.zig");
 pub usingnamespace @import("id-array-hash-map.zig");
 pub usingnamespace @import("string-z-array-hash-map.zig");
 pub usingnamespace @import("documents/entity-type/property.zig");
+pub usingnamespace @import("thumbnail-generator.zig");

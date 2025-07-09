@@ -273,7 +273,7 @@ fn newAssetUI(context: *Context) void {
                 defer context.allocator.free(filePath);
                 const basename = context.allocator.dupeZ(u8, std.fs.path.basename(filePath)) catch unreachable;
                 defer context.allocator.free(basename);
-                const textureDocument = context.newAsset(basename, .texture) orelse return;
+                const textureDocument = context.newAsset(basename, .texture) catch return;
                 // TODO: Fix this hack
                 textureDocument.setTextureFilePath(context.allocator, filePath);
                 textureDocument.document.nonPersistentData.load("", textureDocument.document.persistentData);
@@ -327,11 +327,11 @@ fn newAssetUI(context: *Context) void {
         z.popId();
 
         if (z.button("Create", .{})) {
-            context.isNewAssetDialogOpen = null;
             _ = switch (documentType) {
-                inline else => |dt| context.newAsset(std.mem.sliceTo(&context.reusableTextBuffer, 0), dt),
+                inline else => |dt| context.newAsset(std.mem.sliceTo(&context.reusableTextBuffer, 0), dt) catch return,
             };
 
+            context.isNewAssetDialogOpen = null;
             context.reusableTextBuffer[0] = 0;
         }
     }

@@ -26,28 +26,44 @@ const AnimationDocument = lib.documents.AnimationDocument;
 const assetsManager = @import("layout/assets-manager.zig").assetsManager;
 const layouts = @import("layout/layouts.zig");
 const utils = @import("layout/utils.zig");
+const projectLayout = @import("layout/project.zig");
 
 pub fn layout(context: *Context) !void {
-    const screenSize: Vector = .{ rl.getScreenWidth(), rl.getScreenHeight() };
-    const screenW, const screenH = @as(@Vector(2, f32), @floatFromInt(screenSize));
-    context.camera.offset.x = screenW / 2;
-    context.camera.offset.y = screenH / 2;
+    startOfFrame(context);
 
-    rl.clearBackground(context.backgroundColor);
-    rl.beginMode2D(context.camera);
+    {
+        rl.clearBackground(context.backgroundColor);
+        rl.beginMode2D(context.camera);
+        defer rl.endMode2D();
 
-    if (context.getCurrentEditor()) |editor| {
-        editorDraw(context, editor);
+        if (context.getCurrentEditor()) |editor| {
+            editorDraw(context, editor);
+        }
     }
 
-    rl.endMode2D();
+    {
+        c.rlImGuiBegin();
+        defer c.rlImGuiEnd();
 
-    c.rlImGuiBegin();
-
-    if (context.currentProject) |_| {
-        if (projectMenu(context)) {
-            c.rlImGuiEnd();
+        if (imguiUI(context)) {
             return;
+        }
+    }
+
+    if (context.getCurrentEditor()) |editor| {
+        if (!z.io.getWantCaptureMouse()) {
+            editorHandleInput(context, editor);
+        }
+    }
+
+    endOfFrame(context);
+}
+
+/// Returns true if we need to abort rendering the frame and continue to the next frame
+fn imguiUI(context: *Context) bool {
+    if (context.currentProject) |_| {
+        if (projectLayout.projectMenu(context)) {
+            return true;
         }
 
         documentTabs(context);
@@ -58,89 +74,21 @@ pub fn layout(context: *Context) !void {
 
         assetsManager(context);
     } else {
-        noProjectOpenedMenu(context);
+        projectLayout.noProjectOpenedMenu(context);
     }
 
-    if (context.isErrorDialogOpen) {
-        _ = z.begin("Error Message", .{ .flags = .{ .no_collapse = true } });
-        z.textColored(.{ 1, 0, 0, 1 }, "{s}", .{context.errorMessage});
-        if (z.button("Dismiss", .{})) context.isErrorDialogOpen = false;
-        z.end();
-    }
-
-    c.rlImGuiEnd();
-
-    if (context.updateThumbnailForCurrentDocument) {
-        if (context.getCurrentEditor()) |editor| {
-            context.updateThumbnailById(editor.document.getId());
-        }
-        context.updateThumbnailForCurrentDocument = false;
-    }
-
-    if (context.getCurrentEditor()) |editor| {
-        if (!z.io.getWantCaptureMouse()) {
-            editorHandleInput(context, editor);
-        }
-    }
-}
-
-const ProjectsMenuState = enum {
-    render,
-    abort,
-};
-
-fn projectMenu(context: *Context) bool {
-    if (z.beginMainMenuBar()) {
-        if (z.beginMenu("Projects", true)) {
-            projectsMenu: switch (ProjectsMenuState.render) {
-                .render => {
-                    if (z.selectable("New Project", .{})) {
-                        context.newProject();
-                        continue :projectsMenu .abort;
-                    }
-                    if (z.selectable("Open Project", .{})) {
-                        context.openProject();
-                        continue :projectsMenu .abort;
-                    }
-                    if (z.selectable("Close Project", .{})) {
-                        context.closeProject();
-                        continue :projectsMenu .abort;
-                    }
-                    z.endMenu();
-                },
-                .abort => {
-                    z.endMenu();
-                    z.endMainMenuBar();
-                    return true;
-                },
-            }
-        }
-        z.endMainMenuBar();
-    }
+    errorDialog(context);
 
     return false;
 }
 
-fn noProjectOpenedMenu(context: *Context) void {
-    const screenSize: Vector = .{ rl.getScreenWidth(), rl.getScreenHeight() };
-    const screenW, const screenH = @as(@Vector(2, f32), @floatFromInt(screenSize));
+fn errorDialog(context: *Context) void {
+    if (context.isErrorDialogOpen) {
+        _ = z.begin("Error Message", .{ .flags = .{ .no_collapse = true } });
+        defer z.end();
 
-    z.setNextWindowPos(.{ .x = 0, .y = 0 });
-    z.setNextWindowSize(.{ .w = screenW, .h = screenH });
-    _ = z.begin("No Project Opened Menu", .{ .flags = .{ .no_title_bar = true, .no_resize = true, .no_collapse = true, .no_background = true, .no_move = true } });
-    defer z.end();
-
-    const buttonSize = 256;
-    const buttonSpacing = 64;
-
-    z.setCursorPos(.{ screenW / 2 - buttonSize - buttonSpacing, screenH / 2 - buttonSize / 2 });
-
-    if (z.button("New Project", .{ .w = buttonSize, .h = buttonSize })) {
-        context.newProject();
-    }
-    z.sameLine(.{ .spacing = buttonSpacing });
-    if (z.button("Open Project", .{ .w = buttonSize, .h = buttonSize })) {
-        context.openProject();
+        z.textColored(.{ 1, 0, 0, 1 }, "{s}", .{context.errorMessage});
+        if (z.button("Dismiss", .{})) context.isErrorDialogOpen = false;
     }
 }
 
@@ -154,6 +102,26 @@ fn editorMenu(context: *Context, editor: *Editor) void {
 
 fn editorHandleInput(context: *Context, editor: *Editor) void {
     layouts.handleInput(context, editor, &editor.document);
+}
+
+fn startOfFrame(context: *Context) void {
+    updateCameraOffset(context);
+}
+
+fn updateCameraOffset(context: *Context) void {
+    const screenSize: Vector = .{ rl.getScreenWidth(), rl.getScreenHeight() };
+    const screenW, const screenH = @as(@Vector(2, f32), @floatFromInt(screenSize));
+    context.camera.offset.x = screenW / 2;
+    context.camera.offset.y = screenH / 2;
+}
+
+fn endOfFrame(context: *Context) void {
+    if (context.updateThumbnailForCurrentDocument) {
+        if (context.getCurrentEditor()) |editor| {
+            context.updateThumbnailById(editor.document.getId());
+        }
+        context.updateThumbnailForCurrentDocument = false;
+    }
 }
 
 fn demoButton(context: *Context) void {

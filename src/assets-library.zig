@@ -164,6 +164,31 @@ pub const AssetsLibrary = struct {
         };
     }
 
+    pub const OpenDirError = error{InvalidDirectory};
+
+    pub fn openDir(
+        self: AssetsLibrary,
+        allocator: Allocator,
+        relativeDir: [:0]const u8,
+    ) !std.fs.Dir {
+        if (!self.isValidDirectory(allocator, relativeDir)) return OpenDirError.InvalidDirectory;
+        const path = std.fs.path.join(allocator, &.{ self.root, relativeDir }) catch unreachable;
+        defer allocator.free(path);
+        return std.fs.openDirAbsolute(
+            path,
+            .{},
+        ) catch |err| {
+            std.debug.panic("Could not open root dir {s}: {}", .{ self.root, err });
+        };
+    }
+
+    pub const OpenCurrentDirError = error{NoCurrentDirectorySet};
+
+    pub fn openCurrentDirectory(self: AssetsLibrary, allocator: Allocator) !std.fs.Dir {
+        const cd = self.currentDirectory orelse return OpenCurrentDirError.NoCurrentDirectorySet;
+        return try self.openDir(allocator, cd);
+    }
+
     pub fn isValidDirectory(
         self: AssetsLibrary,
         allocator: Allocator,
@@ -253,13 +278,6 @@ pub const AssetsLibrary = struct {
             .name = nameZ,
         } };
     }
-
-    // pub usingnamespace Serializer.MakeSerialize(
-    //     @This(),
-    //     AssetsLibrarySerialized,
-    //     AssetsLibrarySerialized.init,
-    //     AssetsLibrarySerialized.deserialize,
-    // );
 };
 
 const AssetsLibrarySerialized = struct {
