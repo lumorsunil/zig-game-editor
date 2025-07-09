@@ -212,53 +212,53 @@ pub const SceneDocument = struct {
         targetSceneId: *?UUID,
         targetEntityId: *?UUID,
     ) void {
-        self.document.nonPersistentData.isSetEntityWindowOpen = true;
-        self.document.nonPersistentData.setEntityWindowSceneTarget = targetSceneId;
-        self.document.nonPersistentData.setEntityWindowEntityTarget = targetEntityId;
+        self.document.nonPersistentData.setEntityWindow.isOpen = true;
+        self.document.nonPersistentData.setEntityWindow.sceneTarget = targetSceneId;
+        self.document.nonPersistentData.setEntityWindow.entityTarget = targetEntityId;
     }
 
     pub fn closeSetEntityWindow(self: *SceneDocument) void {
-        self.document.nonPersistentData.isSetEntityWindowOpen = false;
+        self.document.nonPersistentData.setEntityWindow.isOpen = false;
     }
 
     pub fn isSetEntityWindowOpen(self: *SceneDocument) bool {
-        return self.document.nonPersistentData.isSetEntityWindowOpen;
+        return self.document.nonPersistentData.setEntityWindow.isOpen;
     }
 
     pub fn getSetEntityReferenceScene(self: *SceneDocument) ?UUID {
-        return self.document.nonPersistentData.setEntityWindowScene;
+        return self.document.nonPersistentData.setEntityWindow.selectedScene;
     }
 
     pub fn getSetEntityReferenceEntity(self: *SceneDocument) ?UUID {
-        return self.document.nonPersistentData.setEntityWindowEntity;
+        return self.document.nonPersistentData.setEntityWindow.selectedEntity;
     }
 
     pub fn setSetEntityReferenceScene(self: *SceneDocument, sceneId: ?UUID) void {
-        self.document.nonPersistentData.setEntityWindowScene = sceneId;
+        self.document.nonPersistentData.setEntityWindow.selectedScene = sceneId;
     }
 
     pub fn setSetEntityReferenceEntity(self: *SceneDocument, entityId: ?UUID) void {
-        self.document.nonPersistentData.setEntityWindowEntity = entityId;
+        self.document.nonPersistentData.setEntityWindow.selectedEntity = entityId;
     }
 
     pub fn getSetEntityWindowRenderTexture(self: *SceneDocument) rl.RenderTexture {
-        return self.document.nonPersistentData.setEntityWindowRenderTexture;
+        return self.document.nonPersistentData.setEntityWindow.renderTexture;
     }
 
     pub fn getSetEntityWindowCamera(self: *SceneDocument) *rl.Camera2D {
-        return &self.document.nonPersistentData.setEntityWindowCamera;
+        return &self.document.nonPersistentData.setEntityWindow.camera;
     }
 
     pub fn commitSetEntityTarget(self: *SceneDocument) void {
-        const sceneTarget = self.document.nonPersistentData.setEntityWindowSceneTarget orelse return;
-        const entityTarget = self.document.nonPersistentData.setEntityWindowEntityTarget orelse return;
+        const sceneTarget = self.document.nonPersistentData.setEntityWindow.sceneTarget orelse return;
+        const entityTarget = self.document.nonPersistentData.setEntityWindow.entityTarget orelse return;
         sceneTarget.* = self.getSetEntityReferenceScene() orelse unreachable;
         entityTarget.* = self.getSetEntityReferenceEntity() orelse unreachable;
     }
 
     pub fn clearSetEntityTarget(self: *SceneDocument) void {
-        self.document.nonPersistentData.setEntityWindowSceneTarget = null;
-        self.document.nonPersistentData.setEntityWindowEntityTarget = null;
+        self.document.nonPersistentData.setEntityWindow.sceneTarget = null;
+        self.document.nonPersistentData.setEntityWindow.entityTarget = null;
     }
 
     pub fn getEntityByInstanceId(self: *SceneDocument, id: UUID) ?*SceneEntity {

@@ -23,16 +23,28 @@ const tileSize = config.tileSize;
 
 pub const LayoutScene = LayoutGeneric(.scene, draw, menu, handleInput);
 
+const DrawOptions = struct {};
+
 fn draw(context: *Context, sceneDocument: *SceneDocument) void {
+    drawEntities(context, sceneDocument);
+    drawSelectionBoxes(context, sceneDocument);
+    drawDragPayload(context, sceneDocument);
+}
+
+fn drawEntities(context: *Context, sceneDocument: *SceneDocument) void {
     for (sceneDocument.getEntities().items) |entity| {
         sceneDocument.drawEntity(context, entity);
     }
+}
 
+fn drawSelectionBoxes(context: *Context, sceneDocument: *SceneDocument) void {
     for (sceneDocument.getSelectedEntities().items) |selectedEntity| {
         const rect = utils.getEntityRectScaled(context, selectedEntity.*);
         rl.drawRectangleLinesEx(rect, 1 / context.camera.zoom, rl.Color.white);
     }
+}
 
+fn drawDragPayload(context: *Context, sceneDocument: *SceneDocument) void {
     if (sceneDocument.getDragPayload().*) |payload| {
         const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(context, context.camera) else utils.gridPositionToEntityPosition(context, utils.getMouseSceneGridPosition(context), payload);
         sceneDocument.drawEntityEx(context, payload, position);
@@ -94,7 +106,7 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
         switch (selectedEntity.type) {
             .exit => |*exit| {
                 utils.scaleInput(&exit.scale.?);
-                if (utils.assetInput(.scene, context, selectedEntity.id)) |id| {
+                if (utils.assetInput(.scene, context, exit.sceneId)) |id| {
                     exit.sceneId = id;
                 }
 
@@ -150,7 +162,10 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
                     },
                 );
                 if (z.beginDragDropSource(.{ .source_allow_null_id = true })) {
-                    sceneDocument.getDragPayload().* = .{ .exit = SceneEntityExit.init(context.allocator) };
+                    if (sceneDocument.getDragPayload().* == null) {
+                        sceneDocument.getDragPayload().* = .{ .exit = SceneEntityExit.init(context.allocator) };
+                    }
+
                     z.endDragDropSource();
                 }
             },
@@ -221,14 +236,17 @@ fn setEntityReferenceWindow(context: *Context, sceneDocument: *SceneDocument) vo
         }
 
         const selectedSceneId = sceneDocument.getSetEntityReferenceScene() orelse return;
-        const sceneDocumentToBeDrawn = context.requestDocumentTypeById(.scene, selectedSceneId) catch return orelse return;
+        const sceneDocumentToBeDrawn: *SceneDocument = context.requestDocumentTypeById(.scene, selectedSceneId) catch return orelse return;
 
         if (sceneDocument.getSetEntityReferenceEntity()) |entityId| {
             if (sceneDocumentToBeDrawn.getEntityByInstanceId(entityId)) |entity| {
                 switch (entity.type) {
                     .custom => |custom| {
                         if (context.requestDocumentTypeById(.entityType, custom.entityTypeId) catch return) |entityTypeDocument| {
-                            z.text("{s} - {}", .{ entityTypeDocument.getName(), entityTypeDocument.getId() });
+                            z.text("{s} - {}", .{
+                                entityTypeDocument.getName(),
+                                entity.id,
+                            });
                             drawIconMenu(context, entityTypeDocument);
                         }
                     },
@@ -262,7 +280,7 @@ fn setEntityReferenceWindowRenderScene(
     rl.beginTextureMode(texture);
     rl.clearBackground(rl.Color.white);
     rl.beginMode2D(camera.*);
-    draw(context, sceneDocumentToBeDrawn);
+    drawEntities(context, sceneDocumentToBeDrawn);
     rl.endMode2D();
     rl.endTextureMode();
     c.rlImGuiImageRenderTexture(@ptrCast(&texture));

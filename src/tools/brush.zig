@@ -14,7 +14,7 @@ pub const BrushTool = struct {
     source: ?TileSource = null,
     isSelectingTileSource: bool = false,
     selectedSourceTiles: SelectBox = SelectBox.init(),
-    tileset: UUID = undefined,
+    tileset: ?UUID = null,
     currentPaintedCell: ?Vector = null,
     lastPaintedCell: ?Vector = null,
 
@@ -114,10 +114,12 @@ pub const BrushTool = struct {
     }
 
     fn getRandomFromSelected(self: *const BrushTool, context: *Context) TileSource {
+        const tileset = self.tileset orelse unreachable;
+
         const selectedGridPositions = self.selectedSourceTiles.getSelected(context.allocator);
         defer context.allocator.free(selectedGridPositions);
         const i = std.crypto.random.uintLessThan(usize, selectedGridPositions.len);
 
-        return TileSource.init(self.tileset, selectedGridPositions[i]);
+        return TileSource.init(tileset, selectedGridPositions[i]);
     }
 };

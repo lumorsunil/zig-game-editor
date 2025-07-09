@@ -10,18 +10,14 @@ const SceneEntity = @import("persistent-data.zig").SceneEntity;
 const UUID = lib.UUIDSerializable;
 const config = @import("root").config;
 
-pub const SceneNonPersistentData = struct {
-    dragPayload: ?SceneEntityType = null,
-    selectedEntities: ArrayList(*SceneEntity),
-    dragStartPoint: ?Vector = null,
-    isDragging: bool = false,
-    isSetEntityWindowOpen: bool = false,
-    setEntityWindowSceneTarget: ?*?UUID = null,
-    setEntityWindowEntityTarget: ?*?UUID = null,
-    setEntityWindowScene: ?UUID = null,
-    setEntityWindowEntity: ?UUID = null,
-    setEntityWindowRenderTexture: rl.RenderTexture = undefined,
-    setEntityWindowCamera: rl.Camera2D = .{
+const SetEntityWindow = struct {
+    isOpen: bool = false,
+    sceneTarget: ?*?UUID = null,
+    entityTarget: ?*?UUID = null,
+    selectedScene: ?UUID = null,
+    selectedEntity: ?UUID = null,
+    renderTexture: rl.RenderTexture = undefined,
+    camera: rl.Camera2D = .{
         .zoom = 1,
         .offset = .{
             .x = @floatFromInt(setEntityReferenceWindowWidth / 2),
@@ -33,6 +29,17 @@ pub const SceneNonPersistentData = struct {
 
     pub const setEntityReferenceWindowHeight = 800;
     pub const setEntityReferenceWindowWidth = 800;
+};
+
+pub const SceneNonPersistentData = struct {
+    dragPayload: ?SceneEntityType = null,
+    selectedEntities: ArrayList(*SceneEntity),
+    dragStartPoint: ?Vector = null,
+    isDragging: bool = false,
+    setEntityWindow: SetEntityWindow = .{},
+
+    pub const setEntityReferenceWindowHeight = SetEntityWindow.setEntityReferenceWindowHeight;
+    pub const setEntityReferenceWindowWidth = SetEntityWindow.setEntityReferenceWindowHeight;
 
     pub fn init(allocator: Allocator) SceneNonPersistentData {
         return SceneNonPersistentData{
@@ -42,12 +49,12 @@ pub const SceneNonPersistentData = struct {
 
     pub fn deinit(self: *SceneNonPersistentData, allocator: Allocator) void {
         self.selectedEntities.clearAndFree(allocator);
-        rl.unloadRenderTexture(self.setEntityWindowRenderTexture);
-        self.setEntityWindowRenderTexture = undefined;
+        rl.unloadRenderTexture(self.setEntityWindow.renderTexture);
+        self.setEntityWindow.renderTexture = undefined;
     }
 
     pub fn load(self: *SceneNonPersistentData, _: [:0]const u8, persistentData: *Scene) void {
-        self.setEntityWindowScene = persistentData.id;
-        self.setEntityWindowRenderTexture = rl.loadRenderTexture(setEntityReferenceWindowWidth, setEntityReferenceWindowHeight) catch unreachable;
+        self.setEntityWindow.selectedScene = persistentData.id;
+        self.setEntityWindow.renderTexture = rl.loadRenderTexture(setEntityReferenceWindowWidth, setEntityReferenceWindowHeight) catch unreachable;
     }
 };

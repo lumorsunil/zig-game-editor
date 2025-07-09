@@ -11,6 +11,13 @@
 - [ ] Quitting with changes dialog
 - [x] Update to 0.14.1
 - [ ] Checkerboard background
+- [x] Asset inputs
+  - [ ] Add help (?) tooltip that explains how to use the input
+  - [ ] Double-click action (open editor?)
+  - [ ] Context menu
+    - [ ] Unset (clear input)
+    - [ ] Open asset directory in asset manager
+    - [ ] Open asset editor
 
 ### References
 
@@ -139,6 +146,7 @@
 - [x] Resize tilemap
 - [x] Layers
 - [x] Brush tool
+  - [x] Set tileset
   - [x] Randomize tile
     - [x] (Bug) Randomize only when painting on next cell
   - [x] Line drawing with shift-click
@@ -252,9 +260,6 @@
 - [x] Add Play button
   - [x] Preview scene in game (run command with arguments --scene etc)
   - [x] F5 shortcut
-
-### Scene editor initial version 0.0.1
-
 - [x] Scene document
 - [x] Create entities
   - [x] Drag and drop entites to create them
@@ -266,12 +271,13 @@
     - [x] "player" => "player sprite"
     - [x] "npc" => "npc sprite"
     - [x] "tilemap" => "draw tilemap"
-
-### Scene editor version 0.0.2
-
 - [x] Select entity
+  - [ ] Select multiple entities
+  - [ ] Deselect entity
 - [x] Move entity
+  - [ ] Move multiple entities
 - [x] Delete entity
+  - [ ] Delete multiple entities
 - [x] Save to file
 - [x] Load from file
 
@@ -282,3 +288,15 @@
 - [x] When closing the current editor, open the next available tab
 - [x] Store multiple opened documents in the editor session
 - [ ] Crash when deleting an animation (created a new one without saving, added frames)
+
+## Project
+
+- [x] Project structure (project root directory, relative paths inside project)
+- [x] Create new project
+- [x] Open project
+- [x] Close project
+- [ ] Project options
+  - [ ] Default tileset
+  - [ ] Tile size
+  - [ ] Fill this out
+- [ ] Scene map (shows all scenes and how they are connected, able to jump to scenes through the map)

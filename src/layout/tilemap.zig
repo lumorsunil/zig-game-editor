@@ -147,7 +147,14 @@ fn toolDetailsMenu(context: *Context, tilemapDocument: *TilemapDocument) void {
 }
 
 fn brushToolDetailsMenu(context: *Context, tilemapDocument: *TilemapDocument, brush: *BrushTool) void {
-    if (z.button("Set Tile", .{})) {
+    // if (brush.tileset == null) {
+    // TODO: Global option to set default tileset?
+    // }
+    z.text("Tileset:", .{});
+    if (utils.assetInput(.texture, context, brush.tileset)) |newTilesetId| {
+        brush.tileset = newTilesetId;
+    }
+    if (brush.tileset != null and z.button("Set Tile", .{})) {
         brush.isSelectingTileSource = true;
     }
     if (brush.source) |source| {
@@ -307,7 +314,7 @@ fn selectTileSourceMenu(
     z.setNextWindowSize(.{ .w = 1024, .h = 800 });
     _ = z.begin("Select Tile Source", .{ .popen = &brush.isSelectingTileSource, .flags = .{ .no_scrollbar = true } });
 
-    const texture = context.requestTextureById(brush.tileset) catch return orelse return;
+    const texture = context.requestTextureById(brush.tileset orelse unreachable) catch return orelse return;
     const spacing = 4;
     const tileWidth = tilemapDocument.getTileSize()[0];
     const totalTileWidth = tileWidth + spacing;
@@ -358,7 +365,7 @@ fn selectTileSourceMenu(
                     brush.selectedSourceTiles.togglePoint(context.allocator, gridPosition);
                 } else {
                     TileSource.set(&brush.source, &TileSource{
-                        .tileset = brush.tileset,
+                        .tileset = brush.tileset orelse unreachable,
                         .gridPosition = gridPosition,
                     });
                     brush.isSelectingTileSource = false;
