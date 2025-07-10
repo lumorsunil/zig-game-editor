@@ -61,8 +61,8 @@ pub fn layout(context: *Context) !void {
 
 /// Returns true if we need to abort rendering the frame and continue to the next frame
 fn imguiUI(context: *Context) bool {
-    if (context.currentProject) |_| {
-        if (projectLayout.projectMenu(context)) {
+    if (context.currentProject) |*p| {
+        if (projectLayout.projectMenu(context, p)) {
             return true;
         }
 

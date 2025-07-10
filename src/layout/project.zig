@@ -2,7 +2,9 @@ const rl = @import("raylib");
 const z = @import("zgui");
 const lib = @import("root").lib;
 const Context = lib.Context;
+const Project = lib.Project;
 const Vector = lib.Vector;
+const utils = @import("utils.zig");
 
 pub fn noProjectOpenedMenu(context: *Context) void {
     const screenSize: Vector = .{ rl.getScreenWidth(), rl.getScreenHeight() };
@@ -27,7 +29,7 @@ pub fn noProjectOpenedMenu(context: *Context) void {
     }
 }
 
-pub fn projectMenu(context: *Context) bool {
+pub fn projectMenu(context: *Context, project: *Project) bool {
     if (z.beginMainMenuBar()) {
         defer z.endMainMenuBar();
         if (z.beginMenu("Projects", true)) {
@@ -45,7 +47,26 @@ pub fn projectMenu(context: *Context) bool {
                 return true;
             }
         }
+        if (z.selectable("Project Options", .{})) {
+            project.isProjectOptionsOpen = true;
+        }
     }
 
+    projectOptionsUI(context, project);
+
     return false;
+}
+
+fn projectOptionsUI(context: *Context, project: *Project) void {
+    if (project.isProjectOptionsOpen) {
+        z.setNextWindowSize(.{ .w = 800, .h = 600, .cond = .first_use_ever });
+        _ = z.begin("Project Options", .{ .popen = &project.isProjectOptionsOpen });
+        defer z.end();
+
+        z.text("Default Tileset:", .{});
+        z.sameLine(.{ .spacing = 8 });
+        if (utils.assetInput(.texture, context, project.options.defaultTileset)) |id| {
+            project.options.defaultTileset = id;
+        }
+    }
 }

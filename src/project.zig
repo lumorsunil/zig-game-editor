@@ -19,6 +19,7 @@ pub const Project = struct {
     thumbnails: Thumbnails,
     cacheDirectory: []const u8,
     options: ProjectOptions,
+    isProjectOptionsOpen: bool,
 
     pub fn init(allocator: Allocator, root: []const u8) Project {
         return Project{
@@ -27,6 +28,7 @@ pub const Project = struct {
             .thumbnails = .empty,
             .cacheDirectory = std.fs.path.join(allocator, &.{ root, cacheDirectoryName }) catch unreachable,
             .options = .empty,
+            .isProjectOptionsOpen = false,
         };
     }
 
@@ -50,29 +52,11 @@ pub const Project = struct {
     }
 
     pub fn loadOptions(self: *Project, allocator: Allocator) !void {
-        const filePath = std.fs.path.join(allocator, &.{
-            self.getRootDirPath(),
-            optionsRelativePath,
-        }) catch unreachable;
-        defer allocator.free(filePath);
-        const file = std.fs.openFileAbsolute(filePath, .{}) catch |err| {
-            std.log.err("Could not open {s}: {}", .{ filePath, err });
-            return;
-        };
-        defer file.close();
-        var buffer: [1024]u8 = undefined;
-        const len = file.readAll(&buffer) catch |err| {
-            std.log.err("Could not read {s}: {}", .{ filePath, err });
-            return;
-        };
-        if (len == buffer.len) {
-            std.log.warn("Length of {s} is exactly matching the buffer size. Probably need to bump it up or change the algorithm.", .{filePath});
-        }
-        const fileContent = buffer[0..len];
-        self.options = std.json.parseFromSliceLeaky(ProjectOptions, allocator, fileContent, .{}) catch |err| {
-            std.log.err("Could not parse project options json: {}", .{err});
-            return;
-        };
+        self.options = try ProjectOptions.load(self, allocator);
+    }
+
+    pub fn saveOptions(self: *Project, allocator: Allocator) !void {
+        try self.options.save(allocator, self.*);
     }
 
     pub fn loadIndex(self: *Project, allocator: Allocator) !void {

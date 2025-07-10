@@ -16,6 +16,11 @@ pub fn openProject(self: *Context) void {
     self.setProject(.init(self.allocator, folder));
 }
 
+pub fn saveProject(self: *Context) !void {
+    const p = &(self.currentProject orelse return ContextError.NoProject);
+    try p.saveOptions(self.allocator);
+}
+
 pub fn closeProject(self: *Context) void {
     self.setProject(null);
 }

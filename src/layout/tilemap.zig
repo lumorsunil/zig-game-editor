@@ -94,7 +94,10 @@ fn fileMenu(context: *Context, editor: *Editor, tilemapDocument: *TilemapDocumen
     }
 }
 
-fn save(context: *Context, editor: *Editor, _: *TilemapDocument) void {
+// TODO: Remove when history is more optimized
+fn save(context: *Context, editor: *Editor, tilemapDocument: *TilemapDocument) void {
+    // TODO: Remove when history is more optimized
+    tilemapDocument.squashHistory(context.allocator);
     context.saveEditorFile(editor);
     context.updateThumbnailForCurrentDocument = true;
 }
@@ -146,10 +149,12 @@ fn toolDetailsMenu(context: *Context, tilemapDocument: *TilemapDocument) void {
     }
 }
 
-fn brushToolDetailsMenu(context: *Context, tilemapDocument: *TilemapDocument, brush: *BrushTool) void {
-    // if (brush.tileset == null) {
-    // TODO: Global option to set default tileset?
-    // }
+fn brushToolDetailsMenu(
+    context: *Context,
+    tilemapDocument: *TilemapDocument,
+    brush: *BrushTool,
+) void {
+    initializeBrushTileset(context, brush);
     z.text("Tileset:", .{});
     if (utils.assetInput(.texture, context, brush.tileset)) |newTilesetId| {
         brush.tileset = newTilesetId;
@@ -161,6 +166,16 @@ fn brushToolDetailsMenu(context: *Context, tilemapDocument: *TilemapDocument, br
         const texture = context.requestTextureById(source.tileset) catch return orelse return;
         const sourceRect = source.getSourceRect(tilemapDocument.getTileSize());
         c.rlImGuiImageRect(@ptrCast(texture), 64, 64, @bitCast(sourceRect));
+    }
+}
+
+fn initializeBrushTileset(
+    context: *Context,
+    brush: *BrushTool,
+) void {
+    if (brush.tileset == null) {
+        const p = context.currentProject orelse return;
+        brush.tileset = p.options.defaultTileset orelse return;
     }
 }
 
