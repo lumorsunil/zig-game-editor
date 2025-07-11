@@ -13,11 +13,12 @@
 - [ ] Checkerboard background
 - [x] Asset inputs
   - [ ] Add help (?) tooltip that explains how to use the input
-  - [ ] Double-click action (open editor?)
-  - [ ] Context menu
+  - [x] If value is "None", have option to create a new asset directly
+  - [x] Context menu
     - [ ] Unset (clear input)
     - [ ] Open asset directory in asset manager
-    - [ ] Open asset editor
+    - [x] Open asset editor
+- [ ] Camera for background should be per editor instead of only one in the context
 
 ### References
 
@@ -42,6 +43,7 @@
   - [ ] References lookup function
 - [ ] Sanity checks
   - [ ] Rebuild index if duplicates found
+  - [ ] Prune non-existing files
 
 ### Undo/redo
 
@@ -91,11 +93,19 @@
 ## Assets manager
 
 - [x] Assets manager menu
+  - [ ] File tree view (list instead of "cards")
   - [x] Create directory
   - [x] Create new asset
     - [x] Tilemap
     - [x] Scene
     - [x] Animation
+    - [x] Texture
+    - [x] When creating a new asset that can be opened, open it
+    - [x] New asset dialog
+      - [ ] Input to choose which directory the asset will be created in
+      - [x] Pressing enter will submit the form
+      - [x] Auto-focus on name input
+      - [x] Cancel button
   - [x] List assets as icons
     - [x] Double-click to open editor for asset
   - [x] Go up a directory
@@ -280,6 +290,7 @@
   - [ ] Delete multiple entities
 - [x] Save to file
 - [x] Load from file
+- [ ] Show boundary from tilemap
 
 ## Bugs
 
@@ -295,8 +306,8 @@
 - [x] Create new project
 - [x] Open project
 - [x] Close project
-- [ ] Project options
-  - [ ] Default tileset
+- [x] Project options
+  - [x] Default tileset
   - [ ] Tile size
   - [ ] Fill this out
-- [ ] Scene map (shows all scenes and how they are connected, able to jump to scenes through the map)
+- [x] Scene map (shows all scenes and how they are connected, able to jump to scenes through the map)

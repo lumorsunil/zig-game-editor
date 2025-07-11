@@ -40,8 +40,8 @@ pub const AnimationDocument = struct {
         return &self.document.persistentData.animations;
     }
 
-    pub fn getTextureId(self: AnimationDocument) ?UUID {
-        return self.document.persistentData.textureId;
+    pub fn getTextureId(self: *AnimationDocument) *?UUID {
+        return &self.document.persistentData.textureId;
     }
 
     pub fn setTexture(self: *AnimationDocument, textureId: UUID) void {

@@ -139,9 +139,7 @@ fn assetReferencePropertyEditor(
 
     switch (assetReference.assetType) {
         inline else => |t| {
-            if (utils.assetInput(t, context, assetReference.assetId)) |newId| {
-                assetReference.assetId = newId;
-            }
+            _ = utils.assetInput(t, context, &assetReference.assetId);
         },
     }
 }

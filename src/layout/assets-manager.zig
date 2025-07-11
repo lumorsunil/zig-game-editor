@@ -4,6 +4,7 @@ const lib = @import("root").lib;
 const Context = lib.Context;
 const Vector = lib.Vector;
 const Document = lib.Document;
+const DocumentTag = lib.DocumentTag;
 const AssetsLibrary = lib.AssetsLibrary;
 const Node = lib.Node;
 const z = @import("zgui");
@@ -266,53 +267,56 @@ fn newAssetUI(context: *Context) void {
         defer z.endPopup();
 
         if (z.button("Directory", .{ .w = newAssetItemWidth, .h = 24 })) {
-            context.isNewDirectoryDialogOpen = true;
+            context.openNewDirectoryDialog();
         }
         if (z.button("Texture", .{ .w = newAssetItemWidth, .h = 24 })) {
-            if (context.getFileNameWithDialog("png")) |filePath| {
-                defer context.allocator.free(filePath);
-                const basename = context.allocator.dupeZ(u8, std.fs.path.basename(filePath)) catch unreachable;
-                defer context.allocator.free(basename);
-                const textureDocument = context.newAsset(basename, .texture) catch return;
-                // TODO: Fix this hack
-                textureDocument.setTextureFilePath(context.allocator, filePath);
-                textureDocument.document.nonPersistentData.load("", textureDocument.document.persistentData);
-                const document = context.requestDocumentById(textureDocument.getId()) orelse unreachable;
-                document.save(&context.currentProject.?) catch unreachable;
-            }
+            createNewTextureAsset(context);
+            z.closeCurrentPopup();
         }
         if (z.button("Scene", .{ .w = newAssetItemWidth, .h = 24 })) {
-            context.isNewAssetDialogOpen = .scene;
+            context.openNewAssetDialog(.scene);
         }
         if (z.button("Tilemap", .{ .w = newAssetItemWidth, .h = 24 })) {
-            context.isNewAssetDialogOpen = .tilemap;
+            context.openNewAssetDialog(.tilemap);
         }
         if (z.button("Animation", .{ .w = newAssetItemWidth, .h = 24 })) {
-            context.isNewAssetDialogOpen = .animation;
+            context.openNewAssetDialog(.animation);
         }
         if (z.button("Entity Type", .{ .w = newAssetItemWidth, .h = 24 })) {
-            context.isNewAssetDialogOpen = .entityType;
+            context.openNewAssetDialog(.entityType);
+        }
+
+        if (context.isNewDirectoryDialogOpen or context.isNewAssetDialogOpen != null) {
+            z.closeCurrentPopup();
         }
     }
 
     if (context.isNewDirectoryDialogOpen) {
+        defer context.isDialogFirstRender = false;
+
         _ = z.begin("New Directory", .{});
         defer z.end();
 
         z.pushStrId("new-directory-input");
+        if (context.isDialogFirstRender) z.setKeyboardFocusHere(0);
         _ = z.inputText("", .{
             .buf = &context.reusableTextBuffer,
         });
         z.popId();
 
         if (z.button("Create", .{})) {
-            context.isNewDirectoryDialogOpen = false;
             context.newDirectory(std.mem.sliceTo(&context.reusableTextBuffer, 0));
-            context.reusableTextBuffer[0] = 0;
+            context.closeNewAssetAndDirectoryDialog();
+        }
+        z.sameLine(.{ .spacing = 8 });
+        if (z.button("Cancel", .{})) {
+            context.closeNewAssetAndDirectoryDialog();
         }
     }
 
     if (context.isNewAssetDialogOpen) |documentType| {
+        defer context.isDialogFirstRender = false;
+
         const windowLabel = switch (documentType) {
             inline else => |dt| "New " ++ comptime Document.getTypeLabel(dt),
         };
@@ -321,19 +325,62 @@ fn newAssetUI(context: *Context) void {
         defer z.end();
 
         z.pushStrId("new-asset-input");
+        if (context.isDialogFirstRender) z.setKeyboardFocusHere(0);
         _ = z.inputText("", .{
             .buf = &context.reusableTextBuffer,
         });
         z.popId();
 
-        if (z.button("Create", .{})) {
-            _ = switch (documentType) {
-                inline else => |dt| context.newAsset(std.mem.sliceTo(&context.reusableTextBuffer, 0), dt) catch return,
-            };
-
-            context.isNewAssetDialogOpen = null;
-            context.reusableTextBuffer[0] = 0;
+        if ((z.isItemFocused() and z.isKeyPressed(.enter, false)) or z.button("Create", .{})) {
+            createNewDocumentAsset(
+                context,
+                std.mem.sliceTo(&context.reusableTextBuffer, 0),
+                documentType,
+            );
+            context.closeNewAssetAndDirectoryDialog();
         }
+        z.sameLine(.{ .spacing = 8 });
+        if (z.button("Cancel", .{})) {
+            context.closeNewAssetAndDirectoryDialog();
+        }
+    }
+}
+
+fn createNewTextureAsset(context: *Context) void {
+    if (context.getFileNameWithDialog("png")) |filePath| {
+        defer context.allocator.free(filePath);
+        const basename = context.allocator.dupeZ(u8, std.fs.path.basename(filePath)) catch unreachable;
+        defer context.allocator.free(basename);
+        const document, const textureDocument = context.newAsset(basename, .texture) catch return;
+        // TODO: Fix this hack
+        textureDocument.setTextureFilePath(context.allocator, filePath);
+        textureDocument.document.nonPersistentData.load("", textureDocument.document.persistentData);
+        document.save(&context.currentProject.?) catch |err| {
+            context.showError(
+                "Could not update texture document {?s} with texture file path {s}: {}",
+                .{ context.getFilePathById(document.getId()), filePath, err },
+            );
+            const node = context.getNodeById(document.getId()) orelse return;
+            _ = deleteNode(context, node);
+            return;
+        };
+    }
+}
+
+fn createNewDocumentAsset(
+    context: *Context,
+    name: []const u8,
+    documentType: DocumentTag,
+) void {
+    switch (documentType) {
+        inline else => |dt| {
+            const document, _ = context.newAsset(name, dt) catch return;
+            if (context.newAssetInputTarget) |target| {
+                // TODO: Check if document is not unloaded
+                target.assetInput.* = document.getId();
+            }
+            context.openEditorById(document.getId());
+        },
     }
 }
 

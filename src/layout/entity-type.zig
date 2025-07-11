@@ -18,7 +18,7 @@ const propertyEditor = @import("property.zig").propertyEditor;
 pub const LayoutEntityType = LayoutGeneric(.entityType, draw, menu, handleInput);
 
 fn draw(context: *Context, entityTypeDocument: *EntityTypeDocument) void {
-    const textureId = entityTypeDocument.getTextureId() orelse return;
+    const textureId = entityTypeDocument.getTextureId().* orelse return;
     const texture = context.requestTextureById(textureId) catch return orelse return;
     rl.drawTextureEx(texture.*, .{ .x = 0, .y = 0 }, 0, @floatFromInt(context.scale), rl.Color.white);
 }
@@ -60,15 +60,13 @@ fn menu(context: *Context, editor: *Editor, entityTypeDocument: *EntityTypeDocum
     _ = z.inputInt2("Cell Size", .{ .v = entityTypeDocument.getCellSize() });
     const gridPosition = entityTypeDocument.getGridPosition().*;
     z.text("Cell: {d:0.0},{d:0.0}", .{ gridPosition[0], gridPosition[1] });
-    if (utils.assetInput(.texture, context, entityTypeDocument.getTextureId())) |id| {
-        entityTypeDocument.setTextureId(id);
-    }
+    _ = utils.assetInput(.texture, context, entityTypeDocument.getTextureId());
     drawIconMenu(context, entityTypeDocument);
     propertyEditor(context, .{ .entityType = entityTypeDocument });
 }
 
 pub fn drawIconMenu(context: *Context, entityTypeDocument: *EntityTypeDocument) void {
-    const textureId = entityTypeDocument.getTextureId() orelse return;
+    const textureId = entityTypeDocument.getTextureId().* orelse return;
     const texture = context.requestTextureById(textureId) catch return orelse return;
     const cellSize = entityTypeDocument.getCellSize().*;
     const sourcePosition: @Vector(2, f32) = @floatFromInt(entityTypeDocument.getGridPosition().* * cellSize);
@@ -85,7 +83,7 @@ pub fn drawIconMenu(context: *Context, entityTypeDocument: *EntityTypeDocument) 
 fn handleInput(context: *Context, _: *Editor, entityTypeDocument: *EntityTypeDocument) void {
     utils.cameraControls(&context.camera);
 
-    const textureId = entityTypeDocument.getTextureId() orelse return;
+    const textureId = entityTypeDocument.getTextureId().* orelse return;
     const texture = context.requestTextureById(textureId) catch return orelse return;
     const cellSize = entityTypeDocument.getCellSize().*;
     if (@reduce(.And, cellSize == Vector{ 0, 0 })) return;

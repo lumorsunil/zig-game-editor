@@ -74,11 +74,12 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
     if (z.button("Save", .{})) {
         context.saveEditorFile(editor);
         context.updateThumbnailForCurrentDocument = true;
+        context.sceneMap.generate(context) catch |err| {
+            context.showError("Could not generate scene map: {}", .{err});
+        };
     }
 
-    if (utils.assetInput(.tilemap, context, sceneDocument.getTilemapId())) |id| {
-        sceneDocument.setTilemapId(id);
-    }
+    if (sceneDocument.getTilemapId()) |tilemapId| _ = utils.assetInput(.tilemap, context, tilemapId);
 
     if (z.button("Play", .{})) {
         context.play();
@@ -106,9 +107,7 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
         switch (selectedEntity.type) {
             .exit => |*exit| {
                 utils.scaleInput(&exit.scale.?);
-                if (utils.assetInput(.scene, context, exit.sceneId)) |id| {
-                    exit.sceneId = id;
-                }
+                _ = utils.assetInput(.scene, context, &exit.sceneId);
 
                 if (exit.sceneId) |sId| {
                     if (z.button("Open Target Scene", .{})) {

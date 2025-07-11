@@ -62,7 +62,7 @@ pub const SceneDocument = struct {
                     std.log.debug("entity {} not found while drawing", .{c});
                     return;
                 };
-                const textureId = entityType.getTextureId() orelse return;
+                const textureId = entityType.getTextureId().* orelse return;
                 const texture = context.requestTextureById(textureId) catch return orelse return;
                 const gridPosition = entityType.getGridPosition().*;
                 const cellSize = entityType.getCellSize().*;
@@ -167,10 +167,10 @@ pub const SceneDocument = struct {
         _ = self.getSelectedEntities().swapRemove(selectedEntitiesIndex);
     }
 
-    pub fn getTilemapId(self: *SceneDocument) ?UUID {
+    pub fn getTilemapId(self: *SceneDocument) ?*?UUID {
         for (self.document.persistentData.entities.items) |entity| {
             switch (entity.type) {
-                .tilemap => |tilemap| return tilemap.tilemapId,
+                .tilemap => |*tilemap| return &tilemap.tilemapId,
                 else => continue,
             }
         }
@@ -264,6 +264,20 @@ pub const SceneDocument = struct {
     pub fn getEntityByInstanceId(self: *SceneDocument, id: UUID) ?*SceneEntity {
         for (self.getEntities().items) |entity| {
             if (entity.id.uuid == id.uuid) {
+                return entity;
+            }
+        }
+
+        return null;
+    }
+
+    pub fn getEntranceByKey(self: *SceneDocument, key: [:0]const u8) ?*SceneEntity {
+        for (self.getEntities().items) |entity| {
+            if (entity.type == .entrance and std.mem.eql(
+                u8,
+                entity.type.entrance.key.slice(),
+                key,
+            )) {
                 return entity;
             }
         }

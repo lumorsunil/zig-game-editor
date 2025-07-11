@@ -278,6 +278,17 @@ pub const AssetsLibrary = struct {
             .name = nameZ,
         } };
     }
+
+    pub fn getNodeById(self: AssetsLibrary, id: UUID) ?Node {
+        for (self.currentFilesAndDirectories orelse return null) |node| {
+            switch (node) {
+                .file => |file| if (file.id) |fileId| if (fileId.uuid == id.uuid) return node,
+                else => return null,
+            }
+        }
+
+        return null;
+    }
 };
 
 const AssetsLibrarySerialized = struct {

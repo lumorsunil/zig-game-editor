@@ -27,6 +27,8 @@ const assetsManager = @import("layout/assets-manager.zig").assetsManager;
 const layouts = @import("layout/layouts.zig");
 const utils = @import("layout/utils.zig");
 const projectLayout = @import("layout/project.zig");
+const sceneMapUI = @import("layout/scene-map.zig").sceneMapUI;
+const sceneMapUIHandleInput = @import("layout/scene-map.zig").sceneMapUIHandleInput;
 
 pub fn layout(context: *Context) !void {
     startOfFrame(context);
@@ -51,10 +53,12 @@ pub fn layout(context: *Context) !void {
     }
 
     if (context.getCurrentEditor()) |editor| {
-        if (!z.io.getWantCaptureMouse()) {
+        if (!z.io.getWantCaptureMouse() and !z.io.getWantCaptureKeyboard()) {
             editorHandleInput(context, editor);
         }
     }
+
+    sceneMapUIHandleInput(context);
 
     endOfFrame(context);
 }
@@ -73,6 +77,8 @@ fn imguiUI(context: *Context) bool {
         }
 
         assetsManager(context);
+
+        sceneMapUI(context);
     } else {
         projectLayout.noProjectOpenedMenu(context);
     }

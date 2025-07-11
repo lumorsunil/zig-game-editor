@@ -52,6 +52,7 @@ fn loadProject(self: *Context) !void {
         std.log.err("Could not load/build asset index: {}", .{err});
     };
     self.setCurrentDirectory(".");
+    try self.sceneMap.generate(self);
 }
 
 pub fn deinitContextProject(self: *Context) void {

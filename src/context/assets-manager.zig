@@ -4,6 +4,7 @@ const Context = lib.Context;
 const ContextError = lib.ContextError;
 const UUID = lib.UUIDSerializable;
 const DocumentTag = lib.DocumentTag;
+const Node = lib.Node;
 
 pub fn openCurrentDirectory(self: *Context) !std.fs.Dir {
     const p = self.currentProject orelse return ContextError.NoProject;
@@ -33,4 +34,27 @@ pub fn getFilePathById(self: *Context, id: UUID) ?[:0]const u8 {
 pub fn getIdsByDocumentType(self: *Context, comptime documentType: DocumentTag) []UUID {
     const p = &(self.currentProject orelse return &.{});
     return p.assetIndex.getIdsByDocumentType(self.allocator, documentType);
+}
+
+pub fn getNodeById(self: *Context, id: UUID) ?Node {
+    const p = self.currentProject orelse return null;
+    return p.assetsLibrary.getNodeById(id);
+}
+
+pub fn openNewDirectoryDialog(context: *Context) void {
+    context.isNewDirectoryDialogOpen = true;
+    context.isDialogFirstRender = true;
+}
+
+pub fn openNewAssetDialog(context: *Context, documentType: DocumentTag) void {
+    context.isNewAssetDialogOpen = documentType;
+    context.isDialogFirstRender = true;
+}
+
+pub fn closeNewAssetAndDirectoryDialog(context: *Context) void {
+    context.isNewDirectoryDialogOpen = false;
+    context.isNewAssetDialogOpen = null;
+    context.isDialogFirstRender = false;
+    context.newAssetInputTarget = null;
+    context.reusableTextBuffer[0] = 0;
 }

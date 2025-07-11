@@ -14,6 +14,7 @@ const BrushTool = lib.tools.BrushTool;
 const SelectTool = lib.tools.SelectTool;
 const UUID = lib.UUIDSerializable;
 const IdArrayHashMap = lib.IdArrayHashMap;
+const SceneMap = lib.SceneMap;
 
 pub const PlayState = enum {
     notRunning,
@@ -65,6 +66,9 @@ pub const Context = struct {
 
     isNewDirectoryDialogOpen: bool = false,
     isNewAssetDialogOpen: ?DocumentTag = null,
+    isDialogFirstRender: bool = false,
+    // TODO: Whenever we close a document, check if we need to set this to null
+    newAssetInputTarget: ?struct { documentId: UUID, assetInput: *?UUID } = null,
 
     deleteNodeTarget: ?*Node = null,
     isDeleteNodeDialogOpen: bool = false,
@@ -72,6 +76,16 @@ pub const Context = struct {
     updateThumbnailForCurrentDocument: bool = false,
 
     iconsTexture: ?rl.Texture2D = null,
+
+    sceneMap: SceneMap = .init(),
+    sceneMapWindowRenderTexture: rl.RenderTexture = undefined,
+    isSceneMapWindowOpen: bool = false,
+    sceneMapCamera: rl.Camera2D = .{
+        .zoom = 1,
+        .offset = rl.Vector2.init(0, 0),
+        .target = rl.Vector2.init(0, 0),
+        .rotation = 0,
+    },
 
     pub fn init(allocator: Allocator) Context {
         const rootDir = std.fs.cwd().realpathAlloc(allocator, ".") catch unreachable;
@@ -94,6 +108,7 @@ pub const Context = struct {
                 std.log.err("Could not load icons texture: {}", .{err});
                 break :brk null;
             },
+            .sceneMapWindowRenderTexture = rl.loadRenderTexture(800, 600) catch unreachable,
         };
     }
 
@@ -102,6 +117,7 @@ pub const Context = struct {
         self.deinitContextEditor();
         if (self.iconsTexture) |iconsTexture| rl.unloadTexture(iconsTexture);
         self.iconsTexture = null;
+        self.sceneMap.deinit(self.allocator);
     }
 
     pub usingnamespace @import("context/session.zig");

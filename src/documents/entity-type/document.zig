@@ -44,12 +44,8 @@ pub const EntityTypeDocument = struct {
         self.document.persistentData.icon.gridPosition = gridPosition;
     }
 
-    pub fn getTextureId(self: EntityTypeDocument) ?UUID {
-        return self.document.persistentData.icon.textureId;
-    }
-
-    pub fn setTextureId(self: *EntityTypeDocument, textureId: UUID) void {
-        self.document.persistentData.icon.textureId = textureId;
+    pub fn getTextureId(self: EntityTypeDocument) *?UUID {
+        return &self.document.persistentData.icon.textureId;
     }
 
     pub fn addNewProperty(self: *EntityTypeDocument, allocator: Allocator) void {

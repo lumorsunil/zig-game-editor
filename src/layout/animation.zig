@@ -17,7 +17,7 @@ const config = @import("../config.zig");
 pub const LayoutAnimation = LayoutGeneric(.animation, draw, menu, handleInput);
 
 fn draw(context: *Context, animationDocument: *AnimationDocument) void {
-    const textureId = animationDocument.getTextureId() orelse return;
+    const textureId = animationDocument.getTextureId().* orelse return;
     const texture = context.requestTextureById(textureId) catch return orelse return;
 
     rl.drawTextureEx(texture.*, .{ .x = 0, .y = 0 }, 0, @floatFromInt(context.scale), rl.Color.white);
@@ -45,12 +45,10 @@ fn menu(
         context.updateThumbnailById(animationDocument.getId());
     }
 
-    if (utils.assetInput(.texture, context, animationDocument.getTextureId())) |id| {
-        animationDocument.setTexture(id);
-    }
+    _ = utils.assetInput(.texture, context, animationDocument.getTextureId());
 
     if (z.button("Reload Texture", .{})) {
-        if (animationDocument.getTextureId()) |textureId| {
+        if (animationDocument.getTextureId().*) |textureId| {
             context.reloadDocumentById(textureId);
         }
     }
@@ -186,7 +184,7 @@ fn drawFrame(
     animation: *Animation,
     frame: Frame,
 ) void {
-    const textureId = animationDocument.getTextureId() orelse return;
+    const textureId = animationDocument.getTextureId().* orelse return;
     const texture = context.requestTextureById(textureId) catch return orelse return;
 
     const fGridSize: @Vector(2, f32) = @floatFromInt(animation.gridSize);
@@ -222,7 +220,7 @@ fn previewWindow(
     _ = z.begin("Preview", .{ .flags = .{ .no_title_bar = true, .no_scrollbar = true, .always_auto_resize = true } });
     defer z.end();
 
-    const textureId = animationDocument.getTextureId() orelse return;
+    const textureId = animationDocument.getTextureId().* orelse return;
     const texture = context.requestTextureById(textureId) catch return orelse return;
     const currentFrame = animationDocument.getPreviewFrame() orelse return;
 
@@ -265,7 +263,7 @@ fn handleAnimationInput(
     animation: *Animation,
 ) void {
     const gridPosition = utils.getMouseGridPositionWithSize(context, animation.gridSize);
-    const textureId = animationDocument.getTextureId() orelse return;
+    const textureId = animationDocument.getTextureId().* orelse return;
     const texture = context.requestTextureById(textureId) catch return orelse return;
 
     const textureSize: Vector = .{ texture.width, texture.height };

@@ -156,9 +156,7 @@ fn brushToolDetailsMenu(
 ) void {
     initializeBrushTileset(context, brush);
     z.text("Tileset:", .{});
-    if (utils.assetInput(.texture, context, brush.tileset)) |newTilesetId| {
-        brush.tileset = newTilesetId;
-    }
+    _ = utils.assetInput(.texture, context, &brush.tileset);
     if (brush.tileset != null and z.button("Set Tile", .{})) {
         brush.isSelectingTileSource = true;
     }

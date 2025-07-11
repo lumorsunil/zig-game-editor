@@ -203,10 +203,10 @@ pub fn highlightHoveredCell(context: *Context, cellSize: Vector, gridSize: Vecto
 pub fn assetInput(
     comptime documentType: DocumentTag,
     context: *Context,
-    currentId: ?UUID,
-) ?UUID {
+    v: *?UUID,
+) bool {
     const emptyLabel = "None";
-    const currentFileName = if (currentId) |id| context.getFilePathById(id) else null;
+    const currentFileName = if (v.*) |id| context.getFilePathById(id) else null;
     const shortLabel = if (currentFileName) |cfn| assetShortName(cfn) else emptyLabel;
 
     const inputPosMin = z.getCursorPos();
@@ -225,11 +225,23 @@ pub fn assetInput(
             context.setCurrentDirectory(assetDirectory);
         }
 
+        if (z.isItemClicked(.right)) {
+            z.openPopup("assetInput", .{});
+        }
+
         if (z.isItemHovered(.{ .delay_short = true })) {
             if (z.beginTooltip()) {
                 z.text("{s}", .{cfn});
             }
             z.endTooltip();
+        }
+
+        if (z.beginPopup("assetInput", .{})) {
+            defer z.endPopup();
+            if (z.selectable("Open", .{})) {
+                z.closeCurrentPopup();
+                context.openEditorById(v.*.?);
+            }
         }
     }
 
@@ -257,7 +269,8 @@ pub fn assetInput(
                 .file => |file| {
                     if (file.documentType == documentType) {
                         if (z.acceptDragDropPayload("asset", .{})) |_| {
-                            return file.id;
+                            v.* = file.id;
+                            return true;
                         }
                     }
                 },
@@ -265,7 +278,23 @@ pub fn assetInput(
         }
     }
 
-    return null;
+    if (v.* == null) {
+        const beforeAddNewPos = z.getCursorPos();
+        const addNewHeight = 24;
+        const addNewHeightHalf = addNewHeight / 2;
+
+        z.setCursorPosX(inputPosMin[0] + z.getWindowContentRegionMax()[0] - addNewHeight - 12);
+        z.setCursorPosY(inputPosMin[1] + inputHeightHalf - addNewHeightHalf - 2);
+        if (z.button("+", .{ .w = addNewHeight, .h = addNewHeight })) {
+            const documentId = context.getCurrentEditor().?.document.getId();
+            context.newAssetInputTarget = .{ .documentId = documentId, .assetInput = v };
+            context.openNewAssetDialog(documentType);
+        }
+
+        z.setCursorPos(beforeAddNewPos);
+    }
+
+    return false;
 }
 
 pub fn assetShortName(filePath: []const u8) []const u8 {

@@ -47,9 +47,14 @@ pub fn projectMenu(context: *Context, project: *Project) bool {
                 return true;
             }
         }
-        if (z.selectable("Project Options", .{})) {
+        if (z.button("Project Options", .{})) {
             project.isProjectOptionsOpen = true;
         }
+        z.sameLine(.{});
+        if (z.button("Scene Map", .{})) {
+            context.isSceneMapWindowOpen = true;
+        }
+        z.sameLine(.{});
     }
 
     projectOptionsUI(context, project);
@@ -65,8 +70,6 @@ fn projectOptionsUI(context: *Context, project: *Project) void {
 
         z.text("Default Tileset:", .{});
         z.sameLine(.{ .spacing = 8 });
-        if (utils.assetInput(.texture, context, project.options.defaultTileset)) |id| {
-            project.options.defaultTileset = id;
-        }
+        _ = utils.assetInput(.texture, context, &project.options.defaultTileset);
     }
 }

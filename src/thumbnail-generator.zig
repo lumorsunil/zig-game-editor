@@ -14,7 +14,7 @@ pub fn generateThumbnail(self: *Context, document: *Document) !?rl.Image {
         .animation => |*animationDocument| {
             const animations = animationDocument.getAnimations();
             if (animations.items.len == 0) return null;
-            const textureId = animationDocument.getTextureId() orelse return null;
+            const textureId = animationDocument.getTextureId().* orelse return null;
             const texture = (self.requestTextureById(textureId) catch return null) orelse return null;
             const animation = animations.items[0];
             if (animation.frames.items.len == 0) return null;
@@ -39,7 +39,7 @@ pub fn generateThumbnail(self: *Context, document: *Document) !?rl.Image {
             return image;
         },
         .entityType => |*entityTypeDocument| {
-            const textureId = entityTypeDocument.getTextureId() orelse return null;
+            const textureId = entityTypeDocument.getTextureId().* orelse return null;
             const texture = (self.requestTextureById(textureId) catch return null) orelse return null;
 
             const gridPosition = entityTypeDocument.getGridPosition().*;
