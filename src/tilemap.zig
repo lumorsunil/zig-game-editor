@@ -6,6 +6,7 @@ const lib = @import("root").lib;
 const Vector = lib.Vector;
 const VectorInt = lib.VectorInt;
 const UUID = lib.UUIDSerializable;
+const StringZ = lib.StringZ;
 const json = lib.json;
 
 pub const Grid = struct {
@@ -40,46 +41,50 @@ pub const Grid = struct {
 
 pub const TilemapLayer = struct {
     id: UUID,
-    name: [:0]u8,
+    name: StringZ,
     grid: Grid,
-    tiles: ArrayList(Tile),
-
-    pub const MAX_LAYER_NAME_SIZE = 32;
+    tiles: ArrayList(ArrayList(Tile)),
 
     pub fn init(allocator: Allocator, name: [:0]const u8, size: Vector) TilemapLayer {
-        var layer = TilemapLayer{
-            .id = UUID.init(),
-            .name = allocator.allocSentinel(u8, MAX_LAYER_NAME_SIZE, 0) catch unreachable,
-            .grid = Grid.init(size),
+        return TilemapLayer{
+            .id = .init(),
+            .name = .init(allocator, name),
+            .grid = .init(size),
             .tiles = initTiles(allocator, size),
         };
-
-        layer.setName(name);
-
-        return layer;
     }
 
-    fn initTiles(allocator: Allocator, size: Vector) ArrayList(Tile) {
-        const len: usize = @intCast(size[0] * size[1]);
-        var arrayList = ArrayList(Tile).initCapacity(allocator, len) catch unreachable;
-        arrayList.appendNTimes(allocator, Tile{}, len) catch unreachable;
+    fn initTiles(allocator: Allocator, size: Vector) ArrayList(ArrayList(Tile)) {
+        const usizeSize: @Vector(2, usize) = @intCast(size);
+        var arrayList = ArrayList(ArrayList(Tile)).initCapacity(allocator, usizeSize[1]) catch unreachable;
+        for (0..usizeSize[1]) |_| {
+            var row = ArrayList(Tile).initCapacity(allocator, usizeSize[0]) catch unreachable;
+            row.appendNTimesAssumeCapacity(.empty, usizeSize[0]);
+            arrayList.appendAssumeCapacity(row);
+        }
         return arrayList;
     }
 
     pub fn deinit(self: *TilemapLayer, allocator: Allocator) void {
+        for (self.tiles.items) |*row| {
+            row.deinit(allocator);
+        }
         self.tiles.deinit(allocator);
-        allocator.free(self.getNameBuffer());
+        self.name.deinit(allocator);
     }
 
     pub fn clone(self: *const TilemapLayer, allocator: Allocator) TilemapLayer {
         var tilemapLayer = self.*;
 
-        tilemapLayer.name = allocator.allocSentinel(u8, MAX_LAYER_NAME_SIZE, 0) catch unreachable;
-        tilemapLayer.setName(self.name);
+        tilemapLayer.name = self.name.clone(allocator);
         tilemapLayer.tiles = self.tiles.clone(allocator) catch unreachable;
 
-        for (tilemapLayer.tiles.items) |*tile| {
-            tile.* = tile.clone();
+        for (tilemapLayer.tiles.items) |*row| {
+            row.* = row.clone(allocator) catch unreachable;
+
+            for (row.items) |*tile| {
+                tile.* = tile.clone();
+            }
         }
 
         return tilemapLayer;
@@ -89,35 +94,52 @@ pub const TilemapLayer = struct {
         try json.writeObject(self.*, jw);
     }
 
-    pub fn jsonParse(
-        allocator: Allocator,
-        source: anytype,
-        options: std.json.ParseOptions,
-    ) !@This() {
-        return try json.parseObject(@This(), allocator, source, options);
-    }
-
-    pub fn getTileByIndex(self: *TilemapLayer, i: usize) *Tile {
-        return &self.tiles.items[i];
-    }
-
     pub fn getTileByV(self: *TilemapLayer, gridPosition: Vector) *Tile {
-        return &self.tiles.items[self.grid.getIndexV(gridPosition)];
+        const usizeGp: @Vector(2, usize) = @intCast(gridPosition);
+        return &self.tiles.items[usizeGp[1]].items[usizeGp[0]];
     }
 
     pub fn getTileByXY(self: *TilemapLayer, x: usize, y: usize) *Tile {
-        return &self.tiles.items[self.grid.getIndex(x, y)];
+        return self.getTileByV(@intCast(@Vector(2, usize){ x, y }));
     }
 
-    pub fn getNameBuffer(self: *TilemapLayer) [:0]u8 {
-        return @ptrCast(self.name.ptr[0..MAX_LAYER_NAME_SIZE]);
+    pub fn setSize(self: *TilemapLayer, allocator: Allocator, newSize: Vector) void {
+        std.debug.assert(newSize[0] >= 0 and newSize[1] >= 0);
+        const usizeNewSize: @Vector(2, usize) = @intCast(newSize);
+        const usizeGridSize: @Vector(2, usize) = @intCast(self.grid.size);
+
+        self.tiles.ensureTotalCapacity(allocator, usizeNewSize[1]) catch unreachable;
+
+        if (usizeNewSize[1] > usizeGridSize[1]) {
+            const newRows = usizeNewSize[1] - usizeGridSize[1];
+            self.tiles.appendNTimesAssumeCapacity(.empty, newRows);
+            for (usizeGridSize[1]..usizeGridSize[1] + newRows) |i| {
+                initRow(allocator, &self.tiles.items[i], usizeNewSize[0]);
+            }
+        } else if (usizeNewSize[1] < usizeGridSize[1]) {
+            for (usizeNewSize[1]..usizeGridSize[1]) |i| {
+                self.tiles.items[i].deinit(allocator);
+            }
+            self.tiles.shrinkAndFree(allocator, usizeNewSize[1]);
+        }
+
+        for (self.tiles.items) |*row| {
+            row.ensureTotalCapacity(allocator, usizeNewSize[0]) catch unreachable;
+
+            if (usizeNewSize[0] > usizeGridSize[0]) {
+                const newColumns = usizeNewSize[0] - usizeGridSize[0];
+                row.appendNTimesAssumeCapacity(.empty, newColumns);
+            } else if (usizeNewSize[0] < usizeGridSize[0]) {
+                row.shrinkAndFree(allocator, usizeNewSize[0]);
+            }
+        }
+
+        self.grid.size = newSize;
     }
 
-    pub fn setName(
-        self: *TilemapLayer,
-        newName: []const u8,
-    ) void {
-        self.name = std.fmt.bufPrintZ(self.getNameBuffer(), "{s}", .{newName}) catch unreachable;
+    fn initRow(allocator: Allocator, row: *ArrayList(Tile), size: usize) void {
+        row.ensureTotalCapacity(allocator, size) catch unreachable;
+        row.appendNTimesAssumeCapacity(.empty, size);
     }
 };
 
@@ -167,14 +189,6 @@ pub const Tilemap = struct {
         try json.writeObject(self.*, jw);
     }
 
-    pub fn jsonParse(
-        allocator: Allocator,
-        source: anytype,
-        options: std.json.ParseOptions,
-    ) !@This() {
-        return try json.parseObject(@This(), allocator, source, options);
-    }
-
     pub fn resize(self: *Tilemap, allocator: Allocator, newSize: Vector) void {
         const zero: Vector = @splat(0);
         std.debug.assert(@reduce(.And, newSize > zero));
@@ -183,7 +197,7 @@ pub const Tilemap = struct {
 
         for (self.layers.items, 0..) |layer, i| {
             if (i == 0) continue;
-            _ = newTilemap.addLayer(allocator, layer.name);
+            _ = newTilemap.addLayer(allocator, layer.name.slice());
         }
 
         newTilemap.copyArea(self, .{ 0, 0 }, self.grid.size, .{ 0, 0 });
@@ -253,11 +267,6 @@ pub const Tilemap = struct {
         return self.layers.items[i];
     }
 
-    pub fn getTileByIndex(self: *Tilemap, layerId: UUID, i: usize) ?*Tile {
-        const layer = self.getLayerById(layerId) orelse return null;
-        return &layer.tiles.items[i];
-    }
-
     pub fn getTileV(self: *Tilemap, layerId: UUID, gridPosition: Vector) ?*Tile {
         const layer = self.getLayerById(layerId) orelse return null;
         return &layer.tiles.items[self.getIndexV(gridPosition)];
@@ -283,11 +292,23 @@ pub const Tilemap = struct {
     pub fn isOutOfBounds(self: *const Tilemap, gridPosition: Vector) bool {
         return self.grid.isOutOfBounds(gridPosition);
     }
+
+    pub fn setSize(self: *Tilemap, allocator: Allocator, newSize: Vector) void {
+        std.debug.assert(newSize[0] >= 0 and newSize[1] >= 0);
+
+        self.grid.size = newSize;
+
+        for (self.layers.items) |layer| {
+            layer.setSize(allocator, newSize);
+        }
+    }
 };
 
 pub const Tile = struct {
     source: ?TileSource = null,
     isSolid: bool = false,
+
+    pub const empty: Tile = .{};
 
     pub fn clone(self: *const Tile) Tile {
         var tile = self.*;

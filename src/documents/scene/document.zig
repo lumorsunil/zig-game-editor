@@ -19,7 +19,11 @@ const tileSize = config.tileSize;
 pub const SceneDocument = struct {
     document: DocumentType,
 
-    pub const DocumentType = DocumentGeneric(Scene, NonPersistentData, .{});
+    pub const DocumentType = DocumentGeneric(
+        Scene,
+        NonPersistentData,
+        .{},
+    );
 
     pub const setEntityReferenceWindowHeight = NonPersistentData.setEntityReferenceWindowHeight;
     pub const setEntityReferenceWindowWidth = NonPersistentData.setEntityReferenceWindowHeight;

@@ -94,12 +94,14 @@ fn fileMenu(context: *Context, editor: *Editor, tilemapDocument: *TilemapDocumen
     }
 }
 
-// TODO: Remove when history is more optimized
 fn save(context: *Context, editor: *Editor, tilemapDocument: *TilemapDocument) void {
     // TODO: Remove when history is more optimized
     tilemapDocument.squashHistory(context.allocator);
     context.saveEditorFile(editor);
     context.updateThumbnailForCurrentDocument = true;
+    context.sceneMap.generate(context) catch |err| {
+        context.showError("Could not generate scene map: {}", .{err});
+    };
 }
 
 fn editMenu(context: *Context, tilemapDocument: *TilemapDocument) void {
@@ -129,6 +131,7 @@ fn tilemapMenu(context: *Context, tilemapDocument: *TilemapDocument) void {
         tilemapDocument.document.persistentData.tilemap.resize(context.allocator, inputTilemapSize.*);
         tilemapDocument.endGenericAction(Action.ResizeTilemap, context.allocator);
     }
+    _ = z.checkbox("Auto Expand", .{ .v = tilemapDocument.getAutoExpand() });
 }
 
 fn toolPickerMenu(context: *Context, tilemapDocument: *TilemapDocument) void {
@@ -209,7 +212,7 @@ fn layersMenu(context: *Context, tilemapDocument: *TilemapDocument) void {
                 .tilemapDocument = tilemapDocument,
             };
             if (z.inputText("", .{
-                .buf = layer.getNameBuffer(),
+                .buf = layer.name.buffer,
                 .flags = .{
                     .enter_returns_true = true,
                     .callback_edit = true,
@@ -250,18 +253,24 @@ fn layerNameInputCallback(data: *z.InputTextCallbackData) i32 {
     const layer = ctx.tilemapDocument.getTilemap().getActiveLayer();
 
     ctx.tilemapDocument.startGenericAction(Action.RenameLayer, ctx.context.allocator);
-    layer.setName(data.buf[0..@intCast(data.buf_text_len)]);
+    layer.name.setFmt("{s}", .{data.buf[0..@intCast(data.buf_text_len)]});
 
     return 0;
 }
 
 fn handleBrush(context: *Context, tilemapDocument: *TilemapDocument, brush: *BrushTool) void {
-    utils.highlightHoveredCell(context, tilemapDocument.getTileSize(), tilemapDocument.getGridSize());
+    const isAutoExpandEnabled = tilemapDocument.getAutoExpand().*;
+    utils.highlightHoveredCell(
+        context,
+        tilemapDocument.getTileSize(),
+        tilemapDocument.getGridSize(),
+        isAutoExpandEnabled,
+    );
 
     if (rl.isMouseButtonDown(.left)) {
         tilemapDocument.startGenericAction(Action.BrushPaint, context.allocator);
 
-        const gridPosition = utils.getMouseGridPositionSafe(context, tilemapDocument);
+        const gridPosition = if (isAutoExpandEnabled) utils.getMouseGridPosition(context) else utils.getMouseGridPositionSafe(context, tilemapDocument);
 
         if (gridPosition == null) return;
 
@@ -285,7 +294,13 @@ fn handleBrush(context: *Context, tilemapDocument: *TilemapDocument, brush: *Bru
 }
 
 fn handleSelect(context: *Context, tilemapDocument: *TilemapDocument, select: *SelectTool) void {
-    utils.highlightHoveredCell(context, tilemapDocument.getTileSize(), tilemapDocument.getGridSize());
+    const isAutoExpandEnabled = tilemapDocument.getAutoExpand().*;
+    utils.highlightHoveredCell(
+        context,
+        tilemapDocument.getTileSize(),
+        tilemapDocument.getGridSize(),
+        isAutoExpandEnabled,
+    );
 
     if (rl.isMouseButtonDown(.left)) {
         const gridPosition = utils.getMouseGridPositionSafe(context, tilemapDocument);

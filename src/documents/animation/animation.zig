@@ -21,7 +21,7 @@ pub const Frame = struct {
 };
 
 pub const Animation = struct {
-    name: StringZ(32),
+    name: StringZ,
     frames: ArrayList(Frame),
     gridSize: Vector,
     frameDuration: f32,
@@ -52,14 +52,6 @@ pub const Animation = struct {
 
     pub fn jsonStringify(self: *const @This(), jw: anytype) !void {
         try json.writeObject(self.*, jw);
-    }
-
-    pub fn jsonParse(
-        allocator: Allocator,
-        source: anytype,
-        options: std.json.ParseOptions,
-    ) !@This() {
-        return try json.parseObject(@This(), allocator, source, options);
     }
 
     pub fn addFrame(self: *Animation, allocator: Allocator, gridPos: Vector) void {

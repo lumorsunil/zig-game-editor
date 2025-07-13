@@ -24,7 +24,7 @@ pub fn requestDocumentById(self: *Context, id: UUID) ?*Document {
             self.showError("Could not open document {s}: {}", .{ path, err });
             return null;
         };
-    } else if (entry.value_ptr.state == .unloaded) {
+    } else if (if (entry.value_ptr.state) |state| state == .unloaded else |_| false) {
         std.log.debug("Requested document {} found with no content, loading", .{id});
         const filePath = self.getFilePathById(id) orelse return null;
         std.log.debug("Loading content for document {?s}", .{filePath});
@@ -32,8 +32,8 @@ pub fn requestDocumentById(self: *Context, id: UUID) ?*Document {
             self.showError("Could not load document: {}", .{err});
             return null;
         };
-    } else if (entry.value_ptr.state == .err) {
-        return null;
+    } else {
+        _ = entry.value_ptr.state catch return null;
     }
 
     return entry.value_ptr;

@@ -4,117 +4,6 @@ const ArrayList = std.ArrayListUnmanaged;
 
 pub const JsonArrayList = @import("json-array-list.zig").JsonArrayList;
 
-// pub fn serialize(allocator: Allocator, value: anytype) SerializeWrapper(@TypeOf(value)) {
-//     const T = @TypeOf(value);
-//     const typeInfo = @typeInfo(T);
-//     switch (typeInfo) {
-//         .Struct => |s| {
-//             if (isArrayList(T)) {
-//                 const ChildType = SerializeWrapper(ElementOfArrayList(T).?);
-//                 const slice = allocator.alloc(ChildType, value.items.len) catch unreachable;
-//                 for (value.items, 0..) |item, i| {
-//                     slice[i] = serialize(allocator, item);
-//                 }
-//                 return slice;
-//             }
-//
-//             var object: T = undefined;
-//
-//             for (s.fields) |field| {
-//                 @field(object, field.name) = serialize(allocator, @field(value, field.name));
-//             }
-//
-//             return object;
-//         },
-//         .Union => {
-//             const activeTag = std.meta.activeTag(value);
-//
-//             return @unionInit(
-//                 SerializeWrapper(T),
-//                 @tagName(activeTag),
-//                 serialize(
-//                     @field(value, @tagName(activeTag)),
-//                 ),
-//             );
-//         },
-//         inline .Array, .pointer, .Optional, .Vector => |a| {
-//             var wrapped = a;
-//             wrapped.child = SerializeWrapper(wrapped.child);
-//             return @Type(wrapped);
-//         },
-//         inline else => |e| return @Type(e),
-//     }
-// }
-//
-// pub fn SerializeWrapper(comptime T: type) type {
-//     const typeInfo = @typeInfo(T);
-//     switch (typeInfo) {
-//         inline .Struct, .Union => |s, tag| {
-//             var wrapped = s;
-//
-//             if (isArrayList(T)) {
-//                 return []SerializeWrapper(ElementOfArrayList(T).?);
-//             }
-//
-//             wrapped.fields = &.{};
-//             wrapped.decls = &.{};
-//
-//             for (0..s.fields.len) |i| {
-//                 const FieldType = SerializeWrapper(s.fields[i].type);
-//                 var wrappedField = s.fields[i];
-//                 wrappedField.type = FieldType;
-//                 wrappedField.alignment = @alignOf(FieldType);
-//                 wrapped.fields = wrapped.fields ++ [_]std.meta.Elem(@TypeOf(s.fields)){wrappedField};
-//             }
-//
-//             return @Type(@unionInit(std.builtin.Type, @tagName(tag), wrapped));
-//         },
-//         inline .pointer => |a, tag| {
-//             var wrapped = a;
-//             wrapped.child = SerializeWrapper(wrapped.child);
-//             const WrappedTypeWithoutAlignment = @Type(@unionInit(std.builtin.Type, @tagName(tag), wrapped));
-//             wrapped.alignment = @alignOf(WrappedTypeWithoutAlignment);
-//             return @Type(@unionInit(std.builtin.Type, @tagName(tag), wrapped));
-//         },
-//         inline .Array, .Optional, .Vector => |a, tag| {
-//             var wrapped = a;
-//             wrapped.child = SerializeWrapper(wrapped.child);
-//             return @Type(@unionInit(std.builtin.Type, @tagName(tag), wrapped));
-//         },
-//         inline else => return T,
-//     }
-// }
-
-pub fn SerializeObjectShallow(comptime T: type) type {
-    const typeInfo = @typeInfo(T);
-    switch (typeInfo) {
-        inline .@"struct" => |s, tag| {
-            var wrapped = s;
-
-            wrapped.fields = &.{};
-            wrapped.decls = &.{};
-
-            for (0..s.fields.len) |i| {
-                const FieldType = s.fields[i].type;
-
-                var wrappedField = s.fields[i];
-
-                if (isArrayList(FieldType)) {
-                    wrappedField.type = []ElementOfArrayList(FieldType).?;
-                } else {
-                    wrappedField.type = FieldType;
-                }
-
-                wrappedField.alignment = @alignOf(wrappedField.type);
-                wrapped.fields = wrapped.fields ++ [_]std.meta.Elem(@TypeOf(s.fields)){wrappedField};
-            }
-
-            return @Type(@unionInit(std.builtin.Type, @tagName(tag), wrapped));
-        },
-        else => return T,
-    }
-}
-
 fn writeValue(value: anytype, jw: anytype) !void {
     const writeFn = comptime brk: {
         const ValueType = @TypeOf(value);
@@ -156,7 +45,21 @@ fn isStruct(comptime T: type) bool {
 }
 
 fn writeArrayList(arrayList: anytype, jw: anytype) !void {
-    try jw.write(arrayList.items);
+    const Elem = std.meta.Elem(@TypeOf(arrayList.items));
+
+    const writeFn = comptime brk: {
+        if (isArrayList(Elem)) {
+            break :brk writeArrayList;
+        } else {
+            break :brk writeValueRaw;
+        }
+    };
+
+    try jw.beginArray();
+    for (arrayList.items) |item| {
+        try writeFn(item, jw);
+    }
+    try jw.endArray();
 }
 
 fn writeValueRaw(value: anytype, jw: anytype) !void {
@@ -177,56 +80,55 @@ pub fn writeObject(object: anytype, jw: anytype) !void {
     try jw.endObject();
 }
 
-pub fn parseObject(
+pub fn reportJsonError(reader: anytype, err: anyerror) void {
+    const stdout = std.io.getStdOut();
+
+    const input = reader.scanner.input;
+    const cursor = reader.scanner.cursor;
+
+    std.log.err("Error parsing json at {d}: {}", .{ reader.scanner.cursor, err });
+    const endOfLineIdx = std.mem.indexOfScalarPos(u8, input, cursor, '\n') orelse input.len;
+    const startOfLineIdx = for (0..cursor) |i| {
+        if (input[cursor - i - 1] == '\n') break (cursor - i - 1) + 1;
+    } else 0;
+    const line = input[startOfLineIdx..endOfLineIdx];
+    std.log.err("Input: {s}", .{line});
+    for (0..cursor - startOfLineIdx + "error: Input: ".len) |_| {
+        stdout.writeAll(" ") catch unreachable;
+    }
+    stdout.writeAll("^\n") catch unreachable;
+}
+
+pub fn parseFromSliceWithErrorReporting(
     comptime T: type,
     allocator: Allocator,
-    source: anytype,
-    options: std.json.ParseOptions,
+    buffer: []const u8,
+    parseOptions: std.json.ParseOptions,
+) !std.json.Parsed(T) {
+    var fileStream = std.io.fixedBufferStream(buffer);
+    const fileReader = fileStream.reader();
+    var reader = std.json.reader(allocator, fileReader);
+    defer reader.deinit();
+
+    return std.json.parseFromTokenSource(T, allocator, &reader, parseOptions) catch |err| {
+        reportJsonError(reader, err);
+        return err;
+    };
+}
+
+pub fn parseFromSliceWithErrorReportingLeaky(
+    comptime T: type,
+    allocator: Allocator,
+    buffer: []const u8,
+    parseOptions: std.json.ParseOptions,
 ) !T {
-    const serializedObject = try std.json.innerParse(
-        SerializeObjectShallow(T),
-        allocator,
-        source,
-        options,
-    );
-    var parsedObject: T = undefined;
+    var fileStream = std.io.fixedBufferStream(buffer);
+    const fileReader = fileStream.reader();
+    var reader = std.json.reader(allocator, fileReader);
+    defer reader.deinit();
 
-    inline for (std.meta.fields(T)) |field| {
-        const initFn = comptime brk: {
-            if (isArrayList(field.type)) {
-                break :brk initArrayList;
-            } else {
-                break :brk initField;
-            }
-        };
-
-        try initFn(T, allocator, serializedObject, &parsedObject, field);
-    }
-
-    return parsedObject;
-}
-
-fn initArrayList(
-    comptime T: type,
-    allocator: Allocator,
-    serializedObject: SerializeObjectShallow(T),
-    parsedObject: *T,
-    comptime field: std.builtin.Type.StructField,
-) !void {
-    const serializedArray = @field(serializedObject, field.name);
-    @field(parsedObject, field.name) = try ArrayList(ElementOfArrayList(field.type).?).initCapacity(allocator, serializedArray.len);
-
-    for (0..serializedArray.len) |i| {
-        @field(parsedObject, field.name).appendAssumeCapacity(serializedArray[i]);
-    }
-}
-
-fn initField(
-    comptime T: type,
-    _: Allocator,
-    serializedObject: SerializeObjectShallow(T),
-    parsedObject: *T,
-    comptime field: std.builtin.Type.StructField,
-) !void {
-    @field(parsedObject, field.name) = @field(serializedObject, field.name);
+    return std.json.parseFromTokenSourceLeaky(T, allocator, &reader, parseOptions) catch |err| {
+        reportJsonError(reader, err);
+        return err;
+    };
 }

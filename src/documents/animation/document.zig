@@ -20,7 +20,11 @@ pub const AnimationDocument = struct {
     currentPreviewFrame: usize = 0,
     nextPreviewFrameAt: f64 = 0,
 
-    pub const DocumentType = DocumentGeneric(PersistentData, NonPersistentData, .{});
+    pub const DocumentType = DocumentGeneric(
+        PersistentData,
+        NonPersistentData,
+        .{},
+    );
 
     pub fn init(allocator: Allocator) AnimationDocument {
         return AnimationDocument{

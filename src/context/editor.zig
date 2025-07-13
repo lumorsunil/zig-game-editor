@@ -65,16 +65,27 @@ pub fn openEditorById(self: *Context, id: UUID) void {
     const entry = self.openedEditors.map.getOrPut(self.allocator, id) catch unreachable;
 
     if (!entry.found_existing) {
-        if (self.requestDocumentById(id)) |document| {
-            entry.value_ptr.* = Editor.init(document.*);
-        } else {
-            _ = self.openedEditors.map.swapRemove(id);
-            self.currentEditor = null;
-            return;
-        }
-    }
+        const result = self.requestDocumentById(id);
 
-    self.currentEditor = id;
+        if (result) |document| {
+            if (document.state) |_| {
+                entry.value_ptr.* = Editor.init(document.*);
+                self.currentEditor = id;
+                return;
+            } else |_| {}
+        }
+
+        // Error loading document
+        _ = self.openedEditors.map.swapRemove(id);
+        self.currentEditor = null;
+        return;
+    } else {
+        self.currentEditor = id;
+    }
+}
+
+pub fn openEditorByIdAtEndOfFrame(self: *Context, id: UUID) void {
+    self.editorToBeOpened = id;
 }
 
 pub fn saveEditorFile(self: *Context, editor: *Editor) void {

@@ -353,7 +353,7 @@ fn createNewTextureAsset(context: *Context) void {
         defer context.allocator.free(basename);
         const document, const textureDocument = context.newAsset(basename, .texture) catch return;
         // TODO: Fix this hack
-        textureDocument.setTextureFilePath(context.allocator, filePath);
+        textureDocument.setTextureFilePath(filePath);
         textureDocument.document.nonPersistentData.load("", textureDocument.document.persistentData);
         document.save(&context.currentProject.?) catch |err| {
             context.showError(
@@ -379,7 +379,7 @@ fn createNewDocumentAsset(
                 // TODO: Check if document is not unloaded
                 target.assetInput.* = document.getId();
             }
-            context.openEditorById(document.getId());
+            context.openEditorByIdAtEndOfFrame(document.getId());
         },
     }
 }

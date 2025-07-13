@@ -6,27 +6,39 @@ const Tilemap = lib.Tilemap;
 const History = lib.History;
 const Vector = lib.Vector;
 const UUID = lib.UUIDSerializable;
+const StringZ = lib.StringZ;
+const DocumentVersion = lib.documents.DocumentVersion;
+const firstDocumentVersion = lib.documents.firstDocumentVersion;
+const upgrade = lib.upgrade;
 
 pub const TexturePersistentData = struct {
+    version: DocumentVersion,
     id: UUID,
-    textureFilePath: [:0]const u8,
+    textureFilePath: StringZ,
 
-    pub fn init(_: Allocator) TexturePersistentData {
+    pub const currentVersion: DocumentVersion = firstDocumentVersion + 1;
+
+    pub fn init(allocator: Allocator) TexturePersistentData {
         return TexturePersistentData{
+            .version = currentVersion,
             .id = UUID.init(),
-            .textureFilePath = &.{},
+            .textureFilePath = .init(allocator, ""),
         };
     }
 
     pub fn deinit(self: *TexturePersistentData, allocator: Allocator) void {
-        allocator.free(self.textureFilePath);
+        self.textureFilePath.deinit(allocator);
     }
 
     pub fn clone(self: TexturePersistentData, allocator: Allocator) TexturePersistentData {
         var cloned = self;
-
-        cloned.textureFilePath = allocator.dupeZ(u8, self.textureFilePath) catch unreachable;
-
+        cloned.textureFilePath = self.textureFilePath.clone(allocator);
         return cloned;
     }
+
+    pub const upgraders = .{
+        @import("upgrades/0-1.zig"),
+    };
+
+    pub const UpgradeContainer = upgrade.Container.init(&.{});
 };

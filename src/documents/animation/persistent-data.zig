@@ -5,16 +5,23 @@ const Animation = @import("animation.zig").Animation;
 const lib = @import("root").lib;
 const json = lib.json;
 const UUID = lib.UUIDSerializable;
+const DocumentVersion = lib.documents.DocumentVersion;
+const firstDocumentVersion = lib.documents.firstDocumentVersion;
+const upgrade = lib.upgrade;
 
 pub const PersistentData = struct {
+    version: DocumentVersion,
     id: UUID,
     textureId: ?UUID = null,
     animations: ArrayList(Animation),
+
+    pub const currentVersion: DocumentVersion = firstDocumentVersion + 1;
 
     const initialAnimationsCapacity = 10;
 
     pub fn init(allocator: Allocator) PersistentData {
         return PersistentData{
+            .version = currentVersion,
             .id = UUID.init(),
             .animations = ArrayList(Animation).initCapacity(allocator, initialAnimationsCapacity) catch unreachable,
         };
@@ -41,15 +48,13 @@ pub const PersistentData = struct {
         return cloned;
     }
 
+    pub const upgraders = .{
+        @import("upgrades/0-1.zig"),
+    };
+
+    pub const UpgradeContainer = upgrade.Container.init(&.{});
+
     pub fn jsonStringify(self: *const @This(), jw: anytype) !void {
         try json.writeObject(self.*, jw);
-    }
-
-    pub fn jsonParse(
-        allocator: Allocator,
-        source: anytype,
-        options: std.json.ParseOptions,
-    ) !@This() {
-        return try json.parseObject(@This(), allocator, source, options);
     }
 };

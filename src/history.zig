@@ -39,14 +39,6 @@ pub const History = struct {
         try json.writeObject(self.*, jw);
     }
 
-    pub fn jsonParse(
-        allocator: Allocator,
-        source: anytype,
-        options: std.json.ParseOptions,
-    ) !@This() {
-        return try json.parseObject(@This(), allocator, source, options);
-    }
-
     pub fn push(self: *History, allocator: Allocator, action: Action) void {
         if (self.canRedo()) {
             for (self.actions.items[self.nextActionIndex..]) |*nextAction| {

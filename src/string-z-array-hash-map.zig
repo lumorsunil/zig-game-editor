@@ -3,26 +3,24 @@ const Allocator = std.mem.Allocator;
 const lib = @import("root").lib;
 const StringZ = lib.StringZ;
 
-pub fn StringZContext(comptime maxCapacity: usize) type {
-    const K = StringZ(maxCapacity);
+pub const StringZContext = struct {
+    const K = StringZ;
 
-    return struct {
-        pub fn hash(self: @This(), s: K) u32 {
-            _ = self;
-            return std.array_hash_map.hashString(s.slice());
-        }
-        pub fn eql(self: @This(), a: K, b: K, b_index: usize) bool {
-            _ = self;
-            _ = b_index;
-            return std.mem.eql(u8, a.slice(), b.slice());
-        }
-    };
-}
+    pub fn hash(self: @This(), s: K) u32 {
+        _ = self;
+        return std.array_hash_map.hashString(s.slice());
+    }
+    pub fn eql(self: @This(), a: K, b: K, b_index: usize) bool {
+        _ = self;
+        _ = b_index;
+        return std.mem.eql(u8, a.slice(), b.slice());
+    }
+};
 
-pub fn StringZArrayHashMap(comptime V: type, comptime maxCapacity: usize) type {
-    const K = StringZ(maxCapacity);
+pub fn StringZArrayHashMap(comptime V: type) type {
+    const K = StringZ;
 
-    const InnerHashMap = std.ArrayHashMapUnmanaged(K, V, StringZContext(maxCapacity), false);
+    const InnerHashMap = std.ArrayHashMapUnmanaged(K, V, StringZContext, false);
 
     return struct {
         map: InnerHashMap = .empty,
@@ -123,6 +121,17 @@ pub fn StringZArrayHashMap(comptime V: type, comptime maxCapacity: usize) type {
         pub fn put(self: *@This(), allocator: Allocator, key: [:0]const u8, value: V) void {
             const stringZKey: K = .init(allocator, key);
             self.map.put(allocator, stringZKey, value) catch unreachable;
+        }
+
+        /// key is duplicated, so caller needs to free it
+        pub fn putAssumeCapacity(
+            self: *@This(),
+            allocator: Allocator,
+            key: [:0]const u8,
+            value: V,
+        ) void {
+            const stringZKey: K = .init(allocator, key);
+            self.map.putAssumeCapacity(stringZKey, value);
         }
 
         pub fn getPtr(self: *@This(), allocator: Allocator, key: [:0]const u8) ?*V {

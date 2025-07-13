@@ -17,7 +17,11 @@ const UUID = lib.UUIDSerializable;
 pub const TilemapDocument = struct {
     document: DocumentType,
 
-    pub const DocumentType = DocumentGeneric(TilemapData, NonPersistentData, .{});
+    pub const DocumentType = DocumentGeneric(
+        TilemapData,
+        NonPersistentData,
+        .{},
+    );
 
     pub fn init(allocator: Allocator) TilemapDocument {
         return TilemapDocument{
@@ -168,5 +172,9 @@ pub const TilemapDocument = struct {
 
     pub fn addLayer(self: *TilemapDocument, allocator: Allocator, name: [:0]const u8) *TilemapLayer {
         return self.document.persistentData.tilemap.addLayer(allocator, name);
+    }
+
+    pub fn getAutoExpand(self: *TilemapDocument) *bool {
+        return &self.document.nonPersistentData.isAutoExpandEnabled;
     }
 };

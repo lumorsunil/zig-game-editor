@@ -272,7 +272,7 @@ fn handleAnimationInput(
     const isInBounds = @reduce(.And, gridPosition >= Vector{ 0, 0 }) and @reduce(.And, gridPosition < textureGridSize);
 
     if (isInBounds) {
-        utils.highlightHoveredCell(context, animation.gridSize, textureGridSize);
+        utils.highlightHoveredCell(context, animation.gridSize, textureGridSize, false);
 
         if (z.isMouseClicked(.left)) {
             if (animationDocument.getSelectedFrame()) |frame| {

@@ -8,6 +8,9 @@ const Context = lib.Context;
 const config = @import("root").config;
 const StringZ = lib.StringZ;
 const PropertyObject = @import("property.zig").PropertyObject;
+const DocumentVersion = lib.documents.DocumentVersion;
+const firstDocumentVersion = lib.documents.firstDocumentVersion;
+const upgrade = lib.upgrade;
 
 const tileSize = config.tileSize;
 
@@ -61,13 +64,17 @@ pub const EntityTypeIcon = struct {
 };
 
 pub const EntityType = struct {
+    version: DocumentVersion,
     id: UUID,
-    name: StringZ(64),
+    name: StringZ,
     icon: EntityTypeIcon,
     properties: PropertyObject,
 
+    pub const currentVersion: DocumentVersion = firstDocumentVersion + 1;
+
     pub fn init(allocator: Allocator) EntityType {
         return EntityType{
+            .version = currentVersion,
             .id = UUID.init(),
             .name = .init(allocator, "new-entity-type"),
             .icon = .empty,
@@ -88,4 +95,10 @@ pub const EntityType = struct {
         cloned.properties = self.properties.clone(allocator);
         return cloned;
     }
+
+    pub const upgraders = .{
+        @import("upgrades/0-1.zig"),
+    };
+
+    pub const UpgradeContainer = upgrade.Container.init(&.{});
 };

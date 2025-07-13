@@ -12,7 +12,11 @@ const PropertyObject = lib.PropertyObject;
 pub const EntityTypeDocument = struct {
     document: DocumentType,
 
-    pub const DocumentType = DocumentGeneric(PersistentData, NonPersistentData, .{});
+    pub const DocumentType = DocumentGeneric(
+        PersistentData,
+        NonPersistentData,
+        .{},
+    );
 
     pub fn init(allocator: Allocator) EntityTypeDocument {
         return EntityTypeDocument{
@@ -28,7 +32,7 @@ pub const EntityTypeDocument = struct {
         return self.document.persistentData.id;
     }
 
-    pub fn getName(self: *EntityTypeDocument) *StringZ(64) {
+    pub fn getName(self: *EntityTypeDocument) *StringZ {
         return &self.document.persistentData.name;
     }
 

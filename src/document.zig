@@ -12,15 +12,21 @@ const UUID = lib.UUIDSerializable;
 
 pub const DocumentError = error{ FileExtensionInvalid, IndexNotFound };
 
-pub const DocumentState = union(enum) {
+const DocumentStateTag = enum {
     loaded,
     unloaded,
-    err: anyerror,
+    err,
+};
+
+pub const DocumentState = union(DocumentStateTag) {
+    loaded,
+    unloaded,
+    err: struct { err: anyerror },
 };
 
 pub const Document = struct {
     content: ?DocumentContent = null,
-    state: DocumentState,
+    state: anyerror!DocumentState,
 
     pub fn init() Document {
         return Document{
@@ -30,12 +36,14 @@ pub const Document = struct {
 
     pub fn initWithError(err: anyerror) Document {
         return Document{
-            .state = .{ .err = err },
+            .state = .{ .err = .{ .err = err } },
         };
     }
 
     pub fn deinit(self: *Document, allocator: Allocator) void {
-        if (self.state == .err) return;
+        std.log.debug("1 Deinitializng document with state {any}", .{self.state});
+        _ = self.state catch return;
+        std.log.debug("2 Deinitializng document with state {any}", .{self.state});
         if (self.content) |*content| content.deinit(allocator);
         self.content = null;
         self.state = .unloaded;
@@ -63,10 +71,12 @@ pub const Document = struct {
         project: *Project,
         filePath: [:0]const u8,
     ) !void {
-        std.debug.assert(self.state == .unloaded or self.state == .err);
+        //std.debug.assert(self.state == .unloaded or self.state == .err);
+        const state = self.state catch |err| return err;
+        std.debug.assert(state == .unloaded);
         errdefer |err| {
             std.log.err("Could not load document content for {s}: {}", .{ filePath, err });
-            self.state = .{ .err = err };
+            self.state = .{ .err = .{ .err = err } };
         }
         const documentType = try getTagByFilePath(filePath);
         switch (documentType) {
@@ -87,7 +97,8 @@ pub const Document = struct {
 
     pub fn save(self: Document, project: *Project) !void {
         const filePath = project.assetIndex.getIndex(self.getId()) orelse std.debug.panic("Could not save document {}: Could not find index", .{self.getId()});
-        std.debug.assert(self.state == .loaded);
+        const state = self.state catch |err| return err;
+        std.debug.assert(state == .loaded);
         if (self.content == null) return DocumentSaveError.NoContent;
         var rootDir = project.assetsLibrary.openRoot();
         defer rootDir.close();
@@ -105,7 +116,8 @@ pub const Document = struct {
         allocator: Allocator,
         comptime documentType: DocumentTag,
     ) void {
-        std.debug.assert(self.state != .loaded);
+        const isOk = if (self.state) |state| state != .loaded else |_| true;
+        std.debug.assert(isOk);
         self.content = DocumentContent.init(allocator, documentType);
         self.state = .loaded;
     }

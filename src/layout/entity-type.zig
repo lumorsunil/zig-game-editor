@@ -95,7 +95,7 @@ fn handleInput(context: *Context, _: *Editor, entityTypeDocument: *EntityTypeDoc
     const isInBounds = @reduce(.And, gridPosition >= Vector{ 0, 0 }) and @reduce(.And, gridPosition < textureGridSize);
 
     if (isInBounds) {
-        utils.highlightHoveredCell(context, entityTypeDocument.getCellSize().*, textureGridSize);
+        utils.highlightHoveredCell(context, entityTypeDocument.getCellSize().*, textureGridSize, false);
 
         if (z.isMouseClicked(.left)) {
             entityTypeDocument.setGridPosition(gridPosition);

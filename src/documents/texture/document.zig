@@ -36,12 +36,8 @@ pub const TextureDocument = struct {
 
     pub fn setTextureFilePath(
         self: *TextureDocument,
-        allocator: Allocator,
         textureFilePath: [:0]const u8,
     ) void {
-        if (self.document.persistentData.textureFilePath.len > 0) {
-            allocator.free(self.document.persistentData.textureFilePath);
-        }
-        self.document.persistentData.textureFilePath = allocator.dupeZ(u8, textureFilePath) catch unreachable;
+        self.document.persistentData.textureFilePath.set(textureFilePath);
     }
 };

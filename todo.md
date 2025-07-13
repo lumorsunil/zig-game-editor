@@ -166,6 +166,7 @@
   - [x] Move tiles
   - [x] Delete tiles
 - [ ] Setting to disable/enable auto-expand when drawing outside of boundary
+- [ ] Show mouse grid coordinates
 
 ## Tilesheet editor
 
@@ -299,6 +300,9 @@
 - [x] When closing the current editor, open the next available tab
 - [x] Store multiple opened documents in the editor session
 - [ ] Crash when deleting an animation (created a new one without saving, added frames)
+- [x] Update scene map when tilemap is saved
+- [x] When scene map is updated, the cell size and position didn't change
+- [ ] Highlighting cell is offset wrongly when in negative coordinates
 
 ## Project
 
@@ -311,3 +315,11 @@
   - [ ] Tile size
   - [ ] Fill this out
 - [x] Scene map (shows all scenes and how they are connected, able to jump to scenes through the map)
+
+## Document Versions
+
+- [ ] Version upgrade system
+  - [ ] Each document should have a version stored in the persistent data
+  - [ ] Each document type should have a "current version"
+  - [ ] Each document type should have an upgrade implementation for each adjacent version transition (1 -> 2, 2 -> 3, NOT 1 -> 3 directly; in that case it would be first 1 -> 2 and then 2 -> 3)
+  - [ ] When a document is loaded, it is also upgraded in memory if it is an old version

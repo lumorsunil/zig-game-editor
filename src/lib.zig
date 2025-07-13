@@ -45,3 +45,4 @@ pub usingnamespace @import("string-z-array-hash-map.zig");
 pub usingnamespace @import("documents/entity-type/property.zig");
 pub usingnamespace @import("thumbnail-generator.zig");
 pub usingnamespace @import("scene-map.zig");
+pub const upgrade = @import("upgrade.zig");

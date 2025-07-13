@@ -15,6 +15,7 @@ pub const NonPersistentData = struct {
     materializingAction: ?Action = null,
     focusOnActiveLayer: bool = false,
     inputTilemapSize: Vector = .{ 0, 0 },
+    isAutoExpandEnabled: bool = true,
 
     pub fn init(_: Allocator) NonPersistentData {
         return NonPersistentData{};

@@ -8,6 +8,9 @@ const json = lib.json;
 const StringZ = lib.StringZ;
 const PropertyObject = lib.PropertyObject;
 const Context = lib.Context;
+const DocumentVersion = lib.documents.DocumentVersion;
+const firstDocumentVersion = lib.documents.firstDocumentVersion;
+const upgrade = lib.upgrade;
 
 pub const SceneEntity = struct {
     id: UUID,
@@ -90,7 +93,7 @@ pub const SceneEntityCustom = struct {
 pub const SceneEntityExit = struct {
     sceneId: ?UUID = null,
     scale: ?@Vector(2, f32) = .{ 1, 1 },
-    entranceKey: StringZ(64),
+    entranceKey: StringZ,
     isVertical: bool = false,
 
     pub fn init(allocator: Allocator) SceneEntityExit {
@@ -114,7 +117,7 @@ pub const SceneEntityExit = struct {
 };
 
 pub const SceneEntityEntrance = struct {
-    key: StringZ(64),
+    key: StringZ,
     scale: ?@Vector(2, f32) = .{ 1, 1 },
 
     pub fn init(allocator: Allocator) SceneEntityEntrance {
@@ -150,11 +153,15 @@ pub const SceneEntityTilemap = struct {
 };
 
 pub const Scene = struct {
+    version: DocumentVersion,
     id: UUID,
     entities: ArrayList(*SceneEntity),
 
+    pub const currentVersion: DocumentVersion = firstDocumentVersion + 1;
+
     pub fn init(allocator: Allocator) Scene {
         return Scene{
+            .version = currentVersion,
             .id = UUID.init(),
             .entities = ArrayList(*SceneEntity).initCapacity(allocator, 10) catch unreachable,
         };
@@ -182,15 +189,13 @@ pub const Scene = struct {
         return cloned;
     }
 
+    pub const upgraders = .{
+        @import("upgrades/0-1.zig"),
+    };
+
+    pub const UpgradeContainer = upgrade.Container.init(&.{});
+
     pub fn jsonStringify(self: *const @This(), jw: anytype) !void {
         try json.writeObject(self.*, jw);
-    }
-
-    pub fn jsonParse(
-        allocator: Allocator,
-        source: anytype,
-        options: std.json.ParseOptions,
-    ) !@This() {
-        return try json.parseObject(@This(), allocator, source, options);
     }
 };

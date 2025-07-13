@@ -128,6 +128,11 @@ fn endOfFrame(context: *Context) void {
         }
         context.updateThumbnailForCurrentDocument = false;
     }
+
+    if (context.editorToBeOpened) |id| {
+        context.openEditorById(id);
+        context.editorToBeOpened = null;
+    }
 }
 
 fn demoButton(context: *Context) void {

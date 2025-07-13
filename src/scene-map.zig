@@ -93,13 +93,16 @@ pub const SceneMap = struct {
         return @floatFromInt(entity.position);
     }
 
-    /// If null is passed as previousCell, this is processed as the starting cell
     fn processScene(
         self: *SceneMap,
         context: *Context,
         sceneToBeProcessed: UUID,
         loadCellOptions: LoadCellOptions,
     ) !void {
+        if (loadCellOptions == .startingCell) {
+            self.mapCells.deinit(context.allocator);
+            self.mapCells = .empty;
+        }
         if (self.mapCells.map.contains(sceneToBeProcessed)) return;
         const cell = loadCell(context, sceneToBeProcessed, loadCellOptions) catch |err| {
             std.log.warn("Could not load cell {}: {}", .{ sceneToBeProcessed, err });

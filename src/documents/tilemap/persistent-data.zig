@@ -5,17 +5,25 @@ const Tilemap = lib.Tilemap;
 const History = lib.History;
 const Vector = lib.Vector;
 const UUID = lib.UUIDSerializable;
+const DocumentVersion = lib.documents.DocumentVersion;
+const firstDocumentVersion = lib.documents.firstDocumentVersion;
+const json = lib.json;
+const upgrade = lib.upgrade;
 
 pub const TilemapData = struct {
+    version: DocumentVersion,
     id: UUID,
     tilemap: Tilemap,
     history: History,
+
+    pub const currentVersion: DocumentVersion = firstDocumentVersion + 1;
 
     const defaultSize: Vector = .{ 35, 17 };
     const defaultTileSize: Vector = .{ 16, 16 };
 
     pub fn init(allocator: Allocator) TilemapData {
         return TilemapData{
+            .version = currentVersion,
             .id = UUID.init(),
             .tilemap = Tilemap.init(allocator, defaultSize, defaultTileSize),
             .history = History.init(),
@@ -36,4 +44,25 @@ pub const TilemapData = struct {
 
         return cloned;
     }
+
+    pub const upgraders = .{
+        @import("upgrades/0-1.zig"),
+    };
+
+    pub const UpgradeContainer = upgrade.Container.init(&.{
+        struct {
+            pub fn upgradeAddHistory(
+                allocator: Allocator,
+                from: @import("versions/1.zig").Document1,
+                container: upgrade.Container,
+            ) TilemapData {
+                return TilemapData{
+                    .version = currentVersion,
+                    .id = from.id,
+                    .tilemap = upgrade.upgradeValue(Tilemap, allocator, from.tilemap, container),
+                    .history = .init(),
+                };
+            }
+        },
+    });
 };

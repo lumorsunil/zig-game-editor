@@ -20,9 +20,10 @@ pub const TextureNonPersistentData = struct {
         _: [:0]const u8,
         persistentData: *PersistentData,
     ) void {
-        if (persistentData.textureFilePath.len == 0) return;
-        self.texture = rl.loadTexture(persistentData.textureFilePath) catch |err| brk: {
-            std.log.err("Could not load texture {s}: {}", .{ persistentData.textureFilePath, err });
+        const textureFilePath = persistentData.textureFilePath.slice();
+        if (textureFilePath.len == 0) return;
+        self.texture = rl.loadTexture(textureFilePath) catch |err| brk: {
+            std.log.err("Could not load texture {s}: {}", .{ textureFilePath, err });
             break :brk null;
         };
     }

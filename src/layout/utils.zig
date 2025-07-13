@@ -186,10 +186,15 @@ pub fn isOutOfBounds(gridPosition: Vector, gridSize: Vector) bool {
     return gridPosition[0] < 0 or gridPosition[1] < 0 or gridPosition[0] >= gridSize[0] or gridPosition[1] >= gridSize[1];
 }
 
-pub fn highlightHoveredCell(context: *Context, cellSize: Vector, gridSize: Vector) void {
+pub fn highlightHoveredCell(
+    context: *Context,
+    cellSize: Vector,
+    gridSize: Vector,
+    overrideOutOfBounds: bool,
+) void {
     const gridPosition = getMouseGridPositionWithSize(context, cellSize);
 
-    if (isOutOfBounds(gridPosition, gridSize)) return;
+    if (!overrideOutOfBounds and isOutOfBounds(gridPosition, gridSize)) return;
 
     const cellSizeScaled = cellSize * context.scaleV;
     const x, const y = gridPosition * cellSizeScaled;
@@ -240,7 +245,7 @@ pub fn assetInput(
             defer z.endPopup();
             if (z.selectable("Open", .{})) {
                 z.closeCurrentPopup();
-                context.openEditorById(v.*.?);
+                context.openEditorByIdAtEndOfFrame(v.*.?);
             }
         }
     }

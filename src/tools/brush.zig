@@ -51,7 +51,12 @@ pub const BrushTool = struct {
         TileSource.set(&self.source, tileSource);
     }
 
-    fn paint(self: *BrushTool, context: *Context, tilemapDocument: *TilemapDocument, gridPosition: Vector) void {
+    fn paint(
+        self: *BrushTool,
+        context: *Context,
+        tilemapDocument: *TilemapDocument,
+        gridPosition: Vector,
+    ) void {
         // Check if we need to paint
         if (self.currentPaintedCell) |cpc| if (@reduce(.And, cpc == gridPosition)) return;
 
@@ -59,6 +64,8 @@ pub const BrushTool = struct {
         if (self.selectedSourceTiles.hasSelected()) {
             TileSource.set(&self.source, &self.getRandomFromSelected(context));
         }
+
+        handleAutoExpand(context, tilemapDocument, gridPosition);
 
         // Paint from the brush source
         const tilemap = tilemapDocument.getTilemap();
@@ -68,6 +75,23 @@ pub const BrushTool = struct {
 
         self.currentPaintedCell = gridPosition;
         self.lastPaintedCell = gridPosition;
+    }
+
+    fn handleAutoExpand(
+        context: *Context,
+        tilemapDocument: *TilemapDocument,
+        gridPosition: Vector,
+    ) void {
+        const isAutoExpandEnabled = tilemapDocument.getAutoExpand().*;
+        if (!isAutoExpandEnabled) return;
+        if (!tilemapDocument.isOutOfBounds(gridPosition)) return;
+
+        const tilemap = tilemapDocument.getTilemap();
+
+        if (gridPosition[0] >= 0 and gridPosition[1] >= 0) {
+            const newSize: Vector = @max(gridPosition, tilemapDocument.getGridSize());
+            tilemap.setSize(context.allocator, newSize);
+        }
     }
 
     fn paintLine(self: *BrushTool, context: *Context, tilemapDocument: *TilemapDocument, startPosition: Vector, endPosition: Vector) void {

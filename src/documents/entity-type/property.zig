@@ -56,7 +56,7 @@ pub const Property = struct {
 };
 
 pub const PropertyString = struct {
-    value: StringZ(256),
+    value: StringZ,
 
     pub fn init(allocator: Allocator) PropertyString {
         return PropertyString{
@@ -142,9 +142,9 @@ pub const PropertyAssetReference = struct {
 };
 
 pub const PropertyObject = struct {
-    fields: StringZArrayHashMap(Property, 64),
+    fields: StringZArrayHashMap(Property),
 
-    pub const K = StringZ(64);
+    pub const K = StringZ;
 
     pub const empty: PropertyObject = .{ .fields = .empty };
 
@@ -172,7 +172,7 @@ pub const PropertyObject = struct {
         source: anytype,
         options: std.json.ParseOptions,
     ) !PropertyObject {
-        const hashMap = try std.json.innerParse(StringZArrayHashMap(Property, 64), allocator, source, options);
+        const hashMap = try std.json.innerParse(StringZArrayHashMap(Property), allocator, source, options);
 
         return .{
             .fields = hashMap,

@@ -36,6 +36,7 @@ pub const Context = struct {
 
     openedEditors: IdArrayHashMap(Editor),
     currentEditor: ?UUID = null,
+    editorToBeOpened: ?UUID = null,
     documents: IdArrayHashMap(Document),
 
     backgroundColor: rl.Color = rl.Color.init(125, 125, 155, 255),

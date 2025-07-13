@@ -44,7 +44,7 @@ pub fn sceneMapUI(context: *Context) void {
                 const sceneId, const highlightedCell = getHighlightedCell(context, mapPosition) orelse return;
                 highlightCell(context, mapPosition, highlightedCell);
                 if (rl.isMouseButtonPressed(.left)) {
-                    context.openEditorById(sceneId);
+                    context.openEditorByIdAtEndOfFrame(sceneId);
                     context.isSceneMapWindowOpen = false;
                 }
             }
