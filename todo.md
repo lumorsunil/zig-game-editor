@@ -318,8 +318,8 @@
 
 ## Document Versions
 
-- [ ] Version upgrade system
-  - [ ] Each document should have a version stored in the persistent data
-  - [ ] Each document type should have a "current version"
-  - [ ] Each document type should have an upgrade implementation for each adjacent version transition (1 -> 2, 2 -> 3, NOT 1 -> 3 directly; in that case it would be first 1 -> 2 and then 2 -> 3)
-  - [ ] When a document is loaded, it is also upgraded in memory if it is an old version
+- [x] Version upgrade system
+  - [x] Each document should have a version stored in the persistent data
+  - [x] Each document type should have a "current version"
+  - [x] Each document type should have an upgrade implementation for each adjacent version transition (1 -> 2, 2 -> 3, NOT 1 -> 3 directly; in that case it would be first 1 -> 2 and then 2 -> 3)
+  - [x] When a document is loaded, it is also upgraded in memory if it is an old version
