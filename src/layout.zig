@@ -53,7 +53,8 @@ pub fn layout(context: *Context) !void {
     }
 
     if (context.getCurrentEditor()) |editor| {
-        if (!z.io.getWantCaptureMouse() and !z.io.getWantCaptureKeyboard()) {
+        const imguiWantsKeyboard = z.io.getWantCaptureKeyboard() and z.getDragDropPayload() == null;
+        if (!z.io.getWantCaptureMouse() and !imguiWantsKeyboard) {
             editorHandleInput(context, editor);
         }
     }

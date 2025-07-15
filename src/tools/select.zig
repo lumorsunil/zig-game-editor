@@ -9,18 +9,18 @@ const Tilemap = lib.Tilemap;
 const TilemapLayer = lib.TilemapLayer;
 const TileSource = lib.TileSource;
 const drawLayer = lib.drawLayer;
-const SelectBox = @import("../select-box.zig").SelectGrid;
+const SelectGrid = lib.SelectGrid;
 const Rectangle = @import("../rectangle.zig").Rectangle;
 
 pub const SelectTool = struct {
-    selectedTiles: SelectBox = SelectBox.init(),
+    selectedTiles: SelectGrid = SelectGrid.init(),
     newSelectionStart: ?Vector = null,
     newSelectionEnd: ?Vector = null,
     pendingSelection: ?SelectionType = null,
     floatingLayer: ?TilemapLayer = null,
     floatingSelectionDragPoint: ?Vector = null,
     copiedLayer: ?TilemapLayer = null,
-    copiedSelectedTiles: SelectBox = SelectBox.init(),
+    copiedSelectedTiles: SelectGrid = SelectGrid.init(),
 
     pub const SelectionType = enum {
         select,
@@ -166,30 +166,7 @@ pub const SelectTool = struct {
         sourceLayer: *TilemapLayer,
         clearSource: bool,
     ) TilemapLayer {
-        const start: @Vector(2, usize) = @intCast(self.selectedTiles.offset);
-        const startX, const startY = start;
-        const size: @Vector(2, usize) = @intCast(self.selectedTiles.size);
-        const sizeX, const sizeY = size;
-
-        var newLayer = TilemapLayer.init(context.allocator, "Floating Selection", self.selectedTiles.size);
-
-        for (0..sizeX) |rx| {
-            for (0..sizeY) |ry| {
-                const x = startX + rx;
-                const y = startY + ry;
-                const rv: Vector = @intCast(@Vector(2, usize){ rx, ry });
-                const v: Vector = @intCast(@Vector(2, usize){ x, y });
-
-                if (self.selectedTiles.isSelected(v)) {
-                    const tile = sourceLayer.getTileByV(v);
-                    const newTile = newLayer.getTileByV(rv);
-                    TileSource.set(&newTile.source, &tile.source);
-                    if (clearSource) TileSource.clear(&tile.source);
-                }
-            }
-        }
-
-        return newLayer;
+        return sourceLayer.cloneTiles(context.allocator, self.selectedTiles, clearSource);
     }
 
     fn handleFloatingTilemap(self: *SelectTool, gridPosition: Vector) void {
@@ -207,27 +184,8 @@ pub const SelectTool = struct {
 
     fn mergeFloatingLayer(self: *SelectTool, tilemapDocument: *TilemapDocument) void {
         const tilemap = tilemapDocument.getTilemap();
-
-        const size: @Vector(2, usize) = @intCast(self.selectedTiles.size);
-        const sizeX, const sizeY = size;
-
         const activeLayer = tilemap.getActiveLayer();
-        const sourceLayer = &self.floatingLayer.?;
-
-        for (0..sizeX) |rx| {
-            for (0..sizeY) |ry| {
-                const rv: Vector = @intCast(@Vector(2, usize){ rx, ry });
-                const v = rv + self.selectedTiles.offset;
-                if (tilemap.grid.isOutOfBounds(v)) continue;
-
-                const sourceTile = sourceLayer.getTileByV(rv);
-
-                if (self.selectedTiles.isSelected(v) and sourceTile.source != null) {
-                    const destTile = activeLayer.getTileByV(v);
-                    TileSource.set(&destTile.source, &sourceTile.source);
-                }
-            }
-        }
+        activeLayer.pasteLayer(&self.floatingLayer.?, self.selectedTiles);
     }
 
     pub fn copy(self: *SelectTool, context: *Context, tilemapDocument: *TilemapDocument) void {

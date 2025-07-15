@@ -349,6 +349,7 @@ fn sceneDocumentHandleInputCreateEntityFromAssetsManager(
         const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(context, context.camera) else utils.gridPositionToEntityPosition(context, utils.getMouseSceneGridPosition(context), entityTypeTag);
         entity.* = SceneEntity.init(position, entityTypeTag);
         sceneDocument.getEntities().append(context.allocator, entity) catch unreachable;
+        std.log.debug("created entity {}", .{entity.id});
     }
 }
 

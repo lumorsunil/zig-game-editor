@@ -102,7 +102,7 @@
     - [x] Texture
     - [x] When creating a new asset that can be opened, open it
     - [x] New asset dialog
-      - [ ] Input to choose which directory the asset will be created in
+      - [ ] Input to choose which directory the asset will be created in (file-tree view?)
       - [x] Pressing enter will submit the form
       - [x] Auto-focus on name input
       - [x] Cancel button
@@ -165,7 +165,7 @@
   - [x] Copy/paste tiles
   - [x] Move tiles
   - [x] Delete tiles
-- [ ] Setting to disable/enable auto-expand when drawing outside of boundary
+- [x] Setting to disable/enable auto-expand when drawing outside of boundary
 - [ ] Show mouse grid coordinates
 
 ## Tilesheet editor
@@ -293,17 +293,6 @@
 - [x] Load from file
 - [ ] Show boundary from tilemap
 
-## Bugs
-
-- [x] BUG: Thumbnails not showing after closing and opening a project
-- [x] Add no_bring_to_front_on_focus flag to all side menues
-- [x] When closing the current editor, open the next available tab
-- [x] Store multiple opened documents in the editor session
-- [ ] Crash when deleting an animation (created a new one without saving, added frames)
-- [x] Update scene map when tilemap is saved
-- [x] When scene map is updated, the cell size and position didn't change
-- [ ] Highlighting cell is offset wrongly when in negative coordinates
-
 ## Project
 
 - [x] Project structure (project root directory, relative paths inside project)
@@ -323,3 +312,23 @@
   - [x] Each document type should have a "current version"
   - [x] Each document type should have an upgrade implementation for each adjacent version transition (1 -> 2, 2 -> 3, NOT 1 -> 3 directly; in that case it would be first 1 -> 2 and then 2 -> 3)
   - [x] When a document is loaded, it is also upgraded in memory if it is an old version
+
+## Editor Session
+
+- [x] Store editor session when quitting program
+- [x] Restore editor session on program startup
+  - [x] Current project and opened editors
+  - [ ] Current opened directory in assets manager
+
+## Bugs
+
+- [x] BUG: Thumbnails not showing after closing and opening a project
+- [x] Add no_bring_to_front_on_focus flag to all side menues
+- [x] When closing the current editor, open the next available tab
+- [x] Store multiple opened documents in the editor session
+- [ ] Crash when deleting an animation (created a new one without saving, added frames)
+- [x] Update scene map when tilemap is saved
+- [x] When scene map is updated, the cell size and position didn't change
+- [ ] Highlighting cell is offset wrongly when in negative coordinates
+- [ ] When auto expanding a tilemap, then undoing, the scene entities positions are not undoed
+- [ ] Painting a line sometimes the line will keep going to the edge of the tilemap

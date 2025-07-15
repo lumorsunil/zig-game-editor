@@ -46,3 +46,4 @@ pub usingnamespace @import("documents/entity-type/property.zig");
 pub usingnamespace @import("thumbnail-generator.zig");
 pub usingnamespace @import("scene-map.zig");
 pub const upgrade = @import("upgrade.zig");
+pub usingnamespace @import("select-box.zig");

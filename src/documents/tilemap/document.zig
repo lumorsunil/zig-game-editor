@@ -13,6 +13,8 @@ const TilemapData = @import("persistent-data.zig").TilemapData;
 const TilemapLayer = lib.TilemapLayer;
 const NonPersistentData = @import("non-persistent-data.zig").NonPersistentData;
 const UUID = lib.UUIDSerializable;
+const SelectGrid = lib.SelectGrid;
+const TileSource = lib.TileSource;
 
 pub const TilemapDocument = struct {
     document: DocumentType,

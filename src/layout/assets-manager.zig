@@ -110,7 +110,9 @@ fn nodeMenu(context: *Context, node: *Node) bool {
     }
     z.popId();
     if (z.beginDragDropSource(.{})) {
-        _ = z.setDragDropPayload("asset", std.mem.asBytes(&node), .once);
+        if (z.setDragDropPayload("asset", std.mem.asBytes(&node), .once)) {
+            std.log.debug("setting dragPayload: {any}", .{z.getDragDropPayload()});
+        }
         z.endDragDropSource();
     }
     if (node.* == .directory) {

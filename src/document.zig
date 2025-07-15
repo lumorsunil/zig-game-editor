@@ -41,9 +41,7 @@ pub const Document = struct {
     }
 
     pub fn deinit(self: *Document, allocator: Allocator) void {
-        std.log.debug("1 Deinitializng document with state {any}", .{self.state});
         _ = self.state catch return;
-        std.log.debug("2 Deinitializng document with state {any}", .{self.state});
         if (self.content) |*content| content.deinit(allocator);
         self.content = null;
         self.state = .unloaded;

@@ -8,6 +8,7 @@ const VectorInt = lib.VectorInt;
 const UUID = lib.UUIDSerializable;
 const StringZ = lib.StringZ;
 const json = lib.json;
+const SelectGrid = lib.SelectGrid;
 
 pub const Grid = struct {
     size: Vector,
@@ -125,11 +126,12 @@ pub const TilemapLayer = struct {
 
         for (self.tiles.items) |*row| {
             row.ensureTotalCapacity(allocator, usizeNewSize[0]) catch unreachable;
+            const prevLen = row.items.len;
 
-            if (usizeNewSize[0] > usizeGridSize[0]) {
-                const newColumns = usizeNewSize[0] - usizeGridSize[0];
+            if (usizeNewSize[0] > prevLen) {
+                const newColumns = usizeNewSize[0] - prevLen;
                 row.appendNTimesAssumeCapacity(.empty, newColumns);
-            } else if (usizeNewSize[0] < usizeGridSize[0]) {
+            } else if (usizeNewSize[0] < prevLen) {
                 row.shrinkAndFree(allocator, usizeNewSize[0]);
             }
         }
@@ -140,6 +142,58 @@ pub const TilemapLayer = struct {
     fn initRow(allocator: Allocator, row: *ArrayList(Tile), size: usize) void {
         row.ensureTotalCapacity(allocator, size) catch unreachable;
         row.appendNTimesAssumeCapacity(.empty, size);
+    }
+
+    pub fn cloneTiles(
+        self: *TilemapLayer,
+        allocator: Allocator,
+        selectGrid: SelectGrid,
+        clearSource: bool,
+    ) TilemapLayer {
+        const start: @Vector(2, usize) = @intCast(selectGrid.offset);
+        const startX, const startY = start;
+        const size: @Vector(2, usize) = @intCast(selectGrid.size);
+        const sizeX, const sizeY = size;
+
+        var newLayer = TilemapLayer.init(allocator, "Floating Selection", selectGrid.size);
+
+        for (0..sizeX) |rx| {
+            for (0..sizeY) |ry| {
+                const x = startX + rx;
+                const y = startY + ry;
+                const rv: Vector = @intCast(@Vector(2, usize){ rx, ry });
+                const v: Vector = @intCast(@Vector(2, usize){ x, y });
+
+                if (selectGrid.isSelected(v)) {
+                    const tile = self.getTileByV(v);
+                    const newTile = newLayer.getTileByV(rv);
+                    TileSource.set(&newTile.source, &tile.source);
+                    if (clearSource) TileSource.clear(&tile.source);
+                }
+            }
+        }
+
+        return newLayer;
+    }
+
+    pub fn pasteLayer(self: *TilemapLayer, source: *TilemapLayer, selectGrid: SelectGrid) void {
+        const size: @Vector(2, usize) = @intCast(selectGrid.size);
+        const sizeX, const sizeY = size;
+
+        for (0..sizeX) |rx| {
+            for (0..sizeY) |ry| {
+                const rv: Vector = @intCast(@Vector(2, usize){ rx, ry });
+                const v = rv + selectGrid.offset;
+                if (self.grid.isOutOfBounds(v)) continue;
+
+                const sourceTile = source.getTileByV(rv);
+
+                if (selectGrid.isSelected(v) and sourceTile.source != null) {
+                    const destTile = self.getTileByV(v);
+                    TileSource.set(&destTile.source, &sourceTile.source);
+                }
+            }
+        }
     }
 };
 
