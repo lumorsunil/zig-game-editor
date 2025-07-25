@@ -86,17 +86,32 @@ pub fn reportJsonError(reader: anytype, err: anyerror) void {
     const input = reader.scanner.input;
     const cursor = reader.scanner.cursor;
 
-    std.log.err("Error parsing json at {d}: {}", .{ reader.scanner.cursor, err });
-    const endOfLineIdx = std.mem.indexOfScalarPos(u8, input, cursor, '\n') orelse input.len;
-    const startOfLineIdx = for (0..cursor) |i| {
-        if (input[cursor - i - 1] == '\n') break (cursor - i - 1) + 1;
-    } else 0;
-    const line = input[startOfLineIdx..endOfLineIdx];
+    std.log.err("Error parsing json at {d}: {}", .{ cursor, err });
+    const line, const startIdx = getReportSlice(input, cursor, 40);
     std.log.err("Input: {s}", .{line});
-    for (0..cursor - startOfLineIdx + "error: Input: ".len) |_| {
+    for (0..cursor - startIdx + "error: Input: ".len) |_| {
         stdout.writeAll(" ") catch unreachable;
     }
     stdout.writeAll("^\n") catch unreachable;
+}
+
+fn getReportSlice(
+    slice: []const u8,
+    offset: usize,
+    padding: usize,
+) struct { []const u8, usize } {
+    const endOfLineIdx = std.mem.indexOfScalarPos(u8, slice, offset, '\n') orelse slice.len;
+    const startOfLineIdx = for (0..offset) |i| {
+        if (slice[offset - i - 1] == '\n') break (offset - i - 1) + 1;
+    } else 0;
+
+    const endOfPaddingIdx = @min(slice.len, offset + padding);
+    const startOfPaddingIdx = if (padding > offset) 0 else offset - padding;
+
+    const startOfSlice = @max(startOfLineIdx, startOfPaddingIdx);
+    const endOfSlice = @min(endOfLineIdx, endOfPaddingIdx);
+
+    return .{ slice[startOfSlice..endOfSlice], startOfSlice };
 }
 
 pub fn parseFromSliceWithErrorReporting(

@@ -7,6 +7,7 @@ const Property = lib.Property;
 const PropertyFloat = lib.PropertyFloat;
 const PropertyInteger = lib.PropertyInteger;
 const PropertyString = lib.PropertyString;
+const PropertyBoolean = lib.PropertyBoolean;
 const PropertyAssetReference = lib.PropertyAssetReference;
 const PropertyEntityReference = lib.PropertyEntityReference;
 const EntityTypeDocument = lib.documents.EntityTypeDocument;
@@ -53,6 +54,7 @@ fn dynamicPropertyEditor(
         .float => |*float| floatPropertyEditor(float),
         .integer => |*integer| integerPropertyEditor(integer),
         .string => |*string| stringPropertyEditor(string),
+        .boolean => |*string| booleanPropertyEditor(string),
         .assetReference => |*assetReference| assetReferencePropertyEditor(context, editorMode, assetReference),
         .entityReference => |*entityReference| entityReferencePropertyEditor(context, editorMode, entityReference),
         //else => |e| std.debug.panic("property type {s} not supported in the editor", .{@tagName(e)}),
@@ -121,6 +123,12 @@ fn integerPropertyEditor(integer: *PropertyInteger) void {
 fn stringPropertyEditor(string: *PropertyString) void {
     _ = z.inputText("Value", .{
         .buf = string.value.buffer,
+    });
+}
+
+fn booleanPropertyEditor(boolean: *PropertyBoolean) void {
+    _ = z.checkbox("Value", .{
+        .v = &boolean.value,
     });
 }
 

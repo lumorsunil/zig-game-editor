@@ -40,7 +40,9 @@ pub const BrushTool = struct {
 
         if (!tilemapDocument.isOutOfBounds(gridPosition) and rl.isKeyDown(.left_control)) {
             const tile = layer.getTileByV(gridPosition);
-            return self.copySource(&tile.source);
+            self.copySource(&tile.source);
+            self.selectedSourceTiles.clear(context.allocator);
+            return;
         } else if (rl.isMouseButtonPressed(.left) and rl.isKeyDown(.left_shift) and self.lastPaintedCell != null) {
             return self.paintLine(context, tilemapDocument, self.lastPaintedCell.?, gridPosition);
         }

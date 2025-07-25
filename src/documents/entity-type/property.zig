@@ -11,6 +11,7 @@ pub const PropertyTypeTag = enum {
     string,
     integer,
     float,
+    boolean,
     entityReference,
     assetReference,
 };
@@ -20,6 +21,7 @@ pub const PropertyType = union(PropertyTypeTag) {
     string: PropertyString,
     integer: PropertyInteger,
     float: PropertyFloat,
+    boolean: PropertyBoolean,
     entityReference: PropertyEntityReference,
     assetReference: PropertyAssetReference,
 };
@@ -101,6 +103,22 @@ pub const PropertyFloat = struct {
     pub fn deinit(_: *PropertyFloat, _: Allocator) void {}
 
     pub fn clone(self: PropertyFloat, _: Allocator) PropertyFloat {
+        return self;
+    }
+};
+
+pub const PropertyBoolean = struct {
+    value: bool,
+
+    pub const empty: PropertyBoolean = .{ .value = false };
+
+    pub fn init(_: Allocator) PropertyBoolean {
+        return .empty;
+    }
+
+    pub fn deinit(_: *PropertyBoolean, _: Allocator) void {}
+
+    pub fn clone(self: PropertyBoolean, _: Allocator) PropertyBoolean {
         return self;
     }
 };

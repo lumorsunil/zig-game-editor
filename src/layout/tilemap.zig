@@ -205,23 +205,7 @@ fn layersMenu(context: *Context, tilemapDocument: *TilemapDocument) void {
             z.text("{s}", .{layer.name});
         } else {
             z.pushPtrId(layer);
-            const ctx = context.allocator.create(LayerNameInputCallbackContext) catch unreachable;
-            defer context.allocator.destroy(ctx);
-            ctx.* = .{
-                .context = context,
-                .tilemapDocument = tilemapDocument,
-            };
-            if (z.inputText("", .{
-                .buf = layer.name.buffer,
-                .flags = .{
-                    .enter_returns_true = true,
-                    .callback_edit = true,
-                },
-                .callback = layerNameInputCallback,
-                .user_data = ctx,
-            })) {
-                tilemapDocument.endGenericAction(Action.RenameLayer, context.allocator);
-            }
+            _ = z.inputText("", .{ .buf = layer.name.buffer });
             z.popId();
         }
 

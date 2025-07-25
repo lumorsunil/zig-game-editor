@@ -58,3 +58,7 @@ fn cleanupContext(context: *Context) void {
     };
     context.deinit();
 }
+
+test {
+    _ = @import("tests.zig");
+}

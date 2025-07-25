@@ -160,11 +160,13 @@
   - [x] Randomize tile
     - [x] (Bug) Randomize only when painting on next cell
   - [x] Line drawing with shift-click
+  - [x] When setting tile with ctrl-click on tilemap, clear random selection
 - [ ] Bucket tool
 - [x] Select tool
   - [x] Copy/paste tiles
   - [x] Move tiles
   - [x] Delete tiles
+  - [ ] Move selected tiles to another layer
 - [x] Setting to disable/enable auto-expand when drawing outside of boundary
 - [ ] Show mouse grid coordinates
 
@@ -332,3 +334,5 @@
 - [ ] Highlighting cell is offset wrongly when in negative coordinates
 - [ ] When auto expanding a tilemap, then undoing, the scene entities positions are not undoed
 - [ ] Painting a line sometimes the line will keep going to the edge of the tilemap
+- [ ] Asset input for textures: The + button should open the normal add texture dialog (also in the future we probably want to have a better new asset dialog for textures, where you can choose destination folder and source file. Possibly also the + button you should be able to choose between creating a new asset or selecting an already existing one.)
+- [ ] Animations play fast after window has been unfocused for a while (happens probably because t increases a lot while the animation nextFrameAt is only increasing by the duration of the animation so it basically tries to play the animation as fast as it can back to t again)
