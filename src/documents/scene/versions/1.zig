@@ -1,5 +1,5 @@
 const std = @import("std");
-const lib = @import("root").lib;
+const lib = @import("lib");
 const DocumentVersion = lib.documents.DocumentVersion;
 const UUID = lib.UUIDSerializable;
 const Vector = lib.Vector;

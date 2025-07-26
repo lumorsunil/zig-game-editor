@@ -1,3 +1,4 @@
+pub const config = @import("config.zig");
 pub usingnamespace @import("context.zig");
 pub usingnamespace @import("vector.zig");
 pub usingnamespace @import("uuid.zig");
@@ -16,6 +17,7 @@ pub const documents = struct {
     pub usingnamespace @import("documents/scene/document.zig");
     pub const scene = struct {
         pub usingnamespace @import("documents/scene/persistent-data.zig");
+        pub usingnamespace @import("documents/scene/versions/1.zig");
     };
     pub usingnamespace @import("documents/tilemap/document.zig");
     pub usingnamespace @import("documents/animation/document.zig");
@@ -26,10 +28,15 @@ pub const documents = struct {
     pub usingnamespace @import("documents/entity-type/document.zig");
 };
 pub const layouts = struct {
+    pub usingnamespace @import("layout/layouts.zig");
     pub usingnamespace @import("layout/scene.zig");
     pub usingnamespace @import("layout/tilemap.zig");
     pub usingnamespace @import("layout/animation.zig");
     pub usingnamespace @import("layout/entity-type.zig");
+    pub usingnamespace @import("layout/assets-manager.zig");
+    pub const sceneMap = @import("layout/scene-map.zig");
+    pub const project = @import("layout/project.zig");
+    pub const utils = @import("layout/utils.zig");
 };
 pub usingnamespace @import("layout-generic.zig");
 pub usingnamespace @import("editor-session.zig");

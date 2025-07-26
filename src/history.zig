@@ -3,7 +3,7 @@ const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayListUnmanaged;
 const Action = @import("action.zig").Action;
 const Tilemap = @import("tilemap.zig").Tilemap;
-const lib = @import("root").lib;
+const lib = @import("lib");
 const json = lib.json;
 
 pub const History = struct {

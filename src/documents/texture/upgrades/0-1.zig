@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const lib = @import("root").lib;
+const lib = @import("lib");
 const upgrade = lib.upgrade;
 
 const Document0 = @import("../versions/0.zig").Document0;

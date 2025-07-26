@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const lib = @import("root").lib;
+const lib = @import("lib");
 const upgrade = lib.upgrade;
 
 // Breaking change: Old version had tiles in a flat array, now it's a 2D-array.

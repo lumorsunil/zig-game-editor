@@ -1,6 +1,6 @@
 const rl = @import("raylib");
 const z = @import("zgui");
-const lib = @import("root").lib;
+const lib = @import("lib");
 const Context = lib.Context;
 const Project = lib.Project;
 const Vector = lib.Vector;

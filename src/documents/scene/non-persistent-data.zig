@@ -2,13 +2,13 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayListUnmanaged;
 const rl = @import("raylib");
-const lib = @import("root").lib;
+const lib = @import("lib");
 const Vector = lib.Vector;
 const Scene = @import("persistent-data.zig").Scene;
 const SceneEntityType = @import("persistent-data.zig").SceneEntityType;
 const SceneEntity = @import("persistent-data.zig").SceneEntity;
 const UUID = lib.UUIDSerializable;
-const config = @import("root").config;
+const config = @import("lib").config;
 
 const SetEntityWindow = struct {
     isOpen: bool = false,

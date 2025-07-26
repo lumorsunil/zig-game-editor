@@ -1,6 +1,6 @@
 const std = @import("std");
 const rl = @import("raylib");
-const lib = @import("root").lib;
+const lib = @import("lib");
 const Context = lib.Context;
 const TilemapDocument = lib.documents.TilemapDocument;
 const Vector = lib.Vector;

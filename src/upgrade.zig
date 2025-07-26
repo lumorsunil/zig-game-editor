@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const lib = @import("root").lib;
+const lib = @import("lib");
 const StringZ = lib.StringZ;
 const StringZArrayHashMap = lib.StringZArrayHashMap;
 const PropertyObject = lib.PropertyObject;
@@ -314,6 +314,7 @@ fn upgradeUnion(comptime T: type, allocator: Allocator, source: anytype, contain
     switch (source) {
         inline else => |v, t| {
             const resultTag = comptime std.meta.stringToEnum(std.meta.Tag(T), @tagName(t)).?;
+            @setEvalBranchQuota(2000);
             const Payload = std.meta.TagPayload(T, resultTag);
             return @unionInit(T, @tagName(t), upgradeValue(Payload, allocator, v, container));
         },

@@ -2,7 +2,7 @@ const std = @import("std");
 const z = @import("zgui");
 const c = @import("c");
 const rl = @import("raylib");
-const lib = @import("root").lib;
+const lib = @import("lib");
 const LayoutGeneric = lib.LayoutGeneric;
 const Context = lib.Context;
 const Editor = lib.Editor;
@@ -12,9 +12,9 @@ const Action = lib.Action;
 const BrushTool = lib.tools.BrushTool;
 const SelectTool = lib.tools.SelectTool;
 const Vector = lib.Vector;
-const utils = @import("utils.zig");
+const utils = lib.layouts.utils;
 const drawTilemap = lib.drawTilemap;
-const config = @import("../config.zig");
+const config = lib.config;
 
 pub const LayoutTilemap = LayoutGeneric(.tilemap, draw, menu, handleInput);
 

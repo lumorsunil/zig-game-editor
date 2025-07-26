@@ -1,7 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayListUnmanaged;
-const lib = @import("root").lib;
+const lib = @import("lib");
 const UUID = lib.UUIDSerializable;
 
 pub const TemplateData = struct {

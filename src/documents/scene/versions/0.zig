@@ -1,5 +1,5 @@
 const std = @import("std");
-const lib = @import("root").lib;
+const lib = @import("lib");
 const UUID = lib.UUIDSerializable;
 const Vector = lib.Vector;
 
@@ -41,6 +41,7 @@ pub const Property0 = struct {
         string: PropertyString0,
         integer: PropertyInteger0,
         float: PropertyFloat0,
+        boolean: PropertyBoolean0,
         entityReference: PropertyEntityReference0,
         assetReference: PropertyAssetReference0,
     },
@@ -56,6 +57,10 @@ const PropertyInteger0 = struct {
 
 const PropertyFloat0 = struct {
     value: f32,
+};
+
+const PropertyBoolean0 = struct {
+    value: bool,
 };
 
 const PropertyEntityReference0 = struct {

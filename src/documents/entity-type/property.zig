@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const lib = @import("root").lib;
+const lib = @import("lib");
 const UUID = lib.UUIDSerializable;
 const DocumentTag = lib.DocumentTag;
 const StringZArrayHashMap = lib.StringZArrayHashMap;
@@ -234,7 +234,7 @@ pub const PropertyObject = struct {
         return self.fields.map.iterator();
     }
 
-    pub fn getByKey(self: *PropertyObject, allocator: Allocator, key: [:0]const u8) *Property {
+    pub fn getByKey(self: *PropertyObject, allocator: Allocator, key: [:0]const u8) ?*Property {
         return self.fields.getPtr(allocator, key);
     }
 };

@@ -2,7 +2,7 @@ const std = @import("std");
 const rl = @import("raylib");
 const z = @import("zgui");
 const c = @import("c");
-const lib = @import("root").lib;
+const lib = @import("lib");
 const Context = lib.Context;
 const Editor = lib.Editor;
 const AnimationDocument = lib.documents.AnimationDocument;
@@ -11,8 +11,8 @@ const Frame = lib.documents.animation.Frame;
 const LayoutGeneric = lib.LayoutGeneric;
 const Vector = lib.Vector;
 const Node = lib.Node;
-const utils = @import("utils.zig");
-const config = @import("../config.zig");
+const utils = lib.layouts.utils;
+const config = lib.config;
 
 pub const LayoutAnimation = LayoutGeneric(.animation, draw, menu, handleInput);
 

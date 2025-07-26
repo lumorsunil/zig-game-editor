@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const rl = @import("raylib");
 
-const lib = @import("root").lib;
+const lib = @import("lib");
 const UUID = lib.UUIDSerializable;
 
 const AssetsLibrary = @import("assets-library.zig").AssetsLibrary;

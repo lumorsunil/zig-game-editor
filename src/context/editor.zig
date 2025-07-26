@@ -1,4 +1,4 @@
-const lib = @import("root").lib;
+const lib = @import("lib");
 const Context = lib.Context;
 const Editor = lib.Editor;
 const UUID = lib.UUIDSerializable;

@@ -38,6 +38,11 @@ pub fn build(b: *Build) void {
 
     const libMod = b.createModule(.{ .root_source_file = b.path("src/lib.zig") });
     exe.root_module.addImport("lib", libMod);
+    libMod.addImport("lib", libMod);
+
+    context.addC(libMod);
+    context.addNfd(libMod);
+    context.addUuid(libMod);
 
     context.addC(exe.root_module);
     context.addNfd(exe.root_module);

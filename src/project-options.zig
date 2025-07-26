@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const lib = @import("root").lib;
+const lib = @import("lib");
 const UUID = lib.UUIDSerializable;
 const Project = lib.Project;
 const optionsRelativePath = lib.optionsRelativePath;

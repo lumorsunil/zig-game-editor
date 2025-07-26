@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const lib = @import("root").lib;
+const lib = @import("lib");
 const PersistentData = @import("persistent-data.zig").EntityType;
 const NonPersistentData = @import("non-persistent-data.zig").EntityTypeNonPersistentData;
 const DocumentGeneric = lib.documents.DocumentGeneric;

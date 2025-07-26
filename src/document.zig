@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const lib = @import("root").lib;
+const lib = @import("lib");
 const SceneDocument = lib.documents.SceneDocument;
 const TilemapDocument = lib.documents.TilemapDocument;
 const AnimationDocument = lib.documents.AnimationDocument;

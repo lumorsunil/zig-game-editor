@@ -1,5 +1,5 @@
 const std = @import("std");
-const lib = @import("root").lib;
+const lib = @import("lib");
 const Context = lib.Context;
 const Editor = lib.Editor;
 const DocumentTag = lib.DocumentTag;

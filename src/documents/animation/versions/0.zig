@@ -1,4 +1,4 @@
-const lib = @import("root").lib;
+const lib = @import("lib");
 const UUID = lib.UUIDSerializable;
 const Vector = lib.Vector;
 

@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const lib = @import("root").lib;
+const lib = @import("lib");
 const StringZ = lib.StringZ;
 
 pub const StringZContext = struct {
@@ -137,7 +137,7 @@ pub fn StringZArrayHashMap(comptime V: type) type {
         pub fn getPtr(self: *@This(), allocator: Allocator, key: [:0]const u8) ?*V {
             const stringZKey: K = .init(allocator, key);
             defer stringZKey.deinit(allocator);
-            return self.map.getPtr(allocator, stringZKey);
+            return self.map.getPtr(stringZKey);
         }
 
         pub fn contains(self: @This(), allocator: Allocator, key: []const u8) bool {

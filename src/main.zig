@@ -1,14 +1,13 @@
 const std = @import("std");
 const zxg = @import("zxg");
-const Context = @import("context.zig").Context;
 const layout = @import("layout.zig").layout;
 const rl = @import("raylib");
 const z = @import("zgui");
+const lib = @import("lib");
+const Context = lib.Context;
 const UUID = lib.UUIDSerializable;
 const setImguiStyle = @import("imgui-style.zig").setImguiStyle;
-
-pub const lib = @import("lib.zig");
-pub const config = @import("config.zig");
+const config = lib.config;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{ .safety = true }){};

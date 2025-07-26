@@ -1,6 +1,6 @@
 const std = @import("std");
 const z = @import("zgui");
-const lib = @import("root").lib;
+const lib = @import("lib");
 const Context = lib.Context;
 const PropertyObject = lib.PropertyObject;
 const Property = lib.Property;

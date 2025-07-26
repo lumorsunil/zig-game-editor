@@ -80,6 +80,19 @@ pub fn writeObject(object: anytype, jw: anytype) !void {
     try jw.endObject();
 }
 
+pub fn reportJsonErrorToWriter(reader: anytype, err: anyerror, writer: anytype) !void {
+    const input = reader.scanner.input;
+    const cursor = reader.scanner.cursor;
+
+    try writer.print("Error parsing json at {d}: {}", .{ cursor, err });
+    const line, const startIdx = getReportSlice(input, cursor, 40);
+    try writer.print("Input: {s}", .{line});
+    for (0..cursor - startIdx + "error: Input: ".len) |_| {
+        try writer.writeAll(" ");
+    }
+    try writer.writeAll("^\n");
+}
+
 pub fn reportJsonError(reader: anytype, err: anyerror) void {
     const stdout = std.io.getStdOut();
 
