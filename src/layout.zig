@@ -185,6 +185,11 @@ fn documentTabs(context: *Context) void {
             }
             z.popId();
 
+            if (z.beginPopupContextItem()) {
+                defer z.endPopup();
+                documentTabContextMenu(context, id, &idsToClose);
+            }
+
             if (!open) {
                 idsToClose.appendAssumeCapacity(id);
             }
@@ -192,8 +197,37 @@ fn documentTabs(context: *Context) void {
         if (idToOpen) |id| {
             context.openEditorById(id);
         }
-        for (idsToClose.slice()) |id| {
-            context.closeEditorById(id);
+        context.closeEditorsByIds(idsToClose.slice());
+    }
+}
+
+fn documentTabContextMenu(context: *Context, id: UUID, idsToClose: *std.BoundedArray(UUID, 256)) void {
+    if (z.selectable("Close All But This", .{})) {
+        for (context.openedEditors.map.values()) |editor| {
+            const eid = editor.document.getId();
+            if (id.uuid != eid.uuid) {
+                idsToClose.appendAssumeCapacity(eid);
+            }
+        }
+    }
+    if (z.selectable("Close To The Left", .{})) {
+        const i = for (context.openedEditors.map.values(), 0..) |editor, i| {
+            if (editor.document.getId().uuid == id.uuid) break i;
+        } else return;
+        const idsToTheLeft = context.openedEditors.map.keys()[0..i];
+        idsToClose.appendSliceAssumeCapacity(idsToTheLeft);
+    }
+    if (z.selectable("Close To The Right", .{})) {
+        const i = for (context.openedEditors.map.values(), 0..) |editor, i| {
+            if (editor.document.getId().uuid == id.uuid) break i;
+        } else return;
+        if (i == context.openedEditors.map.count() - 1) return;
+        const idsToTheRight = context.openedEditors.map.keys()[i + 1 ..];
+        idsToClose.appendSliceAssumeCapacity(idsToTheRight);
+    }
+    if (z.selectable("Close All", .{})) {
+        for (context.openedEditors.map.values()) |editor| {
+            idsToClose.appendAssumeCapacity(editor.document.getId());
         }
     }
 }

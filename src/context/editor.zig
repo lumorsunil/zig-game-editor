@@ -1,3 +1,4 @@
+const std = @import("std");
 const lib = @import("lib");
 const Context = lib.Context;
 const Editor = lib.Editor;
@@ -42,6 +43,10 @@ pub fn closeEditorByNode(self: *Context, node: Node) void {
     }
 }
 
+pub fn closeEditorsByIds(self: *Context, ids: []UUID) void {
+    for (ids) |id| self.closeEditorById(id);
+}
+
 pub fn closeEditors(self: *Context) void {
     for (self.openedEditors.map.values()) |*editor| {
         self.unloadDocumentById(editor.document.getId());
@@ -50,6 +55,20 @@ pub fn closeEditors(self: *Context) void {
 
     self.openedEditors.map.clearAndFree(self.allocator);
     self.currentEditor = null;
+}
+
+pub fn closeEditorsExcept(self: *Context, id: UUID) void {
+    var ids = std.ArrayListUnmanaged(UUID).initCapacity(self.allocator, 100) catch unreachable;
+    defer ids.deinit(self.allocator);
+
+    for (self.openedEditors.map.values()) |*editor| {
+        const eid = editor.document.getId();
+        if (eid.uuid != id.uuid) {
+            ids.append(self.allocator, eid) catch unreachable;
+        }
+    }
+
+    for (ids.items) |eid| self.closeEditorById(eid);
 }
 
 pub fn openFileNode(self: *Context, file: Node.File) void {

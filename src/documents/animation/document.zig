@@ -109,15 +109,20 @@ pub const AnimationDocument = struct {
     }
 
     pub fn updatePreview(self: *AnimationDocument) void {
+        const t = rl.getTime();
         const animation = self.getSelectedAnimation() orelse return;
         var frame = self.getPreviewFrame() orelse return;
 
-        if (self.nextPreviewFrameAt <= rl.getTime()) {
+        if (self.nextPreviewFrameAt <= t) {
             self.currentPreviewFrame = @mod(
                 self.currentPreviewFrame + 1,
                 animation.frames.items.len,
             );
             frame = self.getPreviewFrame() orelse return;
+            const dt = t - self.nextPreviewFrameAt;
+            const timesToFastForward = @floor(dt / animation.getTotalDuration());
+            const timeToFastForward = timesToFastForward * animation.getTotalDuration();
+            self.nextPreviewFrameAt += timeToFastForward;
             self.nextPreviewFrameAt += animation.frameDuration * frame.durationScale;
         }
     }

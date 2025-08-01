@@ -89,7 +89,6 @@ fn menu(
     if (animationDocument.getSelectedAnimation()) |animation| {
         animationDetailsMenu(context, animationDocument, animation);
         frameWindow(context, animationDocument, animation);
-        animationDocument.updatePreview();
         previewWindow(context, animationDocument, animation);
 
         if (animationDocument.getSelectedFrame()) |frame| {
@@ -209,6 +208,8 @@ fn previewWindow(
     animationDocument: *AnimationDocument,
     animation: *Animation,
 ) void {
+    animationDocument.updatePreview();
+
     const fGridSize: @Vector(2, f32) = @floatFromInt(animation.gridSize);
     const fGridSizeScaled: @Vector(2, f32) = @floatFromInt(animation.gridSize * context.scaleV);
     const padding = @Vector(2, f32){ 2, 2 } * @as(@Vector(2, f32), @floatFromInt(context.scaleV));
