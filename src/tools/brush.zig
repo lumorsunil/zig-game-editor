@@ -143,8 +143,9 @@ pub const BrushTool = struct {
         const tileSize = tilemapDocument.getTileSize();
         const scale = context.scale;
 
-        context.camera.target.x += @floatFromInt(moveV[0] * tileSize[0] * scale);
-        context.camera.target.y += @floatFromInt(moveV[1] * tileSize[1] * scale);
+        const editor = context.getCurrentEditor().?;
+        editor.camera.target.x += @floatFromInt(moveV[0] * tileSize[0] * scale);
+        editor.camera.target.y += @floatFromInt(moveV[1] * tileSize[1] * scale);
 
         return moveV;
     }

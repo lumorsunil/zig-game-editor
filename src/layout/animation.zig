@@ -248,10 +248,10 @@ fn previewWindow(
 
 fn handleInput(
     context: *Context,
-    _: *Editor,
+    editor: *Editor,
     animationDocument: *AnimationDocument,
 ) void {
-    utils.cameraControls(&context.camera);
+    utils.cameraControls(&editor.camera);
 
     if (animationDocument.getSelectedAnimation()) |animation| {
         handleAnimationInput(context, animationDocument, animation);

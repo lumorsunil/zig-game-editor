@@ -3,6 +3,7 @@ const rl = @import("raylib");
 const lib = @import("lib");
 const Context = lib.Context;
 const EditorSession = lib.EditorSession;
+const EditorSessionDocument = lib.EditorSessionDocument;
 const Project = lib.Project;
 const UUID = lib.UUIDSerializable;
 
@@ -12,14 +13,27 @@ fn createEditorSession(self: *Context) EditorSession {
     return EditorSession{
         .currentProject = if (self.currentProject) |p| self.allocator.dupe(u8, p.getRootDirPath()) catch unreachable else null,
         .openedEditor = self.currentEditor,
-        .openedDocuments = self.allocator.dupe(UUID, self.openedEditors.map.keys()) catch unreachable,
-        .camera = self.camera,
+        .openedDocuments = self.createEditorSessionDocuments(),
         .windowSize = .{ rl.getScreenWidth(), rl.getScreenHeight() },
         .windowPos = brk: {
             const winPos = rl.getWindowPosition();
             break :brk @intFromFloat(@Vector(2, f32){ winPos.x, winPos.y });
         },
     };
+}
+
+fn createEditorSessionDocuments(self: *Context) []EditorSessionDocument {
+    const len = self.openedEditors.map.count();
+    const documents = self.allocator.alloc(EditorSessionDocument, len) catch unreachable;
+
+    for (0..len) |i| {
+        documents[i] = .{
+            .id = self.openedEditors.map.keys()[i],
+            .camera = self.openedEditors.map.values()[i].camera,
+        };
+    }
+
+    return documents;
 }
 
 pub fn storeSession(self: *Context) !void {
@@ -58,8 +72,9 @@ pub fn restoreSession(self: *Context) !void {
         self.setProject(Project.init(self.allocator, p));
     }
 
-    for (parsed.value.openedDocuments) |id| {
-        self.openEditorById(id);
+    for (parsed.value.openedDocuments) |document| {
+        self.openEditorById(document.id);
+        self.openedEditors.map.getPtr(document.id).?.camera = document.camera;
     }
 
     if (parsed.value.openedEditor) |id| {
@@ -68,8 +83,6 @@ pub fn restoreSession(self: *Context) !void {
 
     rl.setWindowSize(parsed.value.windowSize[0], parsed.value.windowSize[1]);
     rl.setWindowPosition(parsed.value.windowPos[0], parsed.value.windowPos[1]);
-
-    self.camera = parsed.value.camera;
 
     const exitImage = rl.genImageColor(1, 1, rl.Color.white);
     const entranceImage = rl.genImageColor(1, 1, rl.Color.yellow);

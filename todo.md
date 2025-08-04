@@ -18,7 +18,7 @@
     - [ ] Unset (clear input)
     - [ ] Open asset directory in asset manager
     - [x] Open asset editor
-- [ ] Camera for background should be per editor instead of only one in the context
+- [x] Camera for background should be per editor instead of only one in the context
 
 ### References
 

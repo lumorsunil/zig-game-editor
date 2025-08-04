@@ -65,7 +65,8 @@ pub const SelectTool = struct {
             const fmin = rl.Vector2.init(@floatFromInt(imin[0]), @floatFromInt(imin[1]));
             const fmax = rl.Vector2.init(@floatFromInt(imax[0]), @floatFromInt(imax[1]));
 
-            rl.drawLineEx(fmin, fmax, 1 / context.camera.zoom, rl.Color.white);
+            const editor = context.getCurrentEditor().?;
+            rl.drawLineEx(fmin, fmax, 1 / editor.camera.zoom, rl.Color.white);
         }
     }
 
@@ -79,7 +80,8 @@ pub const SelectTool = struct {
             @floatFromInt(size[0]),
             @floatFromInt(size[1]),
         );
-        rl.drawRectangleLinesEx(rect, 1 / context.camera.zoom, rl.Color.white);
+        const editor = context.getCurrentEditor().?;
+        rl.drawRectangleLinesEx(rect, 1 / editor.camera.zoom, rl.Color.white);
     }
 
     pub fn getNewSelectionRectangle(self: SelectTool) ?Rectangle {

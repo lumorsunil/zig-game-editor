@@ -39,14 +39,23 @@ fn drawEntities(context: *Context, sceneDocument: *SceneDocument) void {
 
 fn drawSelectionBoxes(context: *Context, sceneDocument: *SceneDocument) void {
     for (sceneDocument.getSelectedEntities().items) |selectedEntity| {
+        const editor = context.getCurrentEditor().?;
         const rect = utils.getEntityRectScaled(context, selectedEntity.*);
-        rl.drawRectangleLinesEx(rect, 1 / context.camera.zoom, rl.Color.white);
+        rl.drawRectangleLinesEx(rect, 1 / editor.camera.zoom, rl.Color.white);
     }
 }
 
 fn drawDragPayload(context: *Context, sceneDocument: *SceneDocument) void {
     if (sceneDocument.getDragPayload().*) |payload| {
-        const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(context, context.camera) else utils.gridPositionToEntityPosition(context, utils.getMouseSceneGridPosition(context), payload);
+        const editor = context.getCurrentEditor().?;
+        const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(
+            context,
+            editor.camera,
+        ) else utils.gridPositionToEntityPosition(
+            context,
+            utils.getMouseSceneGridPosition(context),
+            payload,
+        );
         sceneDocument.drawEntityEx(context, payload, position);
     }
 }
@@ -69,7 +78,7 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
     if (z.button("Reset Camera", .{})) {
         utils.resetCamera(context);
     }
-    z.text("{d:0.0},{d:0.0}", .{ context.camera.target.x, context.camera.target.y });
+    z.text("{d:0.0},{d:0.0}", .{ editor.camera.target.x, editor.camera.target.y });
 
     if (z.button("Save", .{})) {
         context.saveEditorFile(editor);
@@ -304,12 +313,12 @@ fn setEntityReferenceWindowRenderScene(
     }
 }
 
-fn handleInput(context: *Context, _: *Editor, sceneDocument: *SceneDocument) void {
-    utils.cameraControls(&context.camera);
-    sceneDocumentHandleInputCreateEntity(context, sceneDocument);
-    sceneDocumentHandleInputCreateEntityFromAssetsManager(context, sceneDocument);
-    sceneDocumentHandleInputSelectEntity(context, sceneDocument);
-    sceneDocumentHandleInputMoveEntity(context, sceneDocument);
+fn handleInput(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void {
+    utils.cameraControls(&editor.camera);
+    sceneDocumentHandleInputCreateEntity(context, editor, sceneDocument);
+    sceneDocumentHandleInputCreateEntityFromAssetsManager(context, editor, sceneDocument);
+    sceneDocumentHandleInputSelectEntity(context, editor, sceneDocument);
+    sceneDocumentHandleInputMoveEntity(context, editor, sceneDocument);
     sceneDocumentHandleInputDeleteEntity(context, sceneDocument);
 
     if (rl.isKeyPressed(.f5)) {
@@ -317,13 +326,20 @@ fn handleInput(context: *Context, _: *Editor, sceneDocument: *SceneDocument) voi
     }
 }
 
-fn sceneDocumentHandleInputCreateEntity(context: *Context, sceneDocument: *SceneDocument) void {
+fn sceneDocumentHandleInputCreateEntity(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void {
     const dragPayload = sceneDocument.getDragPayload();
     const payload = dragPayload.* orelse return;
 
     if (rl.isMouseButtonReleased(.left)) {
         const entity = context.allocator.create(SceneEntity) catch unreachable;
-        const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(context, context.camera) else utils.gridPositionToEntityPosition(context, utils.getMouseSceneGridPosition(context), payload);
+        const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(
+            context,
+            editor.camera,
+        ) else utils.gridPositionToEntityPosition(
+            context,
+            utils.getMouseSceneGridPosition(context),
+            payload,
+        );
         entity.* = SceneEntity.init(position, payload);
         sceneDocument.getEntities().append(context.allocator, entity) catch unreachable;
         dragPayload.* = null;
@@ -332,6 +348,7 @@ fn sceneDocumentHandleInputCreateEntity(context: *Context, sceneDocument: *Scene
 
 fn sceneDocumentHandleInputCreateEntityFromAssetsManager(
     context: *Context,
+    editor: *Editor,
     sceneDocument: *SceneDocument,
 ) void {
     const dragPayload = z.getDragDropPayload() orelse return;
@@ -346,30 +363,45 @@ fn sceneDocumentHandleInputCreateEntityFromAssetsManager(
     if (rl.isMouseButtonReleased(.left)) {
         const entity = context.allocator.create(SceneEntity) catch unreachable;
         const entityTypeTag = SceneEntityType{ .custom = .init(context, id) };
-        const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(context, context.camera) else utils.gridPositionToEntityPosition(context, utils.getMouseSceneGridPosition(context), entityTypeTag);
+        const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(
+            context,
+            editor.camera,
+        ) else utils.gridPositionToEntityPosition(
+            context,
+            utils.getMouseSceneGridPosition(context),
+            entityTypeTag,
+        );
         entity.* = SceneEntity.init(position, entityTypeTag);
         sceneDocument.getEntities().append(context.allocator, entity) catch unreachable;
         std.log.debug("created entity {}", .{entity.id});
     }
 }
 
-fn sceneDocumentHandleInputSelectEntity(context: *Context, sceneDocument: *SceneDocument) void {
+fn sceneDocumentHandleInputSelectEntity(
+    context: *Context,
+    editor: *Editor,
+    sceneDocument: *SceneDocument,
+) void {
     if (sceneDocument.getDragPayload().* != null) return;
 
     if (rl.isMouseButtonPressed(.left)) {
         for (sceneDocument.getEntities().items) |entity| {
             if (entity.type == .tilemap) continue;
 
-            if (utils.isMousePositionInsideEntityRect(context, context.camera, entity.*)) {
+            if (utils.isMousePositionInsideEntityRect(context, editor.camera, entity.*)) {
                 sceneDocument.selectEntity(entity, context.allocator);
-                sceneDocument.setDragStartPoint(utils.getMousePosition(context, context.camera));
+                sceneDocument.setDragStartPoint(utils.getMousePosition(context, editor.camera));
                 break;
             }
         }
     }
 }
 
-fn sceneDocumentHandleInputMoveEntity(context: *Context, sceneDocument: *SceneDocument) void {
+fn sceneDocumentHandleInputMoveEntity(
+    context: *Context,
+    editor: *Editor,
+    sceneDocument: *SceneDocument,
+) void {
     if (sceneDocument.getDragPayload().* != null) return;
     if (sceneDocument.getSelectedEntities().items.len == 0) return;
 
@@ -377,7 +409,14 @@ fn sceneDocumentHandleInputMoveEntity(context: *Context, sceneDocument: *SceneDo
         if (sceneDocument.getIsDragging()) {
             if (rl.isMouseButtonDown(.left)) {
                 const entity = sceneDocument.getSelectedEntities().items[0];
-                const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(context, context.camera) else utils.gridPositionToEntityPosition(context, utils.getMouseSceneGridPosition(context), entity.type);
+                const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(
+                    context,
+                    editor.camera,
+                ) else utils.gridPositionToEntityPosition(
+                    context,
+                    utils.getMouseSceneGridPosition(context),
+                    entity.type,
+                );
                 entity.position = position;
             } else {
                 sceneDocument.setIsDragging(false);
@@ -388,7 +427,7 @@ fn sceneDocumentHandleInputMoveEntity(context: *Context, sceneDocument: *SceneDo
                 @floatFromInt(dragStartPoint[0]),
                 @floatFromInt(dragStartPoint[1]),
             );
-            const mousePosition = utils.getMousePosition(context, context.camera);
+            const mousePosition = utils.getMousePosition(context, editor.camera);
             const mp = rl.Vector2.init(
                 @floatFromInt(mousePosition[0]),
                 @floatFromInt(mousePosition[1]),

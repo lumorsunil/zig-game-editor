@@ -69,7 +69,8 @@ pub fn getMousePosition(context: *Context, camera: rl.Camera2D) Vector {
 }
 
 pub fn getMouseSceneGridPosition(context: *Context) Vector {
-    const mp = getMousePosition(context, context.camera);
+    const editor = context.getCurrentEditor().?;
+    const mp = getMousePosition(context, editor.camera);
     const ftr: @Vector(2, f32) = @floatFromInt(mp);
     const fDivisor: @Vector(2, f32) = @floatFromInt(tileSize);
 
@@ -83,7 +84,8 @@ pub fn getMouseGridPosition(context: *Context) Vector {
 }
 
 pub fn getMouseGridPositionWithSize(context: *Context, cellSize: Vector) Vector {
-    const mp = getMousePosition(context, context.camera);
+    const editor = context.getCurrentEditor().?;
+    const mp = getMousePosition(context, editor.camera);
     const ftr: @Vector(2, f32) = @floatFromInt(mp);
     const fDivisor: @Vector(2, f32) = @floatFromInt(cellSize);
 
@@ -162,20 +164,23 @@ pub fn cameraControls(camera: *rl.Camera2D) void {
 }
 
 pub fn moveCameraToEntity(context: *Context, entity: SceneEntity) void {
-    context.camera.target.x = @floatFromInt(-entity.position[0]);
-    context.camera.target.y = @floatFromInt(-entity.position[1]);
+    const editor = context.getCurrentEditor().?;
+    editor.camera.target.x = @floatFromInt(-entity.position[0]);
+    editor.camera.target.y = @floatFromInt(-entity.position[1]);
 }
 
 pub fn moveCameraToGridPosition(context: *Context, gridPosition: Vector) void {
     const centerOfTile = gridPositionToCenterOfTile(context, gridPosition);
-    context.camera.target.x = @floatFromInt(centerOfTile[0]);
-    context.camera.target.y = @floatFromInt(centerOfTile[1]);
+    const editor = context.getCurrentEditor().?;
+    editor.camera.target.x = @floatFromInt(centerOfTile[0]);
+    editor.camera.target.y = @floatFromInt(centerOfTile[1]);
 }
 
 pub fn resetCamera(context: *Context) void {
-    context.camera.target.x = 0;
-    context.camera.target.y = 0;
-    context.camera.zoom = 1;
+    const editor = context.getCurrentEditor().?;
+    editor.camera.target.x = 0;
+    editor.camera.target.y = 0;
+    editor.camera.zoom = 1;
 }
 
 pub fn scaleInput(scale: *@Vector(2, f32)) void {
@@ -200,7 +205,8 @@ pub fn highlightHoveredCell(
     const x, const y = gridPosition * cellSizeScaled;
     const w, const h = cellSizeScaled;
 
-    rl.beginMode2D(context.camera);
+    const editor = context.getCurrentEditor().?;
+    rl.beginMode2D(editor.camera);
     rl.drawRectangleLines(x, y, w, h, rl.Color.white);
     rl.endMode2D();
 }

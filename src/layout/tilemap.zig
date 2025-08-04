@@ -28,7 +28,8 @@ fn draw(context: *Context, document: *TilemapDocument) void {
         @floatFromInt(size[0] + thickness * 2),
         @floatFromInt(size[1] + thickness * 2),
     );
-    rl.drawRectangleLinesEx(rect, thickness / context.camera.zoom, rl.Color.black);
+    const editor = context.getCurrentEditor().?;
+    rl.drawRectangleLinesEx(rect, thickness / editor.camera.zoom, rl.Color.black);
     drawTilemap(context, document, .{ 0, 0 }, context.scale, false);
 
     if (document.getCurrentTool()) |currentTool| {
@@ -406,7 +407,7 @@ fn historyMenu(_: *Context, tilemapDocument: *TilemapDocument) void {
 }
 
 fn handleInput(context: *Context, editor: *Editor, tilemapDocument: *TilemapDocument) void {
-    utils.cameraControls(&context.camera);
+    utils.cameraControls(&editor.camera);
 
     if (tilemapDocument.getCurrentTool()) |tool| {
         switch (tool.impl) {

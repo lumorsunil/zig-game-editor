@@ -42,7 +42,6 @@ pub const Context = struct {
     backgroundColor: rl.Color = rl.Color.init(125, 125, 155, 255),
     isDemoWindowOpen: bool = false,
     isDemoWindowEnabled: bool = false,
-    camera: rl.Camera2D,
 
     scale: VectorInt = 4,
     scaleV: Vector = .{ 4, 4 },
@@ -96,12 +95,6 @@ pub const Context = struct {
             .allocator = allocator,
             .openedEditors = .empty,
             .documents = .empty,
-            .camera = rl.Camera2D{
-                .target = .{ .x = 0, .y = 0 },
-                .offset = .{ .x = 0, .y = 0 },
-                .rotation = 0,
-                .zoom = 1,
-            },
             .exitTexture = undefined,
             .entranceTexture = undefined,
             .currentProject = null,

@@ -41,7 +41,7 @@ fn menu(context: *Context, editor: *Editor, entityTypeDocument: *EntityTypeDocum
     if (z.button("Reset Camera", .{})) {
         utils.resetCamera(context);
     }
-    z.text("{d:0.0},{d:0.0}", .{ context.camera.target.x, context.camera.target.y });
+    z.text("{d:0.0},{d:0.0}", .{ editor.camera.target.x, editor.camera.target.y });
 
     if (z.button("Save", .{})) {
         context.saveEditorFile(editor);
@@ -80,8 +80,12 @@ pub fn drawIconMenu(context: *Context, entityTypeDocument: *EntityTypeDocument) 
     c.rlImGuiImageRect(@ptrCast(texture), scaledSize[0], scaledSize[1], @bitCast(source));
 }
 
-fn handleInput(context: *Context, _: *Editor, entityTypeDocument: *EntityTypeDocument) void {
-    utils.cameraControls(&context.camera);
+fn handleInput(
+    context: *Context,
+    editor: *Editor,
+    entityTypeDocument: *EntityTypeDocument,
+) void {
+    utils.cameraControls(&editor.camera);
 
     const textureId = entityTypeDocument.getTextureId().* orelse return;
     const texture = context.requestTextureById(textureId) catch return orelse return;

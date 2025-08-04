@@ -35,10 +35,10 @@ pub fn layout(context: *Context) !void {
 
     {
         rl.clearBackground(context.backgroundColor);
-        rl.beginMode2D(context.camera);
-        defer rl.endMode2D();
 
         if (context.getCurrentEditor()) |editor| {
+            rl.beginMode2D(editor.camera);
+            defer rl.endMode2D();
             editorDraw(context, editor);
         }
     }
@@ -116,10 +116,11 @@ fn startOfFrame(context: *Context) void {
 }
 
 fn updateCameraOffset(context: *Context) void {
+    const editor = context.getCurrentEditor() orelse return;
     const screenSize: Vector = .{ rl.getScreenWidth(), rl.getScreenHeight() };
     const screenW, const screenH = @as(@Vector(2, f32), @floatFromInt(screenSize));
-    context.camera.offset.x = screenW / 2;
-    context.camera.offset.y = screenH / 2;
+    editor.camera.offset.x = screenW / 2;
+    editor.camera.offset.y = screenH / 2;
 }
 
 fn endOfFrame(context: *Context) void {

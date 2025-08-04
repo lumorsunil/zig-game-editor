@@ -8,8 +8,7 @@ const UUID = lib.UUIDSerializable;
 pub const EditorSession = struct {
     currentProject: ?[]const u8,
     openedEditor: ?UUID,
-    openedDocuments: []UUID,
-    camera: rl.Camera2D,
+    openedDocuments: []EditorSessionDocument,
     windowSize: Vector,
     windowPos: Vector,
 
@@ -19,4 +18,9 @@ pub const EditorSession = struct {
         allocator.free(self.openedDocuments);
         self.openedEditor = null;
     }
+};
+
+pub const EditorSessionDocument = struct {
+    id: UUID,
+    camera: rl.Camera2D,
 };
