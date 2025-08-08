@@ -83,5 +83,8 @@ fn projectOptionsUI(context: *Context, project: *Project) void {
         z.sameLine(.{ .spacing = 8 });
         _ = utils.assetInput(.texture, context, &project.options.defaultTileset);
         _ = z.dragInt2("Tilesize", .{ .v = &project.options.tileSize, .min = 1, .max = 128 });
+        var tilesetPadding: i32 = @intCast(project.options.tilesetPadding);
+        _ = z.dragInt("Tileset Padding", .{ .v = &tilesetPadding, .min = 0, .max = 16 });
+        project.options.tilesetPadding = @intCast(tilesetPadding);
     }
 }

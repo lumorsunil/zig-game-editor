@@ -402,13 +402,13 @@ pub const TileSource = struct {
         return a.?.tileset.uuid == b.?.tileset.uuid and @reduce(.And, a.?.gridPosition == b.?.gridPosition);
     }
 
-    pub fn getSourceRect(self: *const TileSource, tileSize: Vector) rl.Rectangle {
-        return getSourceRectEx(self.gridPosition, tileSize);
+    pub fn getSourceRect(self: *const TileSource, padding: i32, tileSize: Vector) rl.Rectangle {
+        return getSourceRectEx(self.gridPosition, padding, tileSize);
     }
 
-    pub fn getSourceRectEx(gridPosition: Vector, tileSize: Vector) rl.Rectangle {
-        const paddingOffset: Vector = .{ 2, 2 };
-        const paddingSpacing: Vector = .{ 4, 4 };
+    pub fn getSourceRectEx(gridPosition: Vector, padding: i32, tileSize: Vector) rl.Rectangle {
+        const paddingOffset: Vector = .{ @divExact(padding, 2), @divExact(padding, 2) };
+        const paddingSpacing: Vector = .{ padding, padding };
         const totalSize = paddingSpacing + tileSize;
         const sourcePosition: @Vector(2, f32) = @floatFromInt(paddingOffset + totalSize * gridPosition);
         const sourceSize: @Vector(2, f32) = @floatFromInt(tileSize);

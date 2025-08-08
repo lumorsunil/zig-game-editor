@@ -376,10 +376,13 @@ fn createNewDocumentAsset(
 ) void {
     switch (documentType) {
         inline else => |dt| {
-            const document, _ = context.newAsset(name, dt) catch return;
+            const document, const content = context.newAsset(name, dt) catch return;
             if (context.newAssetInputTarget) |target| {
                 // TODO: Check if document is not unloaded
                 target.assetInput.* = document.getId();
+            }
+            if (dt == .tilemap) {
+                content.document.persistentData.tilemap.tileSize = context.getTileSize();
             }
             context.openEditorByIdAtEndOfFrame(document.getId());
         },

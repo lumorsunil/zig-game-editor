@@ -84,3 +84,13 @@ pub fn getTileSize(self: *Context) Vector {
     const p = &(self.currentProject orelse return defaultTileSize);
     return p.options.tileSize;
 }
+
+const defaultTilesetPadding: u32 = std.meta.fieldInfo(
+    ProjectOptions,
+    .tilesetPadding,
+).defaultValue() orelse 4;
+
+pub fn getTilesetPadding(self: *Context) u32 {
+    const p = &(self.currentProject orelse return 4);
+    return p.options.tilesetPadding;
+}

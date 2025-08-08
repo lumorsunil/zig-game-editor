@@ -170,7 +170,8 @@ fn brushToolDetailsMenu(
     }
     if (brush.source) |source| {
         const texture = context.requestTextureById(source.tileset) catch return orelse return;
-        const sourceRect = source.getSourceRect(tilemapDocument.getTileSize());
+        const spacing: i32 = @intCast(context.getTilesetPadding());
+        const sourceRect = source.getSourceRect(spacing, tilemapDocument.getTileSize());
         c.rlImGuiImageRect(@ptrCast(texture), 64, 64, @bitCast(sourceRect));
     }
 }
@@ -332,7 +333,7 @@ fn selectTileSourceMenu(
     _ = z.begin("Select Tile Source", .{ .popen = &brush.isSelectingTileSource, .flags = .{ .no_scrollbar = true } });
 
     const texture = context.requestTextureById(brush.tileset orelse unreachable) catch return orelse return;
-    const spacing = 4;
+    const spacing: i32 = @intCast(context.getTilesetPadding());
     const tileWidth = tilemapDocument.getTileSize()[0];
     const totalTileWidth = tileWidth + spacing;
     const gridWidth: usize = @intCast(@divFloor(texture.width, totalTileWidth));
@@ -352,7 +353,7 @@ fn selectTileSourceMenu(
     for (0..gridWidth) |y| {
         for (0..gridWidth) |x| {
             const gridPosition: Vector = @intCast(@Vector(2, usize){ x, y });
-            const sourceRect = TileSource.getSourceRectEx(gridPosition, tilemapDocument.getTileSize());
+            const sourceRect = TileSource.getSourceRectEx(gridPosition, spacing, tilemapDocument.getTileSize());
 
             var idBuffer: [16:0]u8 = undefined;
             const id = std.fmt.bufPrintZ(&idBuffer, "{d:0.0},{d:0.0}", .{ x, y }) catch unreachable;

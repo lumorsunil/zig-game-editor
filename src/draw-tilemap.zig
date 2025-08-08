@@ -44,7 +44,8 @@ pub fn drawLayer(
             const gridPosition: Vector = .{ ux, uy };
             const scaleV: Vector = .{ scale, scale };
 
-            const source = tileSource.getSourceRect(tileSize);
+            const spacing: i32 = @intCast(context.getTilesetPadding());
+            const source = tileSource.getSourceRect(spacing, tileSize);
 
             const destPosition = offset + gridPosition * tileSize * scaleV;
             const destSize = tileSize * scaleV;

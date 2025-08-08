@@ -44,9 +44,10 @@ pub const SceneDocument = struct {
         context: *Context,
         entityType: SceneEntityType,
     ) !?rl.Vector2 {
+        const tileSize = context.getTileSize();
         return switch (entityType) {
-            .exit => rl.Vector2.init(16, 16),
-            .entrance => rl.Vector2.init(16, 16),
+            .exit => rl.Vector2.init(@floatFromInt(tileSize[0]), @floatFromInt(tileSize[1])),
+            .entrance => rl.Vector2.init(@floatFromInt(tileSize[0]), @floatFromInt(tileSize[1])),
             .tilemap => unreachable,
             .custom => |c| {
                 const document = try context.requestDocumentTypeById(.entityType, c.entityTypeId) orelse return null;
