@@ -74,7 +74,8 @@ pub fn restoreSession(self: *Context) !void {
 
     for (parsed.value.openedDocuments) |document| {
         self.openEditorById(document.id);
-        self.openedEditors.map.getPtr(document.id).?.camera = document.camera;
+        const editor = self.openedEditors.map.getPtr(document.id);
+        if (editor) |e| e.camera = document.camera;
     }
 
     if (parsed.value.openedEditor) |id| {

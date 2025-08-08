@@ -109,6 +109,12 @@ pub const AssetIndex = struct {
     }
 
     pub fn save(self: AssetIndex, cacheDirectory: []const u8) !void {
+        std.fs.makeDirAbsolute(cacheDirectory) catch |err| {
+            switch (err) {
+                std.posix.MakeDirError.PathAlreadyExists => {},
+                else => return err,
+            }
+        };
         var dir = try std.fs.openDirAbsolute(cacheDirectory, .{});
         defer dir.close();
         const file = try dir.createFile(indexJsonFileName, .{});

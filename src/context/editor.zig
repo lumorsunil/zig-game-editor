@@ -88,10 +88,16 @@ pub fn openEditorById(self: *Context, id: UUID) void {
 
         if (result) |document| {
             if (document.state) |_| {
+                if (document.content == null) {
+                    _ = self.openedEditors.map.orderedRemove(id);
+                    return;
+                }
                 entry.value_ptr.* = Editor.init(document.*);
                 self.currentEditor = id;
                 return;
-            } else |_| {}
+            } else |_| {
+                _ = self.openedEditors.map.orderedRemove(id);
+            }
         }
 
         // Error loading document
