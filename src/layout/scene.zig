@@ -113,6 +113,9 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
             const entityType = context.requestDocumentTypeById(.entityType, selectedEntity.type.custom.entityTypeId) catch unreachable orelse unreachable;
             z.text("Custom: {}", .{entityType.getName()});
         }
+
+        utils.scaleInput(&selectedEntity.scale);
+
         switch (selectedEntity.type) {
             .exit => |*exit| {
                 utils.scaleInput(&exit.scale.?);

@@ -23,6 +23,8 @@ pub const Frame = struct {
 pub const Animation = struct {
     name: StringZ,
     frames: ArrayList(Frame),
+    offset: Vector,
+    spacing: Vector,
     gridSize: Vector,
     frameDuration: f32,
 
@@ -30,6 +32,8 @@ pub const Animation = struct {
         return Animation{
             .name = .init(allocator, "New Animation"),
             .frames = ArrayList(Frame).initCapacity(allocator, 10) catch unreachable,
+            .offset = .{ 0, 0 },
+            .spacing = .{ 0, 0 },
             .gridSize = gridSize,
             .frameDuration = 0.1,
         };
@@ -43,6 +47,8 @@ pub const Animation = struct {
     pub fn clone(self: Animation, allocator: Allocator) Animation {
         var cloned = Animation.init(allocator, self.gridSize);
 
+        cloned.offset = self.offset;
+        cloned.spacing = self.spacing;
         cloned.frames.appendSlice(allocator, self.frames.items) catch unreachable;
         cloned.name.set(self.name.buffer);
         cloned.frameDuration = self.frameDuration;

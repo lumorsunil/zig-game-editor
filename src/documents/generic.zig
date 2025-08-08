@@ -16,6 +16,8 @@ pub const DocumentVersionHeader = struct {
 
 pub const DocumentGenericConfig = struct {};
 
+pub const DocumentError = error{UpgraderVersionMismatch};
+
 pub fn DocumentGeneric(
     comptime PersistentData: type,
     comptime NonPersistentData: type,
@@ -104,15 +106,10 @@ pub fn DocumentGeneric(
                     upgrade.finalUpgraderVersion(PersistentData),
                     fileContents,
                 );
+                if (PersistentData == lib.documents.scene.Scene) {
+                    std.log.debug("FINALSCENE: {any}", .{final});
+                }
                 persistentData.* = upgradeFinal(allocator, final);
-                // const parsed = try json.parseFromSliceWithErrorReporting(
-                //     PersistentData,
-                //     allocator,
-                //     fileContents,
-                //     .{},
-                // );
-                // defer parsed.deinit();
-                // persistentData.* = parsed.value.clone(allocator);
             }
 
             return persistentData;
@@ -235,6 +232,7 @@ pub fn DocumentGeneric(
             const next = try allocator.create(upgrader.DocumentNext);
             next.* = upgrader.upgrader(allocator, prev.*, upgrade.Container.Intermediate);
             allocator.destroy(prev);
+            if (next.version != version + 1) return DocumentError.UpgraderVersionMismatch;
             current.* = next;
         }
 

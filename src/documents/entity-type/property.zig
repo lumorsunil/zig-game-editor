@@ -5,9 +5,11 @@ const UUID = lib.UUIDSerializable;
 const DocumentTag = lib.DocumentTag;
 const StringZArrayHashMap = lib.StringZArrayHashMap;
 const StringZ = lib.StringZ;
+const json = lib.json;
 
 pub const PropertyTypeTag = enum {
     object,
+    array,
     string,
     integer,
     float,
@@ -18,6 +20,7 @@ pub const PropertyTypeTag = enum {
 
 pub const PropertyType = union(PropertyTypeTag) {
     object: PropertyObject,
+    array: PropertyArray,
     string: PropertyString,
     integer: PropertyInteger,
     float: PropertyFloat,
@@ -32,6 +35,14 @@ pub const Property = struct {
 
     pub fn init() Property {
         return .{ .id = UUID.init(), .property = .{ .float = .empty } };
+    }
+
+    pub fn initWithType(allocator: Allocator, propertyType: PropertyTypeTag) Property {
+        const property: PropertyType = switch (propertyType) {
+            .string => .{ .string = .init(allocator) },
+            inline else => |t| @unionInit(PropertyType, @tagName(t), .empty),
+        };
+        return .{ .id = UUID.init(), .property = property };
     }
 
     pub fn deinit(self: *Property, allocator: Allocator) void {
@@ -124,14 +135,13 @@ pub const PropertyBoolean = struct {
 };
 
 pub const PropertyEntityReference = struct {
-    sceneId: ?UUID,
-    entityId: ?UUID,
+    sceneId: ?UUID = null,
+    entityId: ?UUID = null,
+
+    pub const empty: PropertyEntityReference = .{};
 
     pub fn init(_: Allocator) PropertyEntityReference {
-        return PropertyEntityReference{
-            .sceneId = null,
-            .entityId = null,
-        };
+        return .empty;
     }
 
     pub fn deinit(_: *PropertyEntityReference, _: Allocator) void {}
@@ -142,14 +152,13 @@ pub const PropertyEntityReference = struct {
 };
 
 pub const PropertyAssetReference = struct {
-    assetId: ?UUID,
-    assetType: DocumentTag,
+    assetId: ?UUID = null,
+    assetType: DocumentTag = .entityType,
+
+    pub const empty: PropertyAssetReference = .{};
 
     pub fn init(_: Allocator) PropertyAssetReference {
-        return PropertyAssetReference{
-            .assetId = null,
-            .assetType = .entityType,
-        };
+        return .empty;
     }
 
     pub fn deinit(_: *PropertyAssetReference, _: Allocator) void {}
@@ -236,5 +245,56 @@ pub const PropertyObject = struct {
 
     pub fn getByKey(self: *PropertyObject, allocator: Allocator, key: [:0]const u8) ?*Property {
         return self.fields.getPtr(allocator, key);
+    }
+};
+
+pub const PropertyArray = struct {
+    subType: PropertyTypeTag = .float,
+    items: std.ArrayListUnmanaged(Property) = .empty,
+
+    pub const empty: PropertyArray = .{};
+
+    pub fn init(_: Allocator) PropertyArray {
+        return .empty;
+    }
+
+    pub fn deinit(self: *PropertyArray, allocator: Allocator) void {
+        for (self.items.items) |*item| item.deinit(allocator);
+        self.items.clearAndFree(allocator);
+    }
+
+    pub fn clone(self: PropertyArray, allocator: Allocator) PropertyArray {
+        var cloned: PropertyArray = .empty;
+
+        cloned.subType = self.subType;
+        cloned.items = self.items.clone(allocator) catch unreachable;
+        for (cloned.items.items, 0..) |*item, i| {
+            item.* = self.items.items[i].clone(allocator);
+        }
+
+        return cloned;
+    }
+
+    pub fn addNewItem(self: *PropertyArray, allocator: Allocator) void {
+        self.items.append(allocator, .initWithType(allocator, self.subType)) catch unreachable;
+    }
+
+    pub fn deleteItem(self: *PropertyArray, allocator: Allocator, index: usize) void {
+        if (index >= self.items.items.len) return;
+        var item = self.items.orderedRemove(index);
+        item.deinit(allocator);
+    }
+
+    pub fn setSubType(
+        self: *PropertyArray,
+        allocator: Allocator,
+        newSubType: PropertyTypeTag,
+    ) void {
+        self.subType = newSubType;
+        self.deinit(allocator);
+    }
+
+    pub fn jsonStringify(self: *const @This(), jw: anytype) !void {
+        try json.writeObject(self.*, jw);
     }
 };

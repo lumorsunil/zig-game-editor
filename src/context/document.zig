@@ -74,3 +74,19 @@ pub fn reloadDocumentById(self: *Context, id: UUID) void {
     self.unloadDocumentById(id);
     _ = self.requestDocumentById(id);
 }
+
+pub fn saveDocument(self: *Context, id: UUID) void {
+    const p = &self.currentProject orelse return;
+    const editor = self.openedEditors.map.getPtr(id) orelse return;
+    editor.saveFile(p) catch |err| {
+        const filePath = self.getFilePathById(id);
+        self.showError("Could not save file {?s}: {}", .{ filePath, err });
+        return;
+    };
+}
+
+pub fn saveAll(self: *Context) void {
+    for (self.openedEditors.map.values()) |*editor| {
+        self.saveEditorFile(editor);
+    }
+}

@@ -80,13 +80,15 @@ pub const SceneDocument = struct {
                 );
 
                 const position: @Vector(2, f32) = @floatFromInt(entity.position);
+                const destWidth = source.width * scale * entity.scale[0];
+                const destHeight = source.height * scale * entity.scale[1];
                 const dest = rl.Rectangle.init(
                     position[0] * scale,
                     position[1] * scale,
-                    source.width * scale,
-                    source.height * scale,
+                    destWidth,
+                    destHeight,
                 );
-                const origin = rl.Vector2.init(source.width / 2 * scale, source.height / 2 * scale);
+                const origin = rl.Vector2.init(destWidth / 2, destHeight / 2);
 
                 rl.drawTexturePro(texture.*, source, dest, origin, 0, rl.Color.white);
             },

@@ -7,8 +7,10 @@ const Vector = lib.Vector;
 pub const Document1 = struct {
     version: DocumentVersion,
     id: UUID,
-    entities: []const @import("0.zig").Entities0,
+    entities: []const Entity1,
 };
 
+pub const Entity1 = @import("0.zig").Entity0;
+pub const EntityType1 = @import("0.zig").EntityType0;
 pub const PropertyObject1 = @import("0.zig").PropertyObject0;
 pub const DocumentTag1 = @import("0.zig").DocumentTag0;

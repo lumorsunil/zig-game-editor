@@ -5,30 +5,32 @@ const Vector = lib.Vector;
 
 pub const Document0 = struct {
     id: UUID,
-    entities: []const Entities0,
+    entities: []const Entity0,
 };
 
-pub const Entities0 = struct {
+pub const Entity0 = struct {
     id: UUID,
     position: Vector,
-    type: union(enum) {
-        custom: struct {
-            entityTypeId: UUID,
-            properties: PropertyObject0,
-        },
-        exit: struct {
-            sceneId: ?UUID = null,
-            scale: ?@Vector(2, f32) = .{ 1, 1 },
-            entranceKey: []const u8,
-            isVertical: bool = false,
-        },
-        entrance: struct {
-            key: []const u8,
-            scale: ?@Vector(2, f32) = .{ 1, 1 },
-        },
-        tilemap: struct {
-            tilemapId: ?UUID,
-        },
+    type: EntityType0,
+};
+
+pub const EntityType0 = union(enum) {
+    custom: struct {
+        entityTypeId: UUID,
+        properties: PropertyObject0,
+    },
+    exit: struct {
+        sceneId: ?UUID = null,
+        scale: ?@Vector(2, f32) = .{ 1, 1 },
+        entranceKey: []const u8,
+        isVertical: bool = false,
+    },
+    entrance: struct {
+        key: []const u8,
+        scale: ?@Vector(2, f32) = .{ 1, 1 },
+    },
+    tilemap: struct {
+        tilemapId: ?UUID,
     },
 };
 
@@ -36,15 +38,34 @@ pub const PropertyObject0 = std.json.ArrayHashMap(Property0);
 
 pub const Property0 = struct {
     id: UUID,
-    property: union(enum) {
-        object: PropertyObject0,
-        string: PropertyString0,
-        integer: PropertyInteger0,
-        float: PropertyFloat0,
-        boolean: PropertyBoolean0,
-        entityReference: PropertyEntityReference0,
-        assetReference: PropertyAssetReference0,
-    },
+    property: PropertyType0,
+};
+
+const PropertyTypeTag0 = enum {
+    object,
+    array,
+    string,
+    integer,
+    float,
+    boolean,
+    entityReference,
+    assetReference,
+};
+
+const PropertyType0 = union(PropertyTypeTag0) {
+    object: PropertyObject0,
+    array: PropertyArray0,
+    string: PropertyString0,
+    integer: PropertyInteger0,
+    float: PropertyFloat0,
+    boolean: PropertyBoolean0,
+    entityReference: PropertyEntityReference0,
+    assetReference: PropertyAssetReference0,
+};
+
+const PropertyArray0 = struct {
+    subType: PropertyTypeTag0,
+    items: []const Property0,
 };
 
 const PropertyString0 = struct {

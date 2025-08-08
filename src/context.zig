@@ -32,6 +32,8 @@ pub const ContextError = error{
 };
 
 pub const Context = struct {
+    isRunning: bool = true,
+
     allocator: Allocator,
 
     openedEditors: IdArrayHashMap(Editor),

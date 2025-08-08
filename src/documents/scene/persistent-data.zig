@@ -15,6 +15,7 @@ const upgrade = lib.upgrade;
 pub const SceneEntity = struct {
     id: UUID,
     position: Vector,
+    scale: @Vector(2, f32),
     type: SceneEntityType,
 
     pub fn init(
@@ -24,6 +25,7 @@ pub const SceneEntity = struct {
         return SceneEntity{
             .id = UUID.init(),
             .position = position,
+            .scale = .{ 1, 1 },
             .type = entityType,
         };
     }
@@ -36,6 +38,7 @@ pub const SceneEntity = struct {
         return SceneEntity{
             .id = self.id,
             .position = self.position,
+            .scale = self.scale,
             .type = self.type.clone(allocator),
         };
     }
@@ -157,7 +160,7 @@ pub const Scene = struct {
     id: UUID,
     entities: ArrayList(*SceneEntity),
 
-    pub const currentVersion: DocumentVersion = firstDocumentVersion + 1;
+    pub const currentVersion: DocumentVersion = firstDocumentVersion + 2;
 
     pub fn init(allocator: Allocator) Scene {
         return Scene{
@@ -191,6 +194,7 @@ pub const Scene = struct {
 
     pub const upgraders = .{
         @import("upgrades/0-1.zig"),
+        @import("upgrades/1-2.zig"),
     };
 
     pub const UpgradeContainer = upgrade.Container.init(&.{});

@@ -107,6 +107,8 @@ fn animationDetailsMenu(
         return animationDocument.deleteSelectedAnimation(context.allocator);
     }
     _ = z.inputText("Name", .{ .buf = animation.name.buffer });
+    _ = z.inputInt2("Offset", .{ .v = &animation.offset });
+    _ = z.inputInt2("Spacing", .{ .v = &animation.spacing });
     _ = z.inputInt2("Grid size", .{ .v = &animation.gridSize });
     if (z.inputFloat("Frame dur.", .{ .v = &animation.frameDuration })) {
         animationDocument.resetAnimation();
@@ -177,6 +179,20 @@ fn frameWindow(
     z.end();
 }
 
+fn getSourceRect(animation: Animation, frame: Frame) c.Rectangle {
+    const offset: @Vector(2, f32) = @floatFromInt(animation.offset);
+    const spacing: @Vector(2, f32) = @floatFromInt(animation.spacing);
+    const gridSize: @Vector(2, f32) = @floatFromInt(animation.gridSize);
+    const gridPosition: @Vector(2, f32) = @floatFromInt(frame.gridPos);
+    const sourceRectMin = gridPosition * (gridSize + spacing * @Vector(2, f32){ 2, 2 }) + offset;
+    return c.Rectangle{
+        .x = sourceRectMin[0],
+        .y = sourceRectMin[1],
+        .width = gridSize[0],
+        .height = gridSize[1],
+    };
+}
+
 fn drawFrame(
     context: *Context,
     animationDocument: *AnimationDocument,
@@ -185,16 +201,7 @@ fn drawFrame(
 ) void {
     const textureId = animationDocument.getTextureId().* orelse return;
     const texture = context.requestTextureById(textureId) catch return orelse return;
-
-    const fGridSize: @Vector(2, f32) = @floatFromInt(animation.gridSize);
-    const gridPosition = frame.gridPos;
-    const sourceRectMin = @as(@Vector(2, f32), @floatFromInt(gridPosition * animation.gridSize));
-    const sourceRect = c.Rectangle{
-        .x = sourceRectMin[0],
-        .y = sourceRectMin[1],
-        .width = fGridSize[0],
-        .height = fGridSize[1],
-    };
+    const sourceRect = getSourceRect(animation.*, frame);
     c.rlImGuiImageRect(
         @ptrCast(texture),
         animation.gridSize[0] * context.scale,
@@ -210,13 +217,12 @@ fn previewWindow(
 ) void {
     animationDocument.updatePreview();
 
-    const fGridSize: @Vector(2, f32) = @floatFromInt(animation.gridSize);
-    const fGridSizeScaled: @Vector(2, f32) = @floatFromInt(animation.gridSize * context.scaleV);
+    const gridSizeScaled: @Vector(2, f32) = @floatFromInt(animation.gridSize * context.scaleV);
     const padding = @Vector(2, f32){ 2, 2 } * @as(@Vector(2, f32), @floatFromInt(context.scaleV));
     z.setNextWindowSize(.{
         .cond = .always,
-        .w = fGridSizeScaled[0] + padding[0] * 2,
-        .h = fGridSizeScaled[1] + padding[1] * 2,
+        .w = gridSizeScaled[0] + padding[0] * 2,
+        .h = gridSizeScaled[1] + padding[1] * 2,
     });
     _ = z.begin("Preview", .{ .flags = .{ .no_title_bar = true, .no_scrollbar = true, .always_auto_resize = true } });
     defer z.end();
@@ -224,18 +230,7 @@ fn previewWindow(
     const textureId = animationDocument.getTextureId().* orelse return;
     const texture = context.requestTextureById(textureId) catch return orelse return;
     const currentFrame = animationDocument.getPreviewFrame() orelse return;
-
-    const gridPosition = currentFrame.gridPos;
-    const sourceRectMin = @as(
-        @Vector(2, f32),
-        @floatFromInt(gridPosition * animation.gridSize),
-    );
-    const sourceRect = c.Rectangle{
-        .x = sourceRectMin[0],
-        .y = sourceRectMin[1],
-        .width = fGridSize[0],
-        .height = fGridSize[1],
-    };
+    const sourceRect = getSourceRect(animation.*, currentFrame);
 
     z.setCursorPos(padding);
     c.rlImGuiImageRect(
@@ -263,17 +258,18 @@ fn handleAnimationInput(
     animationDocument: *AnimationDocument,
     animation: *Animation,
 ) void {
-    const gridPosition = utils.getMouseGridPositionWithSize(context, animation.gridSize);
+    const cellSize = animation.gridSize + animation.spacing * Vector{ 2, 2 };
+    const gridPosition = utils.getMouseGridPositionWithSize(context, cellSize);
     const textureId = animationDocument.getTextureId().* orelse return;
     const texture = context.requestTextureById(textureId) catch return orelse return;
 
     const textureSize: Vector = .{ texture.width, texture.height };
-    const textureGridSize: Vector = @divFloor(textureSize, animation.gridSize);
+    const textureGridSize: Vector = @divFloor(textureSize, cellSize);
 
     const isInBounds = @reduce(.And, gridPosition >= Vector{ 0, 0 }) and @reduce(.And, gridPosition < textureGridSize);
 
     if (isInBounds) {
-        utils.highlightHoveredCell(context, animation.gridSize, textureGridSize, false);
+        utils.highlightHoveredCell(context, cellSize, textureGridSize, false);
 
         if (z.isMouseClicked(.left)) {
             if (animationDocument.getSelectedFrame()) |frame| {

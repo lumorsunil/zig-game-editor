@@ -23,7 +23,7 @@ pub fn getEntityRect(context: *Context, entity: SceneEntity) rl.Rectangle {
     const entityPosition: @Vector(2, f32) = @floatFromInt(entity.position);
     const scaleVx, const scaleVy = switch (entity.type) {
         inline .exit, .entrance => |e| e.scale.?,
-        else => .{ 1, 1 },
+        else => entity.scale,
     };
     var size = SceneDocument.getSizeFromEntityType(context, entity.type) catch defaultEntitySize orelse defaultEntitySize;
     size.x *= scaleVx;

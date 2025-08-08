@@ -32,7 +32,7 @@ pub fn noProjectOpenedMenu(context: *Context) void {
 pub fn projectMenu(context: *Context, project: *Project) bool {
     if (z.beginMainMenuBar()) {
         defer z.endMainMenuBar();
-        if (z.beginMenu("Projects", true)) {
+        if (z.beginMenu("File", true)) {
             defer z.endMenu();
             if (z.selectable("New Project", .{})) {
                 context.newProject();
@@ -46,9 +46,20 @@ pub fn projectMenu(context: *Context, project: *Project) bool {
                 context.closeProject();
                 return true;
             }
+            z.separator();
+            if (z.selectable("Save All", .{})) {
+                context.saveAll();
+                return true;
+            }
         }
-        if (z.button("Project Options", .{})) {
-            project.isProjectOptionsOpen = true;
+        if (z.beginMenu("Edit", true)) {
+            defer z.endMenu();
+            if (z.selectable("Upgrade Project", .{})) {
+                context.upgradeProject();
+            }
+            if (z.selectable("Project Options", .{})) {
+                project.isProjectOptionsOpen = true;
+            }
         }
         z.sameLine(.{});
         if (z.button("Scene Map", .{})) {

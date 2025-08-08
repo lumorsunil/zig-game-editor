@@ -3,6 +3,7 @@ const z = @import("zgui");
 const lib = @import("lib");
 const Context = lib.Context;
 const PropertyObject = lib.PropertyObject;
+const PropertyArray = lib.PropertyArray;
 const Property = lib.Property;
 const PropertyFloat = lib.PropertyFloat;
 const PropertyInteger = lib.PropertyInteger;
@@ -51,6 +52,7 @@ fn dynamicPropertyEditor(
 ) void {
     switch (property.property) {
         .object => |*object| objectPropertyEditor(context, editorMode, object),
+        .array => |*array| arrayPropertyEditor(context, editorMode, array),
         .float => |*float| floatPropertyEditor(float),
         .integer => |*integer| integerPropertyEditor(integer),
         .string => |*string| stringPropertyEditor(string),
@@ -89,7 +91,7 @@ fn objectPropertyEditor(
                     .buf = key.buffer,
                 });
             } else {
-                z.text("Key {}", .{key});
+                z.text("Key: {}", .{key});
             }
             if (editorMode.canEditPropertySchema()) {
                 var propertyType = std.meta.activeTag(value.property);
@@ -105,6 +107,43 @@ fn objectPropertyEditor(
 
     if (propertyToDelete) |key| {
         object.deleteProperty(context.allocator, key);
+    }
+}
+
+fn arrayPropertyEditor(
+    context: *Context,
+    editorMode: PropertyEditorMode,
+    array: *PropertyArray,
+) void {
+    if (z.button("+", .{ .w = 24, .h = 24 })) {
+        array.addNewItem(context.allocator);
+    }
+
+    if (editorMode.canEditPropertySchema()) {
+        var propertyType = array.subType;
+        if (z.comboFromEnum("Sub Type", &propertyType)) {
+            array.setSubType(context.allocator, propertyType);
+        }
+    } else {
+        z.text("Sub Type: {s}", .{@tagName(array.subType)});
+    }
+
+    var itemToDelete: ?usize = null;
+
+    for (array.items.items, 0..) |*item, i| {
+        if (z.treeNode(&item.id.serializeZ())) {
+            defer z.treePop();
+            if (editorMode.canEditPropertySchema()) {
+                if (z.button("Delete Item", .{})) {
+                    itemToDelete = i;
+                }
+            }
+            dynamicPropertyEditor(context, editorMode, item);
+        }
+    }
+
+    if (itemToDelete) |i| {
+        array.deleteItem(context.allocator, i);
     }
 }
 

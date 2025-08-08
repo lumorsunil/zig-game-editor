@@ -15,7 +15,7 @@ pub const PersistentData = struct {
     textureId: ?UUID = null,
     animations: ArrayList(Animation),
 
-    pub const currentVersion: DocumentVersion = firstDocumentVersion + 1;
+    pub const currentVersion: DocumentVersion = firstDocumentVersion + 2;
 
     const initialAnimationsCapacity = 10;
 
@@ -50,6 +50,7 @@ pub const PersistentData = struct {
 
     pub const upgraders = .{
         @import("upgrades/0-1.zig"),
+        @import("upgrades/1-2.zig"),
     };
 
     pub const UpgradeContainer = upgrade.Container.init(&.{});

@@ -60,3 +60,15 @@ fn loadProject(self: *Context) !void {
 pub fn deinitContextProject(self: *Context) void {
     self.setProject(null);
 }
+
+pub fn upgradeProject(self: *Context) void {
+    const p = &(self.currentProject orelse return);
+
+    for (p.assetIndex.hashMap.map.keys()) |id| {
+        const document = self.requestDocumentById(id) orelse continue;
+        document.save(p) catch |err| {
+            self.showError("Could not upgrade document {?s}: {}", .{ self.getFilePathById(id), err });
+            return;
+        };
+    }
+}

@@ -10,5 +10,5 @@ pub const Document1 = struct {
     animations: []const Animation1,
 };
 
-const Animation1 = @import("0.zig").Animation0;
-const Frame1 = @import("0.zig").Frame0;
+pub const Animation1 = @import("0.zig").Animation0;
+pub const Frame1 = @import("0.zig").Frame0;
