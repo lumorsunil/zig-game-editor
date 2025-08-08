@@ -6,6 +6,7 @@ const IdArrayHashMap = lib.IdArrayHashMap;
 const DocumentTag = lib.DocumentTag;
 const Document = lib.Document;
 const cacheDirectoryName = lib.cacheDirectoryName;
+const projectJsonFileName = lib.optionsRelativePath;
 
 const indexJsonFileName = "index.json";
 
@@ -33,7 +34,8 @@ pub const AssetIndex = struct {
         projectDirectory: []const u8,
         cacheDirectory: []const u8,
     ) !void {
-        if (try self.loadExistingIndex(allocator, cacheDirectory)) return;
+        _ = cacheDirectory; // autofix
+        // if (try self.loadExistingIndex(allocator, cacheDirectory)) return;
         try self.rebuildIndex(allocator, projectDirectory);
     }
 
@@ -86,6 +88,7 @@ pub const AssetIndex = struct {
             switch (entry.kind) {
                 .file => {
                     if (std.mem.eql(u8, entry.path, indexJsonFileName)) continue;
+                    if (std.mem.eql(u8, entry.path, projectJsonFileName)) continue;
                     if (std.fs.path.dirname(entry.path)) |dirname| if (std.mem.eql(u8, dirname, cacheDirectoryName)) continue;
                     if (!std.mem.endsWith(u8, entry.path, ".json")) continue;
 
