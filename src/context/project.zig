@@ -3,6 +3,8 @@ const lib = @import("lib");
 const Context = lib.Context;
 const ContextError = lib.ContextError;
 const Project = lib.Project;
+const ProjectOptions = lib.ProjectOptions;
+const Vector = lib.Vector;
 
 pub fn newProject(self: *Context) void {
     const folder = self.selectFolder() orelse return;
@@ -71,4 +73,14 @@ pub fn upgradeProject(self: *Context) void {
             return;
         };
     }
+}
+
+const defaultTileSize: Vector = std.meta.fieldInfo(
+    ProjectOptions,
+    .tileSize,
+).defaultValue() orelse .{ 16, 16 };
+
+pub fn getTileSize(self: *Context) Vector {
+    const p = &(self.currentProject orelse return defaultTileSize);
+    return p.options.tileSize;
 }

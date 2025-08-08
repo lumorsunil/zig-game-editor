@@ -20,7 +20,6 @@ This is the editor I'm using when developing my game.
 ```zig
 // Set these to your liking
 pub const fontPath = "C:/Windows/Fonts/calibri.ttf";
-pub const tileSize = Vector{ 16, 16 };
 ```
 
 3. Run `zig build run`.

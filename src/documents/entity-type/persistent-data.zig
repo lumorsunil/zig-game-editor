@@ -12,8 +12,6 @@ const DocumentVersion = lib.documents.DocumentVersion;
 const firstDocumentVersion = lib.documents.firstDocumentVersion;
 const upgrade = lib.upgrade;
 
-const tileSize = config.tileSize;
-
 pub const EntityTypeIcon = struct {
     textureId: ?UUID,
     gridPosition: Vector,

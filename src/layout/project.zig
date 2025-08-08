@@ -82,5 +82,6 @@ fn projectOptionsUI(context: *Context, project: *Project) void {
         z.text("Default Tileset:", .{});
         z.sameLine(.{ .spacing = 8 });
         _ = utils.assetInput(.texture, context, &project.options.defaultTileset);
+        _ = z.dragInt2("Tilesize", .{ .v = &project.options.tileSize, .min = 1, .max = 128 });
     }
 }

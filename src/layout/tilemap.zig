@@ -11,6 +11,7 @@ const TileSource = lib.TileSource;
 const Action = lib.Action;
 const BrushTool = lib.tools.BrushTool;
 const SelectTool = lib.tools.SelectTool;
+const SceneMapError = lib.SceneMapError;
 const Vector = lib.Vector;
 const utils = lib.layouts.utils;
 const drawTilemap = lib.drawTilemap;
@@ -101,7 +102,10 @@ fn save(context: *Context, editor: *Editor, tilemapDocument: *TilemapDocument) v
     context.saveEditorFile(editor);
     context.updateThumbnailForCurrentDocument = true;
     context.sceneMap.generate(context) catch |err| {
-        context.showError("Could not generate scene map: {}", .{err});
+        switch (err) {
+            SceneMapError.NoValidScenesFound => {},
+            else => context.showError("Could not generate scene map: {}", .{err}),
+        }
     };
 }
 

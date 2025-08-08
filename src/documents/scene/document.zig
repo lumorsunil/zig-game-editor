@@ -14,8 +14,6 @@ const SceneEntity = @import("persistent-data.zig").SceneEntity;
 const SceneEntityType = @import("persistent-data.zig").SceneEntityType;
 const UUID = lib.UUIDSerializable;
 
-const tileSize = config.tileSize;
-
 pub const SceneDocument = struct {
     document: DocumentType,
 
@@ -60,6 +58,7 @@ pub const SceneDocument = struct {
 
     pub fn drawEntity(_: *SceneDocument, context: *Context, entity: *SceneEntity) void {
         const scale: f32 = @floatFromInt(context.scale);
+        const tileSize = context.getTileSize();
         switch (entity.type) {
             .custom => |c| {
                 const entityType = context.requestDocumentTypeById(.entityType, c.entityTypeId) catch return orelse {
@@ -129,6 +128,7 @@ pub const SceneDocument = struct {
         tag: std.meta.FieldEnum(SceneEntityType),
         position: Vector,
     ) void {
+        const tileSize = context.getTileSize();
         switch (tag) {
             .custom => {},
             inline .exit, .entrance => {

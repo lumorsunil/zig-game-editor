@@ -4,7 +4,6 @@ const UUID = lib.UUIDSerializable;
 
 // Set these to your liking
 pub const fontPath = "C:/Windows/Fonts/calibri.ttf";
-pub const tileSize = Vector{ 16, 16 };
 
 // UI stuff
 pub const screenSize = .{ 1024, 800 };

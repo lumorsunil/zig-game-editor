@@ -4,9 +4,11 @@ const lib = @import("lib");
 const UUID = lib.UUIDSerializable;
 const Project = lib.Project;
 const optionsRelativePath = lib.optionsRelativePath;
+const Vector = lib.Vector;
 
 pub const ProjectOptions = struct {
     defaultTileset: ?UUID = null,
+    tileSize: Vector = .{ 16, 16 },
 
     pub const empty: ProjectOptions = .{};
 

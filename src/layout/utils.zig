@@ -16,8 +16,10 @@ const UUID = lib.UUIDSerializable;
 const Node = lib.Node;
 const Vector = lib.Vector;
 
-const tileSize = config.tileSize;
-const defaultEntitySize = rl.Vector2.init(@floatFromInt(tileSize[0]), @floatFromInt(tileSize[1]));
+fn getDefaultEntitySize(context: *Context) rl.Vector2 {
+    const tileSize = context.getTileSize();
+    return rl.Vector2.init(@floatFromInt(tileSize[0]), @floatFromInt(tileSize[1]));
+}
 
 pub fn getEntityRect(context: *Context, entity: SceneEntity) rl.Rectangle {
     const entityPosition: @Vector(2, f32) = @floatFromInt(entity.position);
@@ -25,6 +27,7 @@ pub fn getEntityRect(context: *Context, entity: SceneEntity) rl.Rectangle {
         inline .exit, .entrance => |e| e.scale.?,
         else => entity.scale,
     };
+    const defaultEntitySize = getDefaultEntitySize(context);
     var size = SceneDocument.getSizeFromEntityType(context, entity.type) catch defaultEntitySize orelse defaultEntitySize;
     size.x *= scaleVx;
     size.y *= scaleVy;
@@ -69,6 +72,7 @@ pub fn getMousePosition(context: *Context, camera: rl.Camera2D) Vector {
 }
 
 pub fn getMouseSceneGridPosition(context: *Context) Vector {
+    const tileSize = context.getTileSize();
     const editor = context.getCurrentEditor().?;
     const mp = getMousePosition(context, editor.camera);
     const ftr: @Vector(2, f32) = @floatFromInt(mp);
@@ -80,7 +84,7 @@ pub fn getMouseSceneGridPosition(context: *Context) Vector {
 }
 
 pub fn getMouseGridPosition(context: *Context) Vector {
-    return getMouseGridPositionWithSize(context, tileSize);
+    return getMouseGridPositionWithSize(context, context.getTileSize());
 }
 
 pub fn getMouseGridPositionWithSize(context: *Context, cellSize: Vector) Vector {
@@ -99,6 +103,8 @@ pub fn gridPositionToEntityPosition(
     gridPosition: Vector,
     entityType: SceneEntityType,
 ) Vector {
+    const tileSize = context.getTileSize();
+    const defaultEntitySize = getDefaultEntitySize(context);
     const fTileSize: @Vector(2, f32) = @floatFromInt(tileSize);
     const rlEntitySize = SceneDocument.getSizeFromEntityType(context, entityType) catch defaultEntitySize orelse defaultEntitySize;
     const entitySize = @Vector(2, f32){ rlEntitySize.x, rlEntitySize.y };
@@ -106,7 +112,8 @@ pub fn gridPositionToEntityPosition(
     return @intFromFloat(fTileSize * @as(@Vector(2, f32), @floatFromInt(gridPosition)) - fTileSize * half + entitySize * half);
 }
 
-pub fn gridPositionToCenterOfTile(gridPosition: Vector) Vector {
+pub fn gridPositionToCenterOfTile(context: *Context, gridPosition: Vector) Vector {
+    const tileSize = context.getTileSize();
     const fTileSize: @Vector(2, f32) = @floatFromInt(tileSize);
     const half = @Vector(2, f32){ 0.5, 0.5 };
     return @intFromFloat(fTileSize * @as(@Vector(2, f32), @floatFromInt(gridPosition)) + fTileSize * half);

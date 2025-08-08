@@ -12,14 +12,13 @@ const SceneEntity = lib.documents.scene.SceneEntity;
 const SceneEntityType = lib.documents.scene.SceneEntityType;
 const SceneEntityExit = lib.documents.scene.SceneEntityExit;
 const SceneEntityEntrance = lib.documents.scene.SceneEntityEntrance;
+const SceneMapError = lib.SceneMapError;
 const propertyEditor = @import("property.zig").propertyEditor;
 const drawIconMenu = @import("entity-type.zig").drawIconMenu;
 const Vector = lib.Vector;
 const Node = lib.Node;
 const UUID = lib.UUIDSerializable;
 const utils = @import("utils.zig");
-
-const tileSize = config.tileSize;
 
 pub const LayoutScene = LayoutGeneric(.scene, draw, menu, handleInput);
 
@@ -61,6 +60,7 @@ fn drawDragPayload(context: *Context, sceneDocument: *SceneDocument) void {
 }
 
 fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void {
+    const tileSize = context.getTileSize();
     const screenSize: @Vector(2, f32) = @floatFromInt(Vector{ rl.getScreenWidth(), rl.getScreenHeight() });
     z.setNextWindowPos(.{ .x = 0, .y = config.editorContentOffset });
     z.setNextWindowSize(.{ .w = 200, .h = screenSize[1] - config.editorContentOffset });
@@ -84,7 +84,10 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
         context.saveEditorFile(editor);
         context.updateThumbnailForCurrentDocument = true;
         context.sceneMap.generate(context) catch |err| {
-            context.showError("Could not generate scene map: {}", .{err});
+            switch (err) {
+                SceneMapError.NoValidScenesFound => {},
+                else => context.showError("Could not generate scene map: {}", .{err}),
+            }
         };
     }
 
