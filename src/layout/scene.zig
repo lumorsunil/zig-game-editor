@@ -112,6 +112,10 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
 
         // Entity details menu
         z.text("Entity: {s}", .{@tagName(selectedEntity.type)});
+        var idAsString = selectedEntity.id.serializeZ();
+        _ = z.inputText("Entity Id:", .{
+            .buf = &idAsString,
+        });
         if (selectedEntity.type == .custom) {
             const entityType = context.requestDocumentTypeById(.entityType, selectedEntity.type.custom.entityTypeId) catch unreachable orelse unreachable;
             z.text("Custom: {}", .{entityType.getName()});
