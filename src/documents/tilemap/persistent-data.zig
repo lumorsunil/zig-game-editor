@@ -18,6 +18,27 @@ pub const TilemapData = struct {
 
     pub const currentVersion: DocumentVersion = firstDocumentVersion + 1;
 
+    pub const upgraders = .{
+        @import("upgrades/0-1.zig"),
+    };
+
+    pub const UpgradeContainer = upgrade.Container.init(&.{
+        struct {
+            pub fn upgradeAddHistory(
+                allocator: Allocator,
+                from: @import("versions/1.zig").Document1,
+                container: upgrade.Container,
+            ) TilemapData {
+                return TilemapData{
+                    .version = currentVersion,
+                    .id = from.id,
+                    .tilemap = upgrade.upgradeValue(Tilemap, allocator, from.tilemap, container),
+                    .history = .init(),
+                };
+            }
+        },
+    });
+
     const defaultSize: Vector = .{ 35, 17 };
     const defaultTileSize: Vector = .{ 16, 16 };
 
@@ -44,25 +65,4 @@ pub const TilemapData = struct {
 
         return cloned;
     }
-
-    pub const upgraders = .{
-        @import("upgrades/0-1.zig"),
-    };
-
-    pub const UpgradeContainer = upgrade.Container.init(&.{
-        struct {
-            pub fn upgradeAddHistory(
-                allocator: Allocator,
-                from: @import("versions/1.zig").Document1,
-                container: upgrade.Container,
-            ) TilemapData {
-                return TilemapData{
-                    .version = currentVersion,
-                    .id = from.id,
-                    .tilemap = upgrade.upgradeValue(Tilemap, allocator, from.tilemap, container),
-                    .history = .init(),
-                };
-            }
-        },
-    });
 };

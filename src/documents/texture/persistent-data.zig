@@ -18,6 +18,12 @@ pub const TexturePersistentData = struct {
 
     pub const currentVersion: DocumentVersion = firstDocumentVersion + 1;
 
+    pub const upgraders = .{
+        @import("upgrades/0-1.zig"),
+    };
+
+    pub const UpgradeContainer = upgrade.Container.init(&.{});
+
     pub fn init(allocator: Allocator) TexturePersistentData {
         return TexturePersistentData{
             .version = currentVersion,
@@ -35,10 +41,4 @@ pub const TexturePersistentData = struct {
         cloned.textureFilePath = self.textureFilePath.clone(allocator);
         return cloned;
     }
-
-    pub const upgraders = .{
-        @import("upgrades/0-1.zig"),
-    };
-
-    pub const UpgradeContainer = upgrade.Container.init(&.{});
 };

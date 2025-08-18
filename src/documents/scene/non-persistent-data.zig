@@ -10,6 +10,11 @@ const SceneEntity = @import("persistent-data.zig").SceneEntity;
 const UUID = lib.UUIDSerializable;
 const config = @import("lib").config;
 
+pub const SceneTool = union(enum) {
+    select,
+    createPoint,
+};
+
 const SetEntityWindow = struct {
     isOpen: bool = false,
     sceneTarget: ?*?UUID = null,
@@ -37,6 +42,7 @@ pub const SceneNonPersistentData = struct {
     dragStartPoint: ?Vector = null,
     isDragging: bool = false,
     setEntityWindow: SetEntityWindow = .{},
+    currentTool: SceneTool = .select,
 
     pub const setEntityReferenceWindowHeight = SetEntityWindow.setEntityReferenceWindowHeight;
     pub const setEntityReferenceWindowWidth = SetEntityWindow.setEntityReferenceWindowHeight;

@@ -17,6 +17,13 @@ pub const PersistentData = struct {
 
     pub const currentVersion: DocumentVersion = firstDocumentVersion + 2;
 
+    pub const upgraders = .{
+        @import("upgrades/0-1.zig"),
+        @import("upgrades/1-2.zig"),
+    };
+
+    pub const UpgradeContainer = upgrade.Container.init(&.{});
+
     const initialAnimationsCapacity = 10;
 
     pub fn init(allocator: Allocator) PersistentData {
@@ -47,13 +54,6 @@ pub const PersistentData = struct {
 
         return cloned;
     }
-
-    pub const upgraders = .{
-        @import("upgrades/0-1.zig"),
-        @import("upgrades/1-2.zig"),
-    };
-
-    pub const UpgradeContainer = upgrade.Container.init(&.{});
 
     pub fn jsonStringify(self: *const @This(), jw: anytype) !void {
         try json.writeObject(self.*, jw);

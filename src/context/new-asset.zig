@@ -24,7 +24,7 @@ pub fn newAsset(
 
     try self.checkFileExists(project, normalized);
 
-    var document = try self.createDocument(documentType, normalized);
+    var document = try self.createDocument(documentType, name, normalized);
     errdefer document.deinit(self.allocator);
     const documentId = document.getId();
 
@@ -82,13 +82,14 @@ fn checkFileExists(self: *Context, project: *Project, filePath: []const u8) !voi
 fn createDocument(
     self: *Context,
     comptime documentType: DocumentTag,
+    name: []const u8,
     filePath: [:0]const u8,
 ) !Document {
     var document = Document.init();
     errdefer document.deinit(self.allocator);
     document.newContent(self.allocator, documentType);
     document.content.?.load(filePath);
-    self.onNewAsset(&document) catch |err| {
+    self.onNewAsset(&document, name) catch |err| {
         self.showError("Could not create {s} asset {s}: {}", .{ @tagName(documentType), filePath, err });
         return err;
     };
@@ -96,7 +97,7 @@ fn createDocument(
     return document;
 }
 
-fn onNewAsset(self: *Context, document: *Document) !void {
+fn onNewAsset(self: *Context, document: *Document, name: []const u8) !void {
     // Special case for creating new scene documents;
     // Add a tilemap entity as the first entity.
     switch (document.content.?) {
@@ -108,6 +109,9 @@ fn onNewAsset(self: *Context, document: *Document) !void {
                 .{ .tilemap = SceneEntityTilemap.init() },
             );
             try scene.getEntities().append(self.allocator, entity);
+        },
+        .entityType => |*entityType| {
+            entityType.getName().setFmt("{s}", .{name});
         },
         else => {},
     }

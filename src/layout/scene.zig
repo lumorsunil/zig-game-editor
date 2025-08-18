@@ -81,25 +81,20 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
     z.text("{d:0.0},{d:0.0}", .{ editor.camera.target.x, editor.camera.target.y });
 
     if (z.button("Save", .{})) {
-        context.saveEditorFile(editor);
-        context.updateThumbnailForCurrentDocument = true;
-        context.sceneMap.generate(context) catch |err| {
-            switch (err) {
-                SceneMapError.NoValidScenesFound => {},
-                else => context.showError("Could not generate scene map: {}", .{err}),
-            }
-        };
+        save(context, editor);
     }
 
     if (sceneDocument.getTilemapId()) |tilemapId| _ = utils.assetInput(.tilemap, context, tilemapId);
 
     if (z.button("Play", .{})) {
-        context.play();
-    } else if (context.playState != .notRunning) {
+        context.playState = .startNextFrame;
+    }
+
+    if (context.playState != .notRunning) {
         z.sameLine(.{});
 
         switch (context.playState) {
-            .starting => z.text("Starting...", .{}),
+            .starting, .startNextFrame => z.text("Starting...", .{}),
             .errorStarting => z.textColored(.{ 1, 0, 0, 1 }, "Error Starting", .{}),
             .running => z.textColored(.{ 0, 1, 0, 1 }, "Running", .{}),
             .crash => z.textColored(.{ 1, 0, 0, 1 }, "Crashed", .{}),
@@ -149,6 +144,11 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
                     .buf = entrance.key.buffer,
                 });
             },
+            .point => |*p| {
+                _ = z.inputText("Key", .{
+                    .buf = p.key.buffer,
+                });
+            },
             else => {},
         }
         switch (selectedEntity.type) {
@@ -186,6 +186,12 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
 
                     z.endDragDropSource();
                 }
+                if (z.isItemHovered(.{ .delay_short = true })) {
+                    if (z.beginTooltip()) {
+                        z.text("Exit", .{});
+                    }
+                    z.endTooltip();
+                }
             },
             .entrance => {
                 const pos: @Vector(2, f32) = z.getCursorPos();
@@ -208,12 +214,41 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
                     }
                     z.endDragDropSource();
                 }
+                if (z.isItemHovered(.{ .delay_short = true })) {
+                    if (z.beginTooltip()) {
+                        z.text("Entrance", .{});
+                    }
+                    z.endTooltip();
+                }
             },
-            .tilemap, .custom => {},
+            .tilemap, .custom, .point => unreachable,
         }
     }
 
+    z.separatorText("Tools");
+    z.beginDisabled(.{ .disabled = sceneDocument.getTool() == .select });
+    if (z.button("Select", .{})) {
+        sceneDocument.setTool(.select);
+    }
+    z.endDisabled();
+    z.beginDisabled(.{ .disabled = sceneDocument.getTool() == .createPoint });
+    if (z.button("Create Point", .{})) {
+        sceneDocument.setTool(.createPoint);
+    }
+    z.endDisabled();
+
     setEntityReferenceWindow(context, sceneDocument);
+}
+
+fn save(context: *Context, editor: *Editor) void {
+    context.saveEditorFile(editor);
+    context.updateThumbnailForCurrentDocument = true;
+    context.sceneMap.generate(context) catch |err| {
+        switch (err) {
+            SceneMapError.NoValidScenesFound => {},
+            else => context.showError("Could not generate scene map: {}", .{err}),
+        }
+    };
 }
 
 fn setEntityReferenceWindow(context: *Context, sceneDocument: *SceneDocument) void {
@@ -325,15 +360,50 @@ fn setEntityReferenceWindowRenderScene(
 
 fn handleInput(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void {
     utils.cameraControls(&editor.camera);
+
     sceneDocumentHandleInputCreateEntity(context, editor, sceneDocument);
     sceneDocumentHandleInputCreateEntityFromAssetsManager(context, editor, sceneDocument);
+
+    switch (sceneDocument.getTool()) {
+        .select => handleInputToolSelect(context, editor, sceneDocument),
+        .createPoint => handleInputToolCreatePoint(context, editor, sceneDocument),
+    }
+
+    if (rl.isKeyPressed(.f5)) {
+        context.playState = .startNextFrame;
+    } else if (rl.isKeyDown(.left_control) or rl.isKeyDown(.right_control)) {
+        if (rl.isKeyPressed(.s)) {
+            save(context, editor);
+        }
+    }
+}
+
+fn handleInputToolSelect(
+    context: *Context,
+    editor: *Editor,
+    sceneDocument: *SceneDocument,
+) void {
     sceneDocumentHandleInputSelectEntity(context, editor, sceneDocument);
     sceneDocumentHandleInputMoveEntity(context, editor, sceneDocument);
     sceneDocumentHandleInputDeleteEntity(context, sceneDocument);
+}
 
-    if (rl.isKeyPressed(.f5)) {
-        context.play();
-    }
+fn handleInputToolCreatePoint(
+    context: *Context,
+    editor: *Editor,
+    sceneDocument: *SceneDocument,
+) void {
+    handleInputCreatePoint(context, editor, sceneDocument);
+}
+
+fn handleInputCreatePoint(
+    context: *Context,
+    editor: *Editor,
+    sceneDocument: *SceneDocument,
+) void {
+    if (!rl.isMouseButtonPressed(.left)) return;
+    const position = utils.getMousePosition(context, editor.camera);
+    _ = sceneDocument.addEntity(context.allocator, position, .{ .point = .init(context.allocator) });
 }
 
 fn sceneDocumentHandleInputCreateEntity(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void {
@@ -341,7 +411,6 @@ fn sceneDocumentHandleInputCreateEntity(context: *Context, editor: *Editor, scen
     const payload = dragPayload.* orelse return;
 
     if (rl.isMouseButtonReleased(.left)) {
-        const entity = context.allocator.create(SceneEntity) catch unreachable;
         const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(
             context,
             editor.camera,
@@ -350,9 +419,10 @@ fn sceneDocumentHandleInputCreateEntity(context: *Context, editor: *Editor, scen
             utils.getMouseSceneGridPosition(context),
             payload,
         );
-        entity.* = SceneEntity.init(position, payload);
-        sceneDocument.getEntities().append(context.allocator, entity) catch unreachable;
+        const entity = sceneDocument.addEntity(context.allocator, position, payload);
         dragPayload.* = null;
+        sceneDocument.setTool(.select);
+        sceneDocument.selectEntity(entity, context.allocator);
     }
 }
 
@@ -371,7 +441,6 @@ fn sceneDocumentHandleInputCreateEntityFromAssetsManager(
     const id = fileNode.id orelse return;
 
     if (rl.isMouseButtonReleased(.left)) {
-        const entity = context.allocator.create(SceneEntity) catch unreachable;
         const entityTypeTag = SceneEntityType{ .custom = .init(context, id) };
         const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(
             context,
@@ -381,9 +450,9 @@ fn sceneDocumentHandleInputCreateEntityFromAssetsManager(
             utils.getMouseSceneGridPosition(context),
             entityTypeTag,
         );
-        entity.* = SceneEntity.init(position, entityTypeTag);
-        sceneDocument.getEntities().append(context.allocator, entity) catch unreachable;
-        std.log.debug("created entity {}", .{entity.id});
+        const entity = sceneDocument.addEntity(context.allocator, position, entityTypeTag);
+        sceneDocument.setTool(.select);
+        sceneDocument.selectEntity(entity, context.allocator);
     }
 }
 
@@ -403,6 +472,8 @@ fn sceneDocumentHandleInputSelectEntity(
                 sceneDocument.setDragStartPoint(utils.getMousePosition(context, editor.camera));
                 break;
             }
+        } else {
+            sceneDocument.deselectEntities();
         }
     }
 }

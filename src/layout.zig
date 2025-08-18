@@ -113,6 +113,11 @@ fn editorHandleInput(context: *Context, editor: *Editor) void {
 
 fn startOfFrame(context: *Context) void {
     updateCameraOffset(context);
+    if (context.playState == .startNextFrame) {
+        context.playState = .starting;
+    } else if (context.playState == .starting) {
+        context.play();
+    }
 }
 
 fn updateCameraOffset(context: *Context) void {

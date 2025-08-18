@@ -1,6 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayListUnmanaged;
+const rl = @import("raylib");
 const lib = @import("lib");
 const UUID = lib.UUIDSerializable;
 const Vector = lib.Vector;
@@ -42,12 +43,42 @@ pub const SceneEntity = struct {
             .type = self.type.clone(allocator),
         };
     }
+
+    const defaultResizable = true;
+
+    pub fn isResizable(self: SceneEntity) bool {
+        switch (self.type) {
+            inline else => |t| {
+                if (@hasDecl(@TypeOf(t), "isResizable")) {
+                    return t.isResizable();
+                } else {
+                    return defaultResizable;
+                }
+            },
+        }
+    }
+
+    pub fn isPointInEntityRect(
+        self: SceneEntity,
+        point: @Vector(2, f32),
+    ) bool {
+        switch (self.type) {
+            inline else => |t| {
+                if (@hasDecl(@TypeOf(t), "isPointInEntityRect")) {
+                    return t.isPointInEntityRect(@floatFromInt(self.position), point);
+                } else {
+                    return false;
+                }
+            },
+        }
+    }
 };
 
 pub const SceneEntityType = union(enum) {
     custom: SceneEntityCustom,
     exit: SceneEntityExit,
     entrance: SceneEntityEntrance,
+    point: SceneEntityPoint,
     tilemap: SceneEntityTilemap,
 
     pub fn deinit(self: *SceneEntityType, allocator: Allocator) void {
@@ -141,6 +172,69 @@ pub const SceneEntityEntrance = struct {
     }
 };
 
+pub const SceneEntityPoint = struct {
+    key: StringZ,
+
+    pub fn init(allocator: Allocator) SceneEntityPoint {
+        return SceneEntityPoint{
+            .key = .initFmt(allocator, "New Point", .{}),
+        };
+    }
+
+    pub fn deinit(self: SceneEntityPoint, allocator: Allocator) void {
+        self.key.deinit(allocator);
+    }
+
+    pub fn clone(self: SceneEntityPoint, allocator: Allocator) SceneEntityPoint {
+        return SceneEntityPoint{
+            .key = self.key.clone(allocator),
+        };
+    }
+
+    pub fn isResizable(_: SceneEntityPoint) bool {
+        return false;
+    }
+
+    pub fn getLabelRect(self: SceneEntityPoint, position: @Vector(2, f32)) rl.Rectangle {
+        var buffer: [256:0]u8 = undefined;
+        const text = std.fmt.bufPrintZ(&buffer, "{}", .{self.key}) catch unreachable;
+        const textHeight = 24;
+        const textWidth: f32 = @floatFromInt(rl.measureText(text, textHeight));
+        const textPosition = rl.Vector2.init(position[0] - textWidth / 2, position[1] - textHeight - 4);
+
+        const textRec = rl.Rectangle.init(
+            textPosition.x,
+            textPosition.y,
+            textWidth,
+            textHeight,
+        );
+
+        return textRec;
+    }
+
+    pub fn drawLabel(self: SceneEntityPoint, textRec: rl.Rectangle) void {
+        var buffer: [256:0]u8 = undefined;
+        const text = std.fmt.bufPrintZ(&buffer, "{}", .{self.key}) catch unreachable;
+
+        rl.drawRectanglePro(textRec, rl.Vector2.zero(), 0, rl.Color.black.alpha(0.5));
+        rl.drawTextEx(rl.getFontDefault() catch unreachable, text, .{ .x = textRec.x, .y = textRec.y }, textRec.height, 2, rl.Color.white.alpha(0.5));
+    }
+
+    pub fn isPointInEntityRect(
+        self: SceneEntityPoint,
+        entityPosition: @Vector(2, f32),
+        point: @Vector(2, f32),
+    ) bool {
+        var textRec = self.getLabelRect(entityPosition);
+        textRec.x += textRec.width / 2 - textRec.width / 8;
+        textRec.width /= 4;
+        textRec.y += textRec.height / 2 - textRec.height / 8;
+        textRec.height /= 4;
+        textRec.y += textRec.height * 2;
+        return rl.checkCollisionPointRec(.{ .x = point[0], .y = point[1] }, textRec);
+    }
+};
+
 pub const SceneEntityTilemap = struct {
     tilemapId: ?UUID,
 
@@ -160,7 +254,15 @@ pub const Scene = struct {
     id: UUID,
     entities: ArrayList(*SceneEntity),
 
-    pub const currentVersion: DocumentVersion = firstDocumentVersion + 2;
+    pub const currentVersion: DocumentVersion = firstDocumentVersion + 3;
+
+    pub const upgraders = .{
+        @import("upgrades/0-1.zig"),
+        @import("upgrades/1-2.zig"),
+        @import("upgrades/2-3.zig"),
+    };
+
+    pub const UpgradeContainer = upgrade.Container.init(&.{});
 
     pub fn init(allocator: Allocator) Scene {
         return Scene{
@@ -191,13 +293,6 @@ pub const Scene = struct {
 
         return cloned;
     }
-
-    pub const upgraders = .{
-        @import("upgrades/0-1.zig"),
-        @import("upgrades/1-2.zig"),
-    };
-
-    pub const UpgradeContainer = upgrade.Container.init(&.{});
 
     pub fn jsonStringify(self: *const @This(), jw: anytype) !void {
         try json.writeObject(self.*, jw);

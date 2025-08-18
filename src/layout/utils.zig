@@ -125,10 +125,18 @@ pub fn isMousePositionInsideEntityRect(
     entity: SceneEntity,
 ) bool {
     const point: @Vector(2, f32) = @floatFromInt(getMousePosition(context, camera));
+    return isPointInEntityRect(context, entity, point);
+}
+
+pub fn isPointInEntityRect(
+    context: *Context,
+    entity: SceneEntity,
+    point: @Vector(2, f32),
+) bool {
     const rlPoint = rl.Vector2.init(point[0], point[1]);
     const rect = getEntityRect(context, entity);
 
-    return rl.checkCollisionPointRec(rlPoint, rect);
+    return rl.checkCollisionPointRec(rlPoint, rect) or entity.isPointInEntityRect(point);
 }
 
 pub fn capitalize(allocator: Allocator, s: []const u8) []const u8 {

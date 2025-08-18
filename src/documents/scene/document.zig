@@ -9,6 +9,7 @@ const Vector = lib.Vector;
 const drawTilemap = lib.drawTilemap;
 const Scene = @import("persistent-data.zig").Scene;
 const NonPersistentData = @import("non-persistent-data.zig").SceneNonPersistentData;
+const SceneTool = @import("non-persistent-data.zig").SceneTool;
 const DocumentGeneric = lib.documents.DocumentGeneric;
 const SceneEntity = @import("persistent-data.zig").SceneEntity;
 const SceneEntityType = @import("persistent-data.zig").SceneEntityType;
@@ -48,6 +49,7 @@ pub const SceneDocument = struct {
         return switch (entityType) {
             .exit => rl.Vector2.init(@floatFromInt(tileSize[0]), @floatFromInt(tileSize[1])),
             .entrance => rl.Vector2.init(@floatFromInt(tileSize[0]), @floatFromInt(tileSize[1])),
+            .point => rl.Vector2.init(1, 1),
             .tilemap => unreachable,
             .custom => |c| {
                 const document = try context.requestDocumentTypeById(.entityType, c.entityTypeId) orelse return null;
@@ -103,6 +105,23 @@ pub const SceneDocument = struct {
                 const position = entity.position - tilemapSizeHalf;
                 drawTilemap(context, tilemapDocument, position, context.scale, true);
             },
+            .point => |p| {
+                const sizeInt = Vector{ 1, 1 } * context.scaleV;
+                const size: @Vector(2, f32) = @floatFromInt(sizeInt);
+                const position: @Vector(2, f32) = @floatFromInt(entity.position * context.scaleV - sizeInt / Vector{ 2, 2 });
+
+                const rec = rl.Rectangle.init(
+                    position[0],
+                    position[1],
+                    size[0],
+                    size[1],
+                );
+
+                const textRec = p.getLabelRect(position);
+
+                p.drawLabel(textRec);
+                rl.drawRectanglePro(rec, rl.Vector2.zero(), 0, rl.Color.white.alpha(0.5));
+            },
             inline .exit, .entrance => |e| {
                 const sizeInt = tileSize * context.scaleV;
                 const scaledSizeInt = sizeInt * @as(Vector, @intFromFloat(e.scale.?));
@@ -131,7 +150,7 @@ pub const SceneDocument = struct {
     ) void {
         const tileSize = context.getTileSize();
         switch (tag) {
-            .custom => {},
+            .custom, .tilemap, .point => {},
             inline .exit, .entrance => {
                 const sizeInt = tileSize * context.scaleV;
                 const size: @Vector(2, f32) = @floatFromInt(sizeInt);
@@ -148,7 +167,6 @@ pub const SceneDocument = struct {
 
                 rl.drawRectanglePro(rec, rl.Vector2.zero(), 0, color);
             },
-            .tilemap => {},
         }
     }
 
@@ -160,9 +178,25 @@ pub const SceneDocument = struct {
         return &self.document.nonPersistentData.selectedEntities;
     }
 
+    pub fn addEntity(
+        self: *SceneDocument,
+        allocator: Allocator,
+        position: Vector,
+        entityType: SceneEntityType,
+    ) *SceneEntity {
+        const entity = allocator.create(SceneEntity) catch unreachable;
+        entity.* = SceneEntity.init(position, entityType);
+        self.getEntities().append(allocator, entity) catch unreachable;
+        return entity;
+    }
+
     pub fn selectEntity(self: *SceneDocument, entity: *SceneEntity, allocator: Allocator) void {
-        self.getSelectedEntities().clearRetainingCapacity();
+        self.deselectEntities();
         self.getSelectedEntities().append(allocator, entity) catch unreachable;
+    }
+
+    pub fn deselectEntities(self: *SceneDocument) void {
+        self.getSelectedEntities().clearRetainingCapacity();
     }
 
     pub fn deleteEntity(self: *SceneDocument, allocator: Allocator, entity: *SceneEntity) void {
@@ -290,5 +324,14 @@ pub const SceneDocument = struct {
         }
 
         return null;
+    }
+
+    pub fn setTool(self: *SceneDocument, newTool: SceneTool) void {
+        self.deselectEntities();
+        self.document.nonPersistentData.currentTool = newTool;
+    }
+
+    pub fn getTool(self: SceneDocument) SceneTool {
+        return self.document.nonPersistentData.currentTool;
     }
 };

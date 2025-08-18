@@ -10,15 +10,17 @@ const Entity2 = @import("../versions/2.zig").Entity2;
 
 pub const DocumentPrev = Document1;
 pub const DocumentNext = Document2;
+const EntityNext = Entity2;
+const EntityPrev = Entity1;
 
 pub fn upgrader(
     allocator: Allocator,
     prev: DocumentPrev,
     _: upgrade.Container,
 ) DocumentNext {
-    const entities = allocator.alloc(Entity2, prev.entities.len) catch unreachable;
+    const entities = allocator.alloc(EntityNext, prev.entities.len) catch unreachable;
     defer allocator.free(prev.entities);
-    for (0..prev.entities.len) |i| entities[i] = Entity2{
+    for (0..prev.entities.len) |i| entities[i] = EntityNext{
         .id = prev.entities[i].id,
         .position = prev.entities[i].position,
         .scale = .{ 1, 1 },

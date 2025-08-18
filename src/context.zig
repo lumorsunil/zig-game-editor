@@ -18,6 +18,7 @@ const SceneMap = lib.SceneMap;
 
 pub const PlayState = enum {
     notRunning,
+    startNextFrame,
     starting,
     errorStarting,
     running,
