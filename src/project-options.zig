@@ -7,6 +7,7 @@ const optionsRelativePath = lib.optionsRelativePath;
 const Vector = lib.Vector;
 
 pub const ProjectOptions = struct {
+    entryScene: ?UUID = null,
     defaultTileset: ?UUID = null,
     tileSize: Vector = .{ 16, 16 },
     tilesetPadding: u32 = 4,

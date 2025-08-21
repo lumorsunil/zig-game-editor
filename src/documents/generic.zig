@@ -187,7 +187,8 @@ pub fn DocumentGeneric(
 
             switch (version) {
                 inline firstDocumentVersion...PersistentData.currentVersion => |v| {
-                    const DocumentT = upgrade.documentVersions(PersistentData)[v];
+                    const documentVersions = upgrade.documentVersions(PersistentData);
+                    const DocumentT = documentVersions[v];
                     const prev = try allocator.create(DocumentT);
                     errdefer allocator.destroy(prev);
                     prev.* = try json.parseFromSliceWithErrorReportingLeaky(
@@ -208,7 +209,7 @@ pub fn DocumentGeneric(
             fromVersion: DocumentVersion,
         ) !void {
             if (endVersion == firstDocumentVersion) {
-                try upgradeIntermediate(allocator, current, firstDocumentVersion);
+                // try upgradeIntermediate(allocator, current, firstDocumentVersion);
                 return;
             }
 

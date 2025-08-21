@@ -255,6 +255,7 @@ fn nodeDrawThumbnail(context: *Context, node: *Node) void {
                     return;
                 },
                 .animation, .entityType, .tilemap, .scene => context.requestThumbnailById(id) catch return,
+                .sound, .font => return,
             };
             c.rlImGuiImageSize(@ptrCast(thumbnail), iconSize, iconSize);
         },
@@ -273,6 +274,14 @@ fn newAssetUI(context: *Context) void {
         }
         if (z.button("Texture", .{ .w = newAssetItemWidth, .h = 24 })) {
             createNewTextureAsset(context);
+            z.closeCurrentPopup();
+        }
+        if (z.button("Sound", .{ .w = newAssetItemWidth, .h = 24 })) {
+            createNewSoundAsset(context);
+            z.closeCurrentPopup();
+        }
+        if (z.button("Font", .{ .w = newAssetItemWidth, .h = 24 })) {
+            createNewFontAsset(context);
             z.closeCurrentPopup();
         }
         if (z.button("Scene", .{ .w = newAssetItemWidth, .h = 24 })) {
@@ -360,6 +369,46 @@ fn createNewTextureAsset(context: *Context) void {
         document.save(&context.currentProject.?) catch |err| {
             context.showError(
                 "Could not update texture document {?s} with texture file path {s}: {}",
+                .{ context.getFilePathById(document.getId()), filePath, err },
+            );
+            const node = context.getNodeById(document.getId()) orelse return;
+            _ = deleteNode(context, node);
+            return;
+        };
+    }
+}
+
+fn createNewSoundAsset(context: *Context) void {
+    if (context.getFileNameWithDialog("wav,mp3")) |filePath| {
+        defer context.allocator.free(filePath);
+        const basename = context.allocator.dupeZ(u8, std.fs.path.basename(filePath)) catch unreachable;
+        defer context.allocator.free(basename);
+        const document, const soundDocument = context.newAsset(basename, .sound) catch return;
+        soundDocument.setSoundFilePath(filePath);
+        soundDocument.document.nonPersistentData.load("", soundDocument.document.persistentData);
+        document.save(&context.currentProject.?) catch |err| {
+            context.showError(
+                "Could not update sound document {?s} with sound file path {s}: {}",
+                .{ context.getFilePathById(document.getId()), filePath, err },
+            );
+            const node = context.getNodeById(document.getId()) orelse return;
+            _ = deleteNode(context, node);
+            return;
+        };
+    }
+}
+
+fn createNewFontAsset(context: *Context) void {
+    if (context.getFileNameWithDialog("ttf")) |filePath| {
+        defer context.allocator.free(filePath);
+        const basename = context.allocator.dupeZ(u8, std.fs.path.basename(filePath)) catch unreachable;
+        defer context.allocator.free(basename);
+        const document, const fontDocument = context.newAsset(basename, .font) catch return;
+        fontDocument.setFontFilePath(filePath);
+        fontDocument.document.nonPersistentData.load("", fontDocument.document.persistentData);
+        document.save(&context.currentProject.?) catch |err| {
+            context.showError(
+                "Could not update font document {?s} with font file path {s}: {}",
                 .{ context.getFilePathById(document.getId()), filePath, err },
             );
             const node = context.getNodeById(document.getId()) orelse return;

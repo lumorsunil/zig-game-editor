@@ -76,7 +76,7 @@ pub fn openFileNode(self: *Context, file: Node.File) void {
         .scene, .tilemap, .animation, .entityType => {
             if (file.id) |id| self.openEditorById(id);
         },
-        .texture => {},
+        .texture, .sound, .font => {},
     }
 }
 

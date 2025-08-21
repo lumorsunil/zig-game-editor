@@ -79,6 +79,10 @@ fn projectOptionsUI(context: *Context, project: *Project) void {
         _ = z.begin("Project Options", .{ .popen = &project.isProjectOptionsOpen });
         defer z.end();
 
+        z.text("Entry Scene:", .{});
+        z.sameLine(.{ .spacing = 8 });
+        _ = utils.assetInput(.scene, context, &project.options.entryScene);
+
         z.text("Default Tileset:", .{});
         z.sameLine(.{ .spacing = 8 });
         _ = utils.assetInput(.texture, context, &project.options.defaultTileset);

@@ -31,7 +31,7 @@ fn playInner(self: *Context) !void {
 
     const currentSceneFileName = self.getFilePathById(editor.document.getId()) orelse return error.MissingDocumentFilePath;
 
-    const zigCommand = try std.fmt.allocPrint(self.allocator, "zig build run -- --scene \"{s}\"", .{currentSceneFileName});
+    const zigCommand = try std.fmt.allocPrint(self.allocator, "zig build run -- --scene {s}", .{currentSceneFileName});
     defer self.allocator.free(zigCommand);
     const command = &.{
         "cmd.exe",

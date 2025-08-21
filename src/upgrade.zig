@@ -20,12 +20,21 @@ pub fn finalUpgraderVersion(comptime PersistentData: type) DocumentVersion {
 }
 
 pub fn DocumentFinal(comptime PersistentData: type) type {
-    return finalUpgrader(PersistentData).DocumentNext;
+    const versions = documentVersions(PersistentData);
+    return versions[versions.len - 1];
 }
 
 pub fn documentVersions(comptime PersistentData: type) []const type {
     comptime {
         var versions: []const type = &.{};
+
+        if (PersistentData.upgraders.len == 0) {
+            if (@hasDecl(PersistentData, "NoUpgradersDocument")) {
+                return &.{PersistentData.NoUpgradersDocument};
+            } else {
+                @compileError("No document versions found for \"" ++ @typeName(PersistentData) ++ "\". Either add upgraders or NoUpgradersDocument declaration if it's the first version.");
+            }
+        }
 
         for (PersistentData.upgraders) |upgrade| {
             versions = versions ++ &[_]type{upgrade.DocumentPrev};

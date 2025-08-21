@@ -359,5 +359,7 @@ fn getAssetIconGridPosition(documentType: DocumentTag) Vector {
         .tilemap => .{ 2, 1 },
         .entityType => .{ 3, 1 },
         .texture => .{ 4, 1 },
+        .sound => .{ 4, 2 },
+        .font => .{ 4, 3 },
     };
 }
