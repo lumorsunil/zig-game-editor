@@ -102,6 +102,10 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
         }
     }
 
+    z.separatorText("Entities");
+    entityListMenu(context, editor, sceneDocument);
+    z.separator();
+
     if (sceneDocument.getSelectedEntities().items.len > 0) {
         const selectedEntity = sceneDocument.getSelectedEntities().items[0];
 
@@ -249,6 +253,65 @@ fn save(context: *Context, editor: *Editor) void {
             else => context.showError("Could not generate scene map: {}", .{err}),
         }
     };
+}
+
+fn entityListMenu(
+    context: *Context,
+    editor: *Editor,
+    sceneDocument: *SceneDocument,
+) void {
+    _ = editor; // autofix
+    const winWidth = z.getWindowWidth();
+    z.pushStrId("Entities");
+    _ = z.beginListBox("", .{ .w = winWidth - 12 });
+    defer {
+        z.endListBox();
+        z.popId();
+    }
+
+    for (sceneDocument.getEntities().items) |entity| {
+        switch (entity.type) {
+            .tilemap => continue,
+            else => {},
+        }
+
+        const isSelected = for (sceneDocument.getSelectedEntities().items) |selectedEntity| {
+            if (selectedEntity.id.uuid == entity.id.uuid) break true;
+        } else false;
+
+        var buttonId: [UUID.zero.serialize().len + 1]u8 = undefined;
+        _ = std.fmt.bufPrint(&buttonId, "{s}h", .{entity.id}) catch unreachable;
+        z.pushStrId(&buttonId);
+        if (sceneDocument.isEntityHidden(entity.id)) {
+            if (z.button("S", .{})) {
+                sceneDocument.showEntity(context.allocator, entity.id);
+            }
+        } else {
+            if (z.button("H", .{})) {
+                sceneDocument.hideEntity(context.allocator, entity.id);
+            }
+        }
+        z.popId();
+
+        z.sameLine(.{ .spacing = 2 });
+
+        z.pushStrId(&entity.id.serialize());
+
+        const entityLabel = if (entity.type == .custom) brk: {
+            const entityTypeDocument: *lib.documents.EntityTypeDocument = (context.requestDocumentTypeById(
+                .entityType,
+                entity.type.custom.entityTypeId,
+            ) catch break :brk "Error!") orelse break :brk "Loading...";
+            break :brk entityTypeDocument.getName().slice();
+        } else @tagName(entity.type);
+
+        if (z.selectable(entityLabel, .{
+            .selected = isSelected,
+        })) {
+            sceneDocument.selectEntity(entity, context.allocator);
+        }
+        z.popId();
+    }
 }
 
 fn setEntityReferenceWindow(context: *Context, sceneDocument: *SceneDocument) void {
@@ -466,6 +529,7 @@ fn sceneDocumentHandleInputSelectEntity(
     if (rl.isMouseButtonPressed(.left)) {
         for (sceneDocument.getEntities().items) |entity| {
             if (entity.type == .tilemap) continue;
+            if (sceneDocument.isEntityHidden(entity.id)) continue;
 
             if (utils.isMousePositionInsideEntityRect(context, editor.camera, entity.*)) {
                 sceneDocument.selectEntity(entity, context.allocator);

@@ -59,7 +59,9 @@ pub const SceneDocument = struct {
         };
     }
 
-    pub fn drawEntity(_: *SceneDocument, context: *Context, entity: *SceneEntity) void {
+    pub fn drawEntity(self: *SceneDocument, context: *Context, entity: *SceneEntity) void {
+        if (self.isEntityHidden(entity.id)) return;
+
         const scale: f32 = @floatFromInt(context.scale);
         const tileSize = context.getTileSize();
         switch (entity.type) {
@@ -206,6 +208,34 @@ pub const SceneDocument = struct {
         allocator.destroy(entity);
         const selectedEntitiesIndex = std.mem.indexOfScalar(*SceneEntity, self.getSelectedEntities().items, entity) orelse unreachable;
         _ = self.getSelectedEntities().swapRemove(selectedEntitiesIndex);
+    }
+
+    pub fn hideEntity(
+        self: *SceneDocument,
+        allocator: Allocator,
+        entityId: UUID,
+    ) void {
+        const entry = self.document.nonPersistentData.hiddenEntities.map.getOrPut(
+            allocator,
+            entityId,
+        ) catch unreachable;
+        entry.value_ptr.* = true;
+    }
+
+    pub fn showEntity(
+        self: *SceneDocument,
+        allocator: Allocator,
+        entityId: UUID,
+    ) void {
+        const entry = self.document.nonPersistentData.hiddenEntities.map.getOrPut(
+            allocator,
+            entityId,
+        ) catch unreachable;
+        entry.value_ptr.* = false;
+    }
+
+    pub fn isEntityHidden(self: SceneDocument, entityId: UUID) bool {
+        return self.document.nonPersistentData.hiddenEntities.map.get(entityId) orelse return false;
     }
 
     pub fn getTilemapId(self: *SceneDocument) ?*?UUID {

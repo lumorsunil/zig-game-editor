@@ -9,6 +9,7 @@ const SceneEntityType = @import("persistent-data.zig").SceneEntityType;
 const SceneEntity = @import("persistent-data.zig").SceneEntity;
 const UUID = lib.UUIDSerializable;
 const config = @import("lib").config;
+const IdArrayHashMap = lib.IdArrayHashMap;
 
 pub const SceneTool = union(enum) {
     select,
@@ -39,6 +40,7 @@ const SetEntityWindow = struct {
 pub const SceneNonPersistentData = struct {
     dragPayload: ?SceneEntityType = null,
     selectedEntities: ArrayList(*SceneEntity),
+    hiddenEntities: IdArrayHashMap(bool),
     dragStartPoint: ?Vector = null,
     isDragging: bool = false,
     setEntityWindow: SetEntityWindow = .{},
@@ -50,6 +52,7 @@ pub const SceneNonPersistentData = struct {
     pub fn init(allocator: Allocator) SceneNonPersistentData {
         return SceneNonPersistentData{
             .selectedEntities = ArrayList(*SceneEntity).initCapacity(allocator, 10) catch unreachable,
+            .hiddenEntities = .empty,
         };
     }
 
