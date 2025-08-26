@@ -8,7 +8,7 @@ const UUID = lib.UUIDSerializable;
 const AssetsLibrary = @import("assets-library.zig").AssetsLibrary;
 const AssetIndex = @import("asset-index.zig").AssetIndex;
 const Thumbnails = @import("thumbnails.zig").Thumbnails;
-const ProjectOptions = @import("project-options.zig").ProjectOptions;
+pub const ProjectOptions = @import("project-options.zig").ProjectOptions;
 
 pub const cacheDirectoryName = "cache";
 pub const optionsRelativePath = "project.json";

@@ -5,10 +5,10 @@ const lib = @import("lib");
 const Context = lib.Context;
 const Vector = lib.Vector;
 const TilemapDocument = lib.documents.TilemapDocument;
-const Tilemap = lib.Tilemap;
-const TilemapLayer = lib.TilemapLayer;
-const TileSource = lib.TileSource;
-const drawLayer = lib.drawLayer;
+const Tilemap = lib.tilemap.Tilemap;
+const TilemapLayer = lib.tilemap.TilemapLayer;
+const TileSource = lib.tilemap.TileSource;
+const drawLayer = lib.drawTilemap.drawLayer;
 const SelectGrid = lib.SelectGrid;
 const Rectangle = @import("../rectangle.zig").Rectangle;
 

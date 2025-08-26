@@ -13,7 +13,7 @@ const UUID = lib.UUIDSerializable;
 
 const defaultGridSize: Vector = .{ 32, 32 };
 
-pub const AnimationDocument = struct {
+pub const AnimationsDocument = struct {
     document: DocumentType,
 
     isNewAnimationDialogOpen: bool = false,
@@ -26,43 +26,43 @@ pub const AnimationDocument = struct {
         .{},
     );
 
-    pub fn init(allocator: Allocator) AnimationDocument {
-        return AnimationDocument{
+    pub fn init(allocator: Allocator) AnimationsDocument {
+        return AnimationsDocument{
             .document = DocumentType.init(allocator),
         };
     }
 
-    pub fn deinit(self: *AnimationDocument, allocator: Allocator) void {
+    pub fn deinit(self: *AnimationsDocument, allocator: Allocator) void {
         self.document.deinit(allocator);
     }
 
-    pub fn getId(self: AnimationDocument) UUID {
+    pub fn getId(self: AnimationsDocument) UUID {
         return self.document.persistentData.id;
     }
 
-    pub fn getAnimations(self: *AnimationDocument) *ArrayList(Animation) {
+    pub fn getAnimations(self: *AnimationsDocument) *ArrayList(Animation) {
         return &self.document.persistentData.animations;
     }
 
-    pub fn getTextureId(self: *AnimationDocument) *?UUID {
+    pub fn getTextureId(self: *AnimationsDocument) *?UUID {
         return &self.document.persistentData.textureId;
     }
 
-    pub fn setTexture(self: *AnimationDocument, textureId: UUID) void {
+    pub fn setTexture(self: *AnimationsDocument, textureId: UUID) void {
         self.document.persistentData.textureId = textureId;
     }
 
-    pub fn setSelectedAnimationIndex(self: *AnimationDocument, index: ?usize) void {
+    pub fn setSelectedAnimationIndex(self: *AnimationsDocument, index: ?usize) void {
         self.document.nonPersistentData.selectedAnimation = index;
         self.setSelectedFrameIndex(null);
         self.resetAnimation();
     }
 
-    pub fn getSelectedAnimationIndex(self: AnimationDocument) ?usize {
+    pub fn getSelectedAnimationIndex(self: AnimationsDocument) ?usize {
         return self.document.nonPersistentData.selectedAnimation;
     }
 
-    pub fn addAnimation(self: *AnimationDocument, allocator: Allocator, label: [:0]const u8) void {
+    pub fn addAnimation(self: *AnimationsDocument, allocator: Allocator, label: [:0]const u8) void {
         const animations = self.getAnimations();
         animations.append(
             allocator,
@@ -73,12 +73,12 @@ pub const AnimationDocument = struct {
         self.setSelectedAnimationIndex(animations.items.len - 1);
     }
 
-    pub fn getSelectedAnimation(self: *AnimationDocument) ?*Animation {
+    pub fn getSelectedAnimation(self: *AnimationsDocument) ?*Animation {
         const i = self.getSelectedAnimationIndex() orelse return null;
         return &self.getAnimations().items[i];
     }
 
-    pub fn deleteSelectedAnimation(self: *AnimationDocument, allocator: Allocator) void {
+    pub fn deleteSelectedAnimation(self: *AnimationsDocument, allocator: Allocator) void {
         if (self.getSelectedAnimationIndex()) |i| {
             const animation = &self.getAnimations().items[i];
             animation.deinit(allocator);
@@ -87,28 +87,28 @@ pub const AnimationDocument = struct {
         }
     }
 
-    pub fn setSelectedFrameIndex(self: *AnimationDocument, index: ?usize) void {
+    pub fn setSelectedFrameIndex(self: *AnimationsDocument, index: ?usize) void {
         self.document.nonPersistentData.selectedFrame = index;
     }
 
-    pub fn getSelectedFrameIndex(self: AnimationDocument) ?usize {
+    pub fn getSelectedFrameIndex(self: AnimationsDocument) ?usize {
         return self.document.nonPersistentData.selectedFrame;
     }
 
-    pub fn getSelectedFrame(self: *AnimationDocument) ?*Frame {
+    pub fn getSelectedFrame(self: *AnimationsDocument) ?*Frame {
         const animation = self.getSelectedAnimation() orelse return null;
         const i = self.getSelectedFrameIndex() orelse return null;
         return &animation.frames.items[i];
     }
 
-    pub fn getPreviewFrame(self: *AnimationDocument) ?Frame {
+    pub fn getPreviewFrame(self: *AnimationsDocument) ?Frame {
         const animation = self.getSelectedAnimation() orelse return null;
         if (self.currentPreviewFrame < animation.frames.items.len) {
             return animation.frames.items[self.currentPreviewFrame];
         } else return null;
     }
 
-    pub fn updatePreview(self: *AnimationDocument) void {
+    pub fn updatePreview(self: *AnimationsDocument) void {
         const t = rl.getTime();
         const animation = self.getSelectedAnimation() orelse return;
         var frame = self.getPreviewFrame() orelse return;
@@ -127,7 +127,7 @@ pub const AnimationDocument = struct {
         }
     }
 
-    pub fn resetAnimation(self: *AnimationDocument) void {
+    pub fn resetAnimation(self: *AnimationsDocument) void {
         self.currentPreviewFrame = 0;
         const animation = self.getSelectedAnimation() orelse return;
         const frame = self.getPreviewFrame() orelse return;
@@ -135,7 +135,7 @@ pub const AnimationDocument = struct {
         self.nextPreviewFrameAt = rl.getTime() + frameDuration;
     }
 
-    pub fn removeSelectedFrame(self: *AnimationDocument) void {
+    pub fn removeSelectedFrame(self: *AnimationsDocument) void {
         const animation = self.getSelectedAnimation() orelse return;
         const frameIndex = self.getSelectedFrameIndex() orelse return;
 

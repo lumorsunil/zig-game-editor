@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const rl = @import("raylib");
 const z = @import("zgui");
-const c = @import("c");
+const c = @import("c").c;
 const nfd = @import("nfd");
 
 pub fn main() !void {
@@ -31,7 +31,7 @@ pub fn main() !void {
         .rotation = 0,
     };
 
-    const cwd = try std.fmt.allocPrintZ(allocator, "{s}", .{try std.fs.cwd().realpathAlloc(allocator, ".")});
+    const cwd = try std.fmt.allocPrintSentinel(allocator, "{s}", .{try std.fs.cwd().realpathAlloc(allocator, ".")}, 0);
 
     while (!rl.windowShouldClose()) {
         rl.beginDrawing();
@@ -48,7 +48,7 @@ pub fn main() !void {
 
         _ = z.begin("Menu", .{});
         if (z.inputInt2("Size", .{ .v = &size })) {
-            std.log.debug("Changed size to {d}", .{size});
+            std.log.debug("Changed size to {}", .{size});
             rl.unloadTexture(texture);
             texture = try createUVTexture(size);
         }

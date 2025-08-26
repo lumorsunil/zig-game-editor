@@ -3,10 +3,10 @@ const Allocator = std.mem.Allocator;
 const lib = @import("lib");
 const UUID = lib.UUIDSerializable;
 const IdArrayHashMap = lib.IdArrayHashMap;
-const DocumentTag = lib.DocumentTag;
-const Document = lib.Document;
-const cacheDirectoryName = lib.cacheDirectoryName;
-const projectJsonFileName = lib.optionsRelativePath;
+const DocumentTag = lib.documents.DocumentTag;
+const Document = lib.documents.Document;
+const cacheDirectoryName = lib.project.cacheDirectoryName;
+const projectJsonFileName = lib.project.optionsRelativePath;
 
 const indexJsonFileName = "index.json";
 
@@ -94,8 +94,9 @@ pub const AssetIndex = struct {
 
                     const file = try dir.openFile(entry.path, .{});
                     defer file.close();
-                    const reader = file.reader();
-                    var jsonReader = std.json.reader(allocator, reader);
+                    var buffer: [1024 * 4]u8 = undefined;
+                    var reader = file.reader(&buffer);
+                    var jsonReader = std.json.Reader.init(allocator, &reader.interface);
                     defer jsonReader.deinit();
                     const parsed = std.json.parseFromTokenSource(AssetId, allocator, &jsonReader, .{ .ignore_unknown_fields = true }) catch |err| {
                         std.log.err("Could not parse json {s}, {}", .{ entry.path, err });
@@ -122,8 +123,9 @@ pub const AssetIndex = struct {
         defer dir.close();
         const file = try dir.createFile(indexJsonFileName, .{});
         defer file.close();
-        const writer = file.writer();
-        try std.json.stringify(self.hashMap, .{}, writer);
+        var buffer: [1024 * 4]u8 = undefined;
+        var writer = file.writer(&buffer);
+        try writer.interface.print("{f}", .{std.json.fmt(self.hashMap, .{})});
     }
 
     pub fn addIndex(
@@ -170,10 +172,10 @@ pub const AssetIndex = struct {
         id: UUID,
     ) ?*[:0]const u8 {
         const filePath = self.hashMap.map.getPtr(id) orelse {
-            std.log.debug("Could not match id: {}", .{id});
+            std.log.debug("Could not match id: {f}", .{id});
             std.log.debug("Index:", .{});
             for (self.hashMap.map.keys(), 0..) |key, i| {
-                std.log.debug("{d}: {} --> {s}", .{ i, key, self.hashMap.map.values()[i] });
+                std.log.debug("{}: {f} --> {s}", .{ i, key, self.hashMap.map.values()[i] });
             }
             return null;
         };

@@ -2,9 +2,11 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const rl = @import("raylib");
 const lib = @import("lib");
-const Document = lib.Document;
-const DocumentTag = lib.DocumentTag;
+const Document = lib.documents.Document;
+const DocumentTag = lib.documents.DocumentTag;
 const Project = lib.Project;
+
+pub const session = @import("editor-session.zig");
 
 pub const Editor = struct {
     documentType: DocumentTag,

@@ -6,8 +6,7 @@ const Context = lib.Context;
 const UUID = lib.UUIDSerializable;
 const IdArrayHashMap = lib.IdArrayHashMap;
 const SceneDocument = lib.documents.SceneDocument;
-const TilemapDocument = lib.documents.TilemapDocument;
-const drawTilemap = lib.drawTilemap;
+const drawTilemap = lib.drawTilemap.drawTilemap;
 const Vector = lib.Vector;
 
 pub const MapCell = struct {
@@ -105,7 +104,7 @@ pub const SceneMap = struct {
         }
         if (self.mapCells.map.contains(sceneToBeProcessed)) return;
         const cell = loadCell(context, sceneToBeProcessed, loadCellOptions) catch |err| {
-            std.log.warn("Could not load cell {}: {}", .{ sceneToBeProcessed, err });
+            std.log.warn("Could not load cell {f}: {}", .{ sceneToBeProcessed, err });
             return;
         };
         try self.mapCells.map.put(context.allocator, sceneToBeProcessed, cell);

@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const lib = @import("lib");
 const UUID = lib.UUIDSerializable;
-const DocumentTag = lib.DocumentTag;
+const DocumentTag = lib.documents.DocumentTag;
 const StringZArrayHashMap = lib.StringZArrayHashMap;
 const StringZ = lib.StringZ;
 const json = lib.json;
@@ -216,12 +216,12 @@ pub const PropertyObject = struct {
         var i: usize = 2;
         const MAX_I = 100;
         while (true) {
-            const candidateName = std.fmt.allocPrintZ(allocator, baseName ++ " {d}", .{i}) catch unreachable;
+            const candidateName = std.fmt.allocPrintSentinel(allocator, baseName ++ " {}", .{i}, 0) catch unreachable;
             if (!self.fields.contains(allocator, candidateName)) return candidateName;
             allocator.free(candidateName);
             i += 1;
             if (i > MAX_I) {
-                std.debug.panic("Could not generate a new property name: Too many iterations ({d})", .{i});
+                std.debug.panic("Could not generate a new property name: Too many iterations ({})", .{i});
             }
         }
     }

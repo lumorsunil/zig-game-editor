@@ -3,6 +3,7 @@ const Allocator = std.mem.Allocator;
 const lib = @import("lib");
 const json = lib.json;
 const upgrade = lib.upgrade;
+const Scene = lib.scene.Scene;
 
 const DOCUMENT_MAX_BYTES = 1024 * 1024 * 1024;
 
@@ -59,8 +60,8 @@ pub fn DocumentGeneric(
             return nonPersistentData;
         }
 
-        pub fn serialize(self: *const Self, writer: anytype) !void {
-            try std.json.stringify(self.persistentData.*, .{}, writer);
+        pub fn serialize(self: *const Self, writer: *std.Io.Writer) !void {
+            try writer.print("{f}", .{std.json.fmt(self.persistentData.*, .{})});
         }
 
         pub fn deserialize(allocator: Allocator, dir: std.fs.Dir, path: [:0]const u8) !Self {
@@ -106,7 +107,7 @@ pub fn DocumentGeneric(
                     upgrade.finalUpgraderVersion(PersistentData),
                     fileContents,
                 );
-                if (PersistentData == lib.documents.scene.Scene) {
+                if (PersistentData == Scene) {
                     std.log.debug("FINALSCENE: {any}", .{final});
                 }
                 persistentData.* = upgradeFinal(allocator, final);
@@ -120,18 +121,17 @@ pub fn DocumentGeneric(
         }
 
         fn handleUpgradeDocument(allocator: Allocator, fileContents: []u8) !?PersistentData {
-            var fileStream = std.io.fixedBufferStream(fileContents);
-            const fileReader = fileStream.reader();
-            var reader = std.json.reader(allocator, fileReader);
-            defer reader.deinit();
+            var fileReader = std.Io.Reader.fixed(fileContents);
+            var jsonReader = std.json.Reader.init(allocator, &fileReader);
+            defer jsonReader.deinit();
 
-            const headerParsed = std.json.parseFromTokenSource(DocumentVersionHeader, allocator, &reader, .{ .ignore_unknown_fields = true }) catch |err| {
+            const headerParsed = std.json.parseFromTokenSource(DocumentVersionHeader, allocator, &jsonReader, .{ .ignore_unknown_fields = true }) catch |err| {
                 switch (err) {
-                    std.json.ParseError(@TypeOf(reader)).MissingField => {
+                    std.json.ParseError(@TypeOf(jsonReader)).MissingField => {
                         return try upgradeDocument(allocator, firstDocumentVersion, fileContents);
                     },
                     else => {
-                        json.reportJsonError(reader, err);
+                        json.reportJsonError(jsonReader, err);
                         return err;
                     },
                 }
@@ -150,7 +150,7 @@ pub fn DocumentGeneric(
             fromVersion: DocumentVersion,
             fileContents: []u8,
         ) !PersistentData {
-            std.log.info("Upgrading document from version {d} to {d}", .{ fromVersion, PersistentData.currentVersion });
+            std.log.info("Upgrading document from version {} to {}", .{ fromVersion, PersistentData.currentVersion });
 
             validateCurrentVersionEqualsFinalUpgrader();
             std.debug.assert(fromVersion < PersistentData.currentVersion);
@@ -183,7 +183,7 @@ pub fn DocumentGeneric(
             version: DocumentVersion,
             fileContents: []const u8,
         ) !*anyopaque {
-            std.log.info("Reading document as version {d}", .{version});
+            std.log.info("Reading document as version {}", .{version});
 
             switch (version) {
                 inline firstDocumentVersion...PersistentData.currentVersion => |v| {

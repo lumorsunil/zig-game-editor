@@ -1,34 +1,20 @@
 const std = @import("std");
-const Allocator = std.mem.Allocator;
 const z = @import("zgui");
-const c = @import("c");
+const c = @import("c").c;
 const rl = @import("raylib");
-const nfd = @import("nfd");
 const lib = @import("lib");
 const config = @import("lib").config;
 const Context = lib.Context;
-const BrushTool = lib.tools.BrushTool;
-const SelectTool = lib.tools.SelectTool;
-const drawTilemap = lib.drawTilemap;
 const Vector = lib.Vector;
-const TileSource = lib.TileSource;
-const TilemapLayer = lib.TilemapLayer;
-const Action = lib.Action;
 const Editor = lib.Editor;
 const UUID = lib.UUIDSerializable;
-const SceneEntity = lib.documents.scene.SceneEntity;
-const SceneEntityType = lib.documents.scene.SceneEntityType;
-const SceneEntityExit = lib.documents.scene.SceneEntityExit;
-const SceneEntityEntrance = lib.documents.scene.SceneEntityEntrance;
-const SceneDocument = lib.documents.SceneDocument;
-const TilemapDocument = lib.documents.TilemapDocument;
-const AnimationDocument = lib.documents.AnimationDocument;
-const assetsManager = lib.layouts.assetsManager;
-const layouts = lib.layouts;
+const assetsManager = lib.layouts.assetsManager.assetsManager;
+const layouts = lib.layouts.generic;
 const utils = lib.layouts.utils;
 const projectLayout = lib.layouts.project;
 const sceneMapUI = lib.layouts.sceneMap.sceneMapUI;
 const sceneMapUIHandleInput = lib.layouts.sceneMap.sceneMapUIHandleInput;
+const BoundedArray = lib.BoundedArray;
 
 pub fn layout(context: *Context) !void {
     startOfFrame(context);
@@ -165,7 +151,7 @@ fn documentTabs(context: *Context) void {
         defer z.endTabBar();
         var it = context.openedEditors.map.iterator();
         var idToOpen: ?UUID = null;
-        var idsToClose = std.BoundedArray(UUID, 256).init(0) catch unreachable;
+        var idsToClose = BoundedArray(UUID, 256).empty;
         while (it.next()) |entry| {
             const id = entry.value_ptr.document.getId();
             const isActive = if (context.currentEditor) |ce| ce.uuid == id.uuid else false;
@@ -197,7 +183,7 @@ fn documentTabs(context: *Context) void {
             }
 
             if (!open) {
-                idsToClose.appendAssumeCapacity(id);
+                idsToClose.append(id);
             }
         }
         if (idToOpen) |id| {
@@ -207,12 +193,12 @@ fn documentTabs(context: *Context) void {
     }
 }
 
-fn documentTabContextMenu(context: *Context, id: UUID, idsToClose: *std.BoundedArray(UUID, 256)) void {
+fn documentTabContextMenu(context: *Context, id: UUID, idsToClose: *BoundedArray(UUID, 256)) void {
     if (z.selectable("Close All But This", .{})) {
         for (context.openedEditors.map.values()) |editor| {
             const eid = editor.document.getId();
             if (id.uuid != eid.uuid) {
-                idsToClose.appendAssumeCapacity(eid);
+                idsToClose.append(eid);
             }
         }
     }
@@ -221,7 +207,7 @@ fn documentTabContextMenu(context: *Context, id: UUID, idsToClose: *std.BoundedA
             if (editor.document.getId().uuid == id.uuid) break i;
         } else return;
         const idsToTheLeft = context.openedEditors.map.keys()[0..i];
-        idsToClose.appendSliceAssumeCapacity(idsToTheLeft);
+        idsToClose.appendSlice(idsToTheLeft);
     }
     if (z.selectable("Close To The Right", .{})) {
         const i = for (context.openedEditors.map.values(), 0..) |editor, i| {
@@ -229,11 +215,11 @@ fn documentTabContextMenu(context: *Context, id: UUID, idsToClose: *std.BoundedA
         } else return;
         if (i == context.openedEditors.map.count() - 1) return;
         const idsToTheRight = context.openedEditors.map.keys()[i + 1 ..];
-        idsToClose.appendSliceAssumeCapacity(idsToTheRight);
+        idsToClose.appendSlice(idsToTheRight);
     }
     if (z.selectable("Close All", .{})) {
         for (context.openedEditors.map.values()) |editor| {
-            idsToClose.appendAssumeCapacity(editor.document.getId());
+            idsToClose.append(editor.document.getId());
         }
     }
 }

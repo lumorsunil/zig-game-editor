@@ -104,7 +104,7 @@ pub const Thumbnails = struct {
         cacheDirectory: []const u8,
         id: UUID,
     ) [:0]const u8 {
-        const fileName = std.fmt.allocPrint(allocator, "{}.png", .{id}) catch unreachable;
+        const fileName = std.fmt.allocPrint(allocator, "{f}.png", .{id}) catch unreachable;
         defer allocator.free(fileName);
         return std.fs.path.joinZ(allocator, &.{ cacheDirectory, fileName }) catch unreachable;
     }

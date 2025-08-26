@@ -29,7 +29,7 @@ fn ElementOfArrayList(comptime T: type) ?type {
     if (!isStruct(T)) return null;
     if (!@hasField(T, "items")) return null;
 
-    const items = @typeInfo(std.meta.FieldType(T, .items));
+    const items = @typeInfo(@FieldType(T, "items"));
 
     return switch (items) {
         .pointer => |p| if (p.size == .slice) p.child else null,
@@ -84,7 +84,7 @@ pub fn reportJsonErrorToWriter(reader: anytype, err: anyerror, writer: anytype) 
     const input = reader.scanner.input;
     const cursor = reader.scanner.cursor;
 
-    try writer.print("Error parsing json at {d}: {}", .{ cursor, err });
+    try writer.print("Error parsing json at {}: {}", .{ cursor, err });
     const line, const startIdx = getReportSlice(input, cursor, 40);
     try writer.print("Input: {s}", .{line});
     for (0..cursor - startIdx + "error: Input: ".len) |_| {
@@ -94,18 +94,19 @@ pub fn reportJsonErrorToWriter(reader: anytype, err: anyerror, writer: anytype) 
 }
 
 pub fn reportJsonError(reader: anytype, err: anyerror) void {
-    const stdout = std.io.getStdOut();
+    var stdoutBuffer: [1024]u8 = undefined;
+    var stdout = std.fs.File.stdout().writer(&stdoutBuffer);
 
     const input = reader.scanner.input;
     const cursor = reader.scanner.cursor;
 
-    std.log.err("Error parsing json at {d}: {}", .{ cursor, err });
+    std.log.err("Error parsing json at {}: {}", .{ cursor, err });
     const line, const startIdx = getReportSlice(input, cursor, 40);
     std.log.err("Input: {s}", .{line});
     for (0..cursor - startIdx + "error: Input: ".len) |_| {
-        stdout.writeAll(" ") catch unreachable;
+        stdout.interface.writeAll(" ") catch unreachable;
     }
-    stdout.writeAll("^\n") catch unreachable;
+    stdout.interface.writeAll("^\n") catch unreachable;
 }
 
 fn getReportSlice(
@@ -150,9 +151,8 @@ pub fn parseFromSliceWithErrorReportingLeaky(
     buffer: []const u8,
     parseOptions: std.json.ParseOptions,
 ) !T {
-    var fileStream = std.io.fixedBufferStream(buffer);
-    const fileReader = fileStream.reader();
-    var reader = std.json.reader(allocator, fileReader);
+    var fileReader = std.Io.Reader.fixed(buffer);
+    var reader = std.json.Reader.init(allocator, &fileReader);
     defer reader.deinit();
 
     return std.json.parseFromTokenSourceLeaky(T, allocator, &reader, parseOptions) catch |err| {

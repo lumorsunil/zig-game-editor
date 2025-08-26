@@ -1,8 +1,8 @@
 const rl = @import("raylib");
 const lib = @import("lib");
 const Context = lib.Context;
-const Document = lib.Document;
-const drawTilemap = lib.drawTilemap;
+const Document = lib.documents.Document;
+const drawTilemap = lib.drawTilemap.drawTilemap;
 
 pub fn generateThumbnail(self: *Context, document: *Document) !?rl.Image {
     const content = &(document.content orelse return null);

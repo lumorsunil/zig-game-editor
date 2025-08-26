@@ -1,7 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const lib = @import("lib");
-const Tilemap = lib.Tilemap;
+const Tilemap = lib.tilemap.Tilemap;
 const TilemapDocument = lib.documents.TilemapDocument;
 
 pub const Action = union(enum) {

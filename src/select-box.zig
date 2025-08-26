@@ -72,7 +72,7 @@ pub const SelectGrid = struct {
         const i = relative[0] + relative[1] * self.size[0];
         defer std.debug.assert(i >= 0);
         defer if (i >= self.selected.len) {
-            std.log.err("index out of bounds: arr[{d}], len={d}, relative={d}", .{ i, self.selected.len, relative });
+            std.log.err("index out of bounds: arr[{}], len={}, relative={}", .{ i, self.selected.len, relative });
             std.debug.assert(i < self.selected.len);
         };
         return @intCast(i);
@@ -235,7 +235,7 @@ pub const SelectGrid = struct {
 
     /// Caller owns return pointer
     pub fn getSelected(self: SelectGrid, allocator: Allocator) []Vector {
-        var result = std.ArrayList(Vector).init(allocator);
+        var result = std.ArrayList(Vector).empty;
         const size: @Vector(2, usize) = @intCast(self.size);
 
         for (0..size[0]) |x| {
@@ -245,11 +245,11 @@ pub const SelectGrid = struct {
                 const i = self.getIndex(relative);
                 const value = self.selected[i];
 
-                if (value == 1) result.append(absolute) catch unreachable;
+                if (value == 1) result.append(allocator, absolute) catch unreachable;
             }
         }
 
-        return result.toOwnedSlice() catch unreachable;
+        return result.toOwnedSlice(allocator) catch unreachable;
     }
 
     pub fn isSelected(self: SelectGrid, absolute: Vector) bool {

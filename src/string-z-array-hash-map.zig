@@ -3,7 +3,7 @@ const Allocator = std.mem.Allocator;
 const lib = @import("lib");
 const StringZ = lib.StringZ;
 
-pub const StringZContext = struct {
+const StringZContext = struct {
     const K = StringZ;
 
     pub fn hash(self: @This(), s: K) u32 {

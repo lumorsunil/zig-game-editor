@@ -1,59 +1,38 @@
 pub const config = @import("config.zig");
-pub usingnamespace @import("context.zig");
-pub usingnamespace @import("vector.zig");
-pub usingnamespace @import("uuid.zig");
-pub usingnamespace @import("history.zig");
-pub usingnamespace @import("tilemap.zig");
-pub usingnamespace @import("action.zig");
-pub usingnamespace @import("project.zig");
-pub usingnamespace @import("project-options.zig");
-pub usingnamespace @import("document.zig");
-pub usingnamespace @import("tool.zig");
-pub const tools = struct {
-    pub usingnamespace @import("tools/brush.zig");
-    pub usingnamespace @import("tools/select.zig");
-};
-pub const documents = struct {
-    pub usingnamespace @import("documents/generic.zig");
-    pub usingnamespace @import("documents/scene/document.zig");
-    pub const scene = struct {
-        pub usingnamespace @import("documents/scene/persistent-data.zig");
-        pub usingnamespace @import("documents/scene/versions/1.zig");
-    };
-    pub usingnamespace @import("documents/tilemap/document.zig");
-    pub usingnamespace @import("documents/animation/document.zig");
-    pub const animation = struct {
-        pub usingnamespace @import("documents/animation/animation.zig");
-    };
-    pub usingnamespace @import("documents/texture/document.zig");
-    pub usingnamespace @import("documents/sound/document.zig");
-    pub usingnamespace @import("documents/font/document.zig");
-    pub usingnamespace @import("documents/entity-type/document.zig");
-};
-pub const layouts = struct {
-    pub usingnamespace @import("layout/layouts.zig");
-    pub usingnamespace @import("layout/scene.zig");
-    pub usingnamespace @import("layout/tilemap.zig");
-    pub usingnamespace @import("layout/animation.zig");
-    pub usingnamespace @import("layout/entity-type.zig");
-    pub usingnamespace @import("layout/assets-manager.zig");
-    pub const sceneMap = @import("layout/scene-map.zig");
-    pub const project = @import("layout/project.zig");
-    pub const utils = @import("layout/utils.zig");
-};
-pub usingnamespace @import("layout-generic.zig");
-pub usingnamespace @import("editor-session.zig");
-pub usingnamespace @import("serializer.zig");
-pub usingnamespace @import("draw-tilemap.zig");
-pub usingnamespace @import("string.zig");
-pub usingnamespace @import("editor.zig");
-pub usingnamespace @import("assets-library.zig");
-pub usingnamespace @import("asset-index.zig");
-pub const json = @import("json.zig");
-pub usingnamespace @import("id-array-hash-map.zig");
-pub usingnamespace @import("string-z-array-hash-map.zig");
-pub usingnamespace @import("documents/entity-type/property.zig");
-pub usingnamespace @import("thumbnail-generator.zig");
-pub usingnamespace @import("scene-map.zig");
+
+pub const context = @import("context.zig");
+pub const Context = context.Context;
+pub const project = @import("project.zig");
+pub const Project = project.Project;
+pub const editor = @import("editor.zig");
+pub const Editor = editor.Editor;
+pub const assetsLibrary = @import("assets-library.zig");
+pub const AssetsLibrary = assetsLibrary.AssetsLibrary;
+pub const AssetIndex = @import("asset-index.zig").AssetIndex;
+
+pub const SelectGrid = @import("select-box.zig").SelectGrid;
+pub const Vector = @import("vector.zig").Vector;
+pub const VectorInt = @import("vector.zig").VectorInt;
+pub const UUIDSerializable = @import("uuid.zig").UUIDSerializable;
+pub const IdArrayHashMap = @import("id-array-hash-map.zig").IdArrayHashMap;
+pub const StringZArrayHashMap = @import("string-z-array-hash-map.zig").StringZArrayHashMap;
+pub const BoundedArray = @import("bounded-array.zig").BoundedArray;
+
+pub const history = @import("history.zig");
+pub const tilemap = @import("tilemap.zig");
+pub const Action = @import("action.zig").Action;
+pub const documents = @import("document.zig");
+pub const scene = @import("scene.zig");
+pub const animation = @import("animation.zig");
+pub const tools = @import("tool.zig");
+pub const layouts = @import("layouts.zig");
+pub const sceneMap = @import("scene-map.zig");
+pub const properties = @import("documents/entity-type/property.zig");
+
 pub const upgrade = @import("upgrade.zig");
-pub usingnamespace @import("select-box.zig");
+pub const serializer = @import("serializer.zig");
+pub const StringZ = @import("string.zig").StringZ;
+pub const json = @import("json.zig");
+
+pub const drawTilemap = @import("draw-tilemap.zig");
+pub const thumbnail = @import("thumbnail-generator.zig");

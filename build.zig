@@ -20,9 +20,11 @@ pub fn build(b: *Build) void {
 
     const generateUvTool = b.addExecutable(.{
         .name = "generate-uv",
-        .root_source_file = b.path("tools/generate-uv.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/generate-uv.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     context.addC(generateUvTool.root_module);
     context.addNfd(generateUvTool.root_module);
@@ -31,9 +33,11 @@ pub fn build(b: *Build) void {
 
     const exe = b.addExecutable(.{
         .name = "zig-game-editor",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     const libMod = b.createModule(.{ .root_source_file = b.path("src/lib.zig") });
@@ -52,8 +56,10 @@ pub fn build(b: *Build) void {
 
     const checkExe = b.addExecutable(.{
         .name = exe.name,
-        .root_source_file = exe.root_module.root_source_file,
-        .target = target,
+        .root_module = b.createModule(.{
+            .root_source_file = exe.root_module.root_source_file,
+            .target = target,
+        }),
     });
 
     context.addC(checkExe.root_module);

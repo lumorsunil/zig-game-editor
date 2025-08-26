@@ -13,11 +13,11 @@ pub fn requestDocumentById(self: *Context, id: UUID) ?*Document {
     const entry = self.documents.map.getOrPutAssumeCapacity(id);
 
     if (!entry.found_existing) {
-        std.log.debug("Requested document {} not found, loading", .{id});
+        std.log.debug("Requested document {f} not found, loading", .{id});
 
         const path = self.getFilePathById(id) orelse {
             entry.value_ptr.* = .initWithError(DocumentError.IndexNotFound);
-            self.showError("Could not find document in index with id {}", .{id});
+            self.showError("Could not find document in index with id {f}", .{id});
             return null;
         };
         entry.value_ptr.* = Document.open(self.allocator, &self.currentProject.?, path) catch |err| {

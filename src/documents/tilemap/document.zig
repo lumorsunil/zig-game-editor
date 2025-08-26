@@ -2,19 +2,19 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const lib = @import("lib");
 const Context = lib.Context;
-const Tilemap = lib.Tilemap;
-const History = lib.History;
+const Tilemap = lib.tilemap.Tilemap;
+const History = lib.history.History;
 const Vector = lib.Vector;
 const Action = lib.Action;
-const Tool = lib.Tool;
-const ImplTool = lib.ImplTool;
+const Tool = lib.tools.Tool;
+const ImplTool = lib.tools.ImplTool;
 const DocumentGeneric = lib.documents.DocumentGeneric;
 const TilemapData = @import("persistent-data.zig").TilemapData;
-const TilemapLayer = lib.TilemapLayer;
+const TilemapLayer = lib.tilemap.TilemapLayer;
 const NonPersistentData = @import("non-persistent-data.zig").NonPersistentData;
 const UUID = lib.UUIDSerializable;
 const SelectGrid = lib.SelectGrid;
-const TileSource = lib.TileSource;
+const TileSource = lib.tilemap.TileSource;
 
 pub const TilemapDocument = struct {
     document: DocumentType,

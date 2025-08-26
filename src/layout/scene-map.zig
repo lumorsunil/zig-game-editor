@@ -2,9 +2,9 @@ const lib = @import("lib");
 const Context = lib.Context;
 const Vector = lib.Vector;
 const UUID = lib.UUIDSerializable;
-const MapCell = lib.MapCell;
+const MapCell = lib.sceneMap.MapCell;
 
-const c = @import("c");
+const c = @import("c").c;
 const rl = @import("raylib");
 const z = @import("zgui");
 

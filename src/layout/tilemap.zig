@@ -1,20 +1,20 @@
 const std = @import("std");
 const z = @import("zgui");
-const c = @import("c");
+const c = @import("c").c;
 const rl = @import("raylib");
 const lib = @import("lib");
-const LayoutGeneric = lib.LayoutGeneric;
+const LayoutGeneric = lib.layouts.LayoutGeneric;
 const Context = lib.Context;
 const Editor = lib.Editor;
 const TilemapDocument = lib.documents.TilemapDocument;
-const TileSource = lib.TileSource;
+const TileSource = lib.tilemap.TileSource;
 const Action = lib.Action;
 const BrushTool = lib.tools.BrushTool;
 const SelectTool = lib.tools.SelectTool;
-const SceneMapError = lib.SceneMapError;
+const SceneMapError = lib.sceneMap.SceneMapError;
 const Vector = lib.Vector;
 const utils = lib.layouts.utils;
-const drawTilemap = lib.drawTilemap;
+const drawTilemap = lib.drawTilemap.drawTilemap;
 const config = lib.config;
 
 pub const LayoutTilemap = LayoutGeneric(.tilemap, draw, menu, handleInput);
@@ -208,7 +208,7 @@ fn layersMenu(context: *Context, tilemapDocument: *TilemapDocument) void {
 
         // Layer name
         if (i == 0 or !isActiveLayer) {
-            z.text("{s}", .{layer.name});
+            z.text("{f}", .{layer.name});
         } else {
             z.pushPtrId(layer);
             _ = z.inputText("", .{ .buf = layer.name.buffer });

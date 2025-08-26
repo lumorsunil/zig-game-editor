@@ -35,7 +35,7 @@ pub const Context = struct {
             .backend = .Zgui,
         });
 
-        const nfdDep = b.dependency("nfd-zig", .{
+        const nfdDep = b.dependency("nfd_zig", .{
             .target = target,
             .optimize = optimize,
         });

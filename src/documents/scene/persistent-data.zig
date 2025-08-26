@@ -7,7 +7,7 @@ const UUID = lib.UUIDSerializable;
 const Vector = lib.Vector;
 const json = lib.json;
 const StringZ = lib.StringZ;
-const PropertyObject = lib.PropertyObject;
+const PropertyObject = lib.properties.PropertyObject;
 const Context = lib.Context;
 const DocumentVersion = lib.documents.DocumentVersion;
 const firstDocumentVersion = lib.documents.firstDocumentVersion;
@@ -156,7 +156,7 @@ pub const SceneEntityEntrance = struct {
 
     pub fn init(allocator: Allocator) SceneEntityEntrance {
         return SceneEntityEntrance{
-            .key = .initFmt(allocator, "{s}", .{UUID.init().serialize()}),
+            .key = .initFmt(allocator, "{f}", .{UUID.init()}),
         };
     }
 
@@ -197,7 +197,7 @@ pub const SceneEntityPoint = struct {
 
     pub fn getLabelRect(self: SceneEntityPoint, position: @Vector(2, f32)) rl.Rectangle {
         var buffer: [256:0]u8 = undefined;
-        const text = std.fmt.bufPrintZ(&buffer, "{}", .{self.key}) catch unreachable;
+        const text = std.fmt.bufPrintZ(&buffer, "{f}", .{self.key}) catch unreachable;
         const textHeight = 24;
         const textWidth: f32 = @floatFromInt(rl.measureText(text, textHeight));
         const textPosition = rl.Vector2.init(position[0] - textWidth / 2, position[1] - textHeight - 4);
@@ -214,7 +214,7 @@ pub const SceneEntityPoint = struct {
 
     pub fn drawLabel(self: SceneEntityPoint, textRec: rl.Rectangle) void {
         var buffer: [256:0]u8 = undefined;
-        const text = std.fmt.bufPrintZ(&buffer, "{}", .{self.key}) catch unreachable;
+        const text = std.fmt.bufPrintZ(&buffer, "{f}", .{self.key}) catch unreachable;
 
         rl.drawRectanglePro(textRec, rl.Vector2.zero(), 0, rl.Color.black.alpha(0.5));
         rl.drawTextEx(rl.getFontDefault() catch unreachable, text, .{ .x = textRec.x, .y = textRec.y }, textRec.height, 2, rl.Color.white.alpha(0.5));

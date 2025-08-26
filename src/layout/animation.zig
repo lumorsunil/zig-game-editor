@@ -1,22 +1,22 @@
 const std = @import("std");
 const rl = @import("raylib");
 const z = @import("zgui");
-const c = @import("c");
+const c = @import("c").c;
 const lib = @import("lib");
 const Context = lib.Context;
 const Editor = lib.Editor;
-const AnimationDocument = lib.documents.AnimationDocument;
-const Animation = lib.documents.animation.Animation;
-const Frame = lib.documents.animation.Frame;
-const LayoutGeneric = lib.LayoutGeneric;
+const AnimationsDocument = lib.documents.AnimationsDocument;
+const Animation = lib.animation.Animation;
+const Frame = lib.animation.Frame;
+const LayoutGeneric = lib.layouts.LayoutGeneric;
 const Vector = lib.Vector;
-const Node = lib.Node;
+const Node = lib.assetsLibrary.Node;
 const utils = lib.layouts.utils;
 const config = lib.config;
 
 pub const LayoutAnimation = LayoutGeneric(.animation, draw, menu, handleInput);
 
-fn draw(context: *Context, animationDocument: *AnimationDocument) void {
+fn draw(context: *Context, animationDocument: *AnimationsDocument) void {
     const textureId = animationDocument.getTextureId().* orelse return;
     const texture = context.requestTextureById(textureId) catch return orelse return;
 
@@ -26,7 +26,7 @@ fn draw(context: *Context, animationDocument: *AnimationDocument) void {
 fn menu(
     context: *Context,
     editor: *Editor,
-    animationDocument: *AnimationDocument,
+    animationDocument: *AnimationsDocument,
 ) void {
     const screenSize: @Vector(2, f32) = @floatFromInt(Vector{ rl.getScreenWidth(), rl.getScreenHeight() });
     z.setNextWindowPos(.{ .x = 0, .y = config.editorContentOffset });
@@ -99,7 +99,7 @@ fn menu(
 
 fn animationDetailsMenu(
     context: *Context,
-    animationDocument: *AnimationDocument,
+    animationDocument: *AnimationsDocument,
     animation: *Animation,
 ) void {
     z.separatorText("Animation");
@@ -117,7 +117,7 @@ fn animationDetailsMenu(
 }
 
 fn frameDetailsMenu(
-    animationDocument: *AnimationDocument,
+    animationDocument: *AnimationsDocument,
     animation: *Animation,
     frame: *Frame,
 ) void {
@@ -132,7 +132,7 @@ fn frameDetailsMenu(
 
 fn frameWindow(
     context: *Context,
-    animationDocument: *AnimationDocument,
+    animationDocument: *AnimationsDocument,
     animation: *Animation,
 ) void {
     const screenWidth: f32 = @floatFromInt(rl.getScreenWidth());
@@ -152,7 +152,7 @@ fn frameWindow(
     if (z.beginListBox("", .{ .w = listBoxSize[0], .h = listBoxSize[1] })) {
         for (animation.frames.items, 0..) |frame, i| {
             var buffer: [4:0]u8 = undefined;
-            const label = std.fmt.bufPrintZ(&buffer, "{d}", .{i}) catch unreachable;
+            const label = std.fmt.bufPrintZ(&buffer, "{}", .{i}) catch unreachable;
             const isSelected = if (animationDocument.getSelectedFrameIndex()) |si| si == i else false;
             const fGridSizeScaled: @Vector(2, f32) = @floatFromInt(animation.gridSize * context.scaleV);
             const selectablePos = z.getCursorPos();
@@ -195,7 +195,7 @@ fn getSourceRect(animation: Animation, frame: Frame) c.Rectangle {
 
 fn drawFrame(
     context: *Context,
-    animationDocument: *AnimationDocument,
+    animationDocument: *AnimationsDocument,
     animation: *Animation,
     frame: Frame,
 ) void {
@@ -212,7 +212,7 @@ fn drawFrame(
 
 fn previewWindow(
     context: *Context,
-    animationDocument: *AnimationDocument,
+    animationDocument: *AnimationsDocument,
     animation: *Animation,
 ) void {
     animationDocument.updatePreview();
@@ -244,7 +244,7 @@ fn previewWindow(
 fn handleInput(
     context: *Context,
     editor: *Editor,
-    animationDocument: *AnimationDocument,
+    animationDocument: *AnimationsDocument,
 ) void {
     utils.cameraControls(&editor.camera);
 
@@ -255,7 +255,7 @@ fn handleInput(
 
 fn handleAnimationInput(
     context: *Context,
-    animationDocument: *AnimationDocument,
+    animationDocument: *AnimationsDocument,
     animation: *Animation,
 ) void {
     const cellSize = animation.gridSize + animation.spacing * Vector{ 2, 2 };

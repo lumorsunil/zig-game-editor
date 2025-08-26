@@ -1,16 +1,16 @@
 const std = @import("std");
 const rl = @import("raylib");
 const z = @import("zgui");
-const c = @import("c");
+const c = @import("c").c;
 const lib = @import("lib");
 const config = @import("lib").config;
-const LayoutGeneric = lib.LayoutGeneric;
+const LayoutGeneric = lib.layouts.LayoutGeneric;
 const Context = lib.Context;
 const Editor = lib.Editor;
 const EntityTypeDocument = lib.documents.EntityTypeDocument;
 const Vector = lib.Vector;
-const Node = lib.Node;
-const DocumentTag = lib.DocumentTag;
+const Node = lib.assetsLibrary.Node;
+const DocumentTag = lib.documents.DocumentTag;
 const UUID = lib.UUIDSerializable;
 const utils = @import("utils.zig");
 const propertyEditor = @import("property.zig").propertyEditor;
@@ -47,10 +47,10 @@ fn menu(context: *Context, editor: *Editor, entityTypeDocument: *EntityTypeDocum
         context.saveEditorFile(editor);
         context.updateThumbnailById(entityTypeDocument.getId());
     }
-    z.text("ID: {s}", .{std.json.fmt(entityTypeDocument.getId(), .{})});
+    z.text("ID: {f}", .{std.json.fmt(entityTypeDocument.getId(), .{})});
     if (z.isItemHovered(.{ .delay_short = true })) {
         if (z.beginTooltip()) {
-            z.text("{s}", .{std.json.fmt(entityTypeDocument.getId(), .{})});
+            z.text("{f}", .{std.json.fmt(entityTypeDocument.getId(), .{})});
         }
         z.endTooltip();
     }

@@ -3,8 +3,8 @@ const Allocator = std.mem.Allocator;
 const lib = @import("lib");
 const StringZ = lib.StringZ;
 const StringZArrayHashMap = lib.StringZArrayHashMap;
-const PropertyObject = lib.PropertyObject;
-const Property = lib.Property;
+const PropertyObject = lib.properties.PropertyObject;
+const Property = lib.properties.Property;
 const DocumentVersion = lib.documents.DocumentVersion;
 
 fn UpgraderFn(comptime From: type, comptime To: type) type {
@@ -131,10 +131,10 @@ const IntermediateUpgradeContainer = struct {
 
 fn getArrayHashMapElem(comptime T: type) ?type {
     if (@hasField(T, "map")) {
-        const Map = std.meta.FieldType(T, .map);
+        const Map = @FieldType(T, "map");
 
         if (@hasField(Map, "entries")) {
-            return std.meta.FieldType(Map.KV, .value);
+            return @FieldType(Map.KV, "value");
         }
     }
 
@@ -249,7 +249,7 @@ pub fn upgradeValue(
 
     return switch (@typeInfo(@TypeOf(source))) {
         .pointer => upgradeList(
-            std.meta.Elem(std.meta.FieldType(T, .items)),
+            std.meta.Elem(@FieldType(T, "items")),
             allocator,
             source,
             container,

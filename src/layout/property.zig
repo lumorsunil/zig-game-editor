@@ -2,17 +2,17 @@ const std = @import("std");
 const z = @import("zgui");
 const lib = @import("lib");
 const Context = lib.Context;
-const PropertyObject = lib.PropertyObject;
-const PropertyArray = lib.PropertyArray;
-const Property = lib.Property;
-const PropertyFloat = lib.PropertyFloat;
-const PropertyInteger = lib.PropertyInteger;
-const PropertyString = lib.PropertyString;
-const PropertyBoolean = lib.PropertyBoolean;
-const PropertyAssetReference = lib.PropertyAssetReference;
-const PropertyEntityReference = lib.PropertyEntityReference;
+const PropertyObject = lib.properties.PropertyObject;
+const PropertyArray = lib.properties.PropertyArray;
+const Property = lib.properties.Property;
+const PropertyFloat = lib.properties.PropertyFloat;
+const PropertyInteger = lib.properties.PropertyInteger;
+const PropertyString = lib.properties.PropertyString;
+const PropertyBoolean = lib.properties.PropertyBoolean;
+const PropertyAssetReference = lib.properties.PropertyAssetReference;
+const PropertyEntityReference = lib.properties.PropertyEntityReference;
 const EntityTypeDocument = lib.documents.EntityTypeDocument;
-const SceneEntityCustom = lib.documents.scene.SceneEntityCustom;
+const SceneEntityCustom = lib.scene.SceneEntityCustom;
 const SceneDocument = lib.documents.SceneDocument;
 const utils = @import("utils.zig");
 
@@ -91,7 +91,7 @@ fn objectPropertyEditor(
                     .buf = key.buffer,
                 });
             } else {
-                z.text("Key: {}", .{key});
+                z.text("Key: {f}", .{key.*});
             }
             if (editorMode.canEditPropertySchema()) {
                 var propertyType = std.meta.activeTag(value.property);
@@ -197,8 +197,8 @@ fn entityReferencePropertyEditor(
     entityReference: *PropertyEntityReference,
 ) void {
     if (editorMode.canEditEntityReference()) {
-        z.text("Scene: {?s}", .{entityReference.sceneId});
-        z.text("Entity: {?s}", .{entityReference.entityId});
+        z.text("Scene: {?f}", .{entityReference.sceneId});
+        z.text("Entity: {?f}", .{entityReference.entityId});
         if (z.button("Set Entity", .{})) {
             if (context.getCurrentEditor()) |editor| {
                 switch (editor.document.content.?) {

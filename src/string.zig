@@ -73,8 +73,6 @@ pub const StringZ = struct {
 
     pub fn format(
         self: @This(),
-        comptime _: []const u8,
-        _: std.fmt.FormatOptions,
         writer: anytype,
     ) !void {
         try writer.writeAll(self.slice());

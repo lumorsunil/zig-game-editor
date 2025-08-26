@@ -1,22 +1,22 @@
 const std = @import("std");
 const rl = @import("raylib");
 const z = @import("zgui");
-const c = @import("c");
+const c = @import("c").c;
 const lib = @import("lib");
 const config = @import("lib").config;
-const LayoutGeneric = lib.LayoutGeneric;
+const LayoutGeneric = lib.layouts.LayoutGeneric;
 const Context = lib.Context;
 const Editor = lib.Editor;
 const SceneDocument = lib.documents.SceneDocument;
-const SceneEntity = lib.documents.scene.SceneEntity;
-const SceneEntityType = lib.documents.scene.SceneEntityType;
-const SceneEntityExit = lib.documents.scene.SceneEntityExit;
-const SceneEntityEntrance = lib.documents.scene.SceneEntityEntrance;
-const SceneMapError = lib.SceneMapError;
+const SceneEntity = lib.scene.SceneEntity;
+const SceneEntityType = lib.scene.SceneEntityType;
+const SceneEntityExit = lib.scene.SceneEntityExit;
+const SceneEntityEntrance = lib.scene.SceneEntityEntrance;
+const SceneMapError = lib.sceneMap.SceneMapError;
 const propertyEditor = @import("property.zig").propertyEditor;
 const drawIconMenu = @import("entity-type.zig").drawIconMenu;
 const Vector = lib.Vector;
-const Node = lib.Node;
+const Node = lib.assetsLibrary.Node;
 const UUID = lib.UUIDSerializable;
 const utils = @import("utils.zig");
 
@@ -117,14 +117,17 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
         });
         if (selectedEntity.type == .custom) {
             const entityType = context.requestDocumentTypeById(.entityType, selectedEntity.type.custom.entityTypeId) catch unreachable orelse unreachable;
-            z.text("Custom: {}", .{entityType.getName()});
+            z.text("Custom: {f}", .{entityType.getName()});
         }
 
-        utils.scaleInput(&selectedEntity.scale);
+        switch (selectedEntity.type) {
+            .exit => |*exit| utils.scaleInput(&exit.scale.?),
+            .entrance => |*entrance| utils.scaleInput(&entrance.scale.?),
+            else => utils.scaleInput(&selectedEntity.scale),
+        }
 
         switch (selectedEntity.type) {
             .exit => |*exit| {
-                utils.scaleInput(&exit.scale.?);
                 _ = utils.assetInput(.scene, context, &exit.sceneId);
 
                 if (exit.sceneId) |sId| {
@@ -143,7 +146,6 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
                 _ = z.checkbox("Vertical", .{ .v = &exit.isVertical });
             },
             .entrance => |*entrance| {
-                utils.scaleInput(&entrance.scale.?);
                 _ = z.inputText("Key", .{
                     .buf = entrance.key.buffer,
                 });
@@ -280,7 +282,7 @@ fn entityListMenu(
         } else false;
 
         var buttonId: [UUID.zero.serialize().len + 1]u8 = undefined;
-        _ = std.fmt.bufPrint(&buttonId, "{s}h", .{entity.id}) catch unreachable;
+        _ = std.fmt.bufPrint(&buttonId, "{f}h", .{entity.id}) catch unreachable;
         z.pushStrId(&buttonId);
         if (sceneDocument.isEntityHidden(entity.id)) {
             if (z.button("S", .{})) {
@@ -359,15 +361,15 @@ fn setEntityReferenceWindow(context: *Context, sceneDocument: *SceneDocument) vo
                 switch (entity.type) {
                     .custom => |custom| {
                         if (context.requestDocumentTypeById(.entityType, custom.entityTypeId) catch return) |entityTypeDocument| {
-                            z.text("{s} - {}", .{
+                            z.text("{f} - {f}", .{
                                 entityTypeDocument.getName(),
                                 entity.id,
                             });
                             drawIconMenu(context, entityTypeDocument);
                         }
                     },
-                    .entrance => |entrance| z.text("Entrance - {}", .{entrance.key}),
-                    .exit => |exit| z.text("Exit - {}", .{exit.entranceKey}),
+                    .entrance => |entrance| z.text("Entrance - {f}", .{entrance.key}),
+                    .exit => |exit| z.text("Exit - {f}", .{exit.entranceKey}),
                     else => {},
                 }
             }

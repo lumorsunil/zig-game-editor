@@ -1,9 +1,9 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayListUnmanaged;
+const ArrayList = std.ArrayList;
 const lib = @import("lib");
-const Document = lib.Document;
-const Serializer = lib.Serializer;
+const Document = lib.documents.Document;
+const DocumentTag = lib.documents.DocumentTag;
 const AssetIndex = lib.AssetIndex;
 const UUID = lib.UUIDSerializable;
 
@@ -15,7 +15,7 @@ pub const Node = union(enum) {
         id: ?UUID,
         path: [:0]const u8,
         name: [:0]const u8,
-        documentType: lib.DocumentTag,
+        documentType: lib.documents.DocumentTag,
 
         pub fn deinit(self: File, allocator: Allocator) void {
             allocator.free(self.path);
@@ -52,7 +52,7 @@ pub const AssetsLibrary = struct {
     currentFilesAndDirectories: ?[]Node = null,
     currentDirectory: ?[:0]const u8 = null,
     dragPayload: ?*Node = null,
-    assetTypeFilter: lib.DocumentTag = .scene,
+    assetTypeFilter: DocumentTag = .scene,
     enableAssetTypeFilter: bool = false,
 
     pub fn init(allocator: Allocator, root: []const u8) AssetsLibrary {

@@ -5,8 +5,8 @@ const Context = lib.Context;
 const TilemapDocument = lib.documents.TilemapDocument;
 const Vector = lib.Vector;
 const VectorInt = lib.VectorInt;
-const Tilemap = lib.Tilemap;
-const TilemapLayer = lib.TilemapLayer;
+const Tilemap = lib.tilemap.Tilemap;
+const TilemapLayer = lib.tilemap.TilemapLayer;
 
 pub fn drawTilemap(
     context: *Context,

@@ -3,7 +3,7 @@ const Allocator = std.mem.Allocator;
 const lib = @import("lib");
 const UUID = lib.UUIDSerializable;
 const Project = lib.Project;
-const optionsRelativePath = lib.optionsRelativePath;
+const optionsRelativePath = lib.project.optionsRelativePath;
 const Vector = lib.Vector;
 
 pub const ProjectOptions = struct {
@@ -51,8 +51,9 @@ pub const ProjectOptions = struct {
             return err;
         };
         defer file.close();
-        const writer = file.writer();
-        std.json.stringify(self, .{}, writer) catch |err| {
+        var buffer: [1024 * 4]u8 = undefined;
+        var writer = file.writer(&buffer);
+        writer.interface.print("{f}", .{std.json.fmt(self, .{})}) catch |err| {
             std.log.err("Could not save project options {s}: {}", .{ filePath, err });
             return err;
         };

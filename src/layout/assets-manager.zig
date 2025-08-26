@@ -3,12 +3,12 @@ const rl = @import("raylib");
 const lib = @import("lib");
 const Context = lib.Context;
 const Vector = lib.Vector;
-const Document = lib.Document;
-const DocumentTag = lib.DocumentTag;
+const Document = lib.documents.Document;
+const DocumentTag = lib.documents.DocumentTag;
 const AssetsLibrary = lib.AssetsLibrary;
-const Node = lib.Node;
+const Node = lib.assetsLibrary.Node;
 const z = @import("zgui");
-const c = @import("c");
+const c = @import("c").c;
 const utils = @import("utils.zig");
 
 var isCollapsed = false;
@@ -129,7 +129,7 @@ fn nodeMenu(context: *Context, node: *Node) bool {
             if (z.beginTooltip()) {
                 switch (node.*) {
                     .directory => |directory| z.text("{s}", .{directory.path}),
-                    .file => |file| z.text("{?s} - {s}", .{ file.id, file.path }),
+                    .file => |file| z.text("{?f} - {s}", .{ file.id, file.path }),
                 }
             }
             z.endTooltip();

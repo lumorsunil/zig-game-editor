@@ -2,8 +2,8 @@ const std = @import("std");
 const lib = @import("lib");
 const Context = lib.Context;
 const Editor = lib.Editor;
-const DocumentTag = lib.DocumentTag;
-const DocumentContent = lib.DocumentContent;
+const DocumentTag = lib.documents.DocumentTag;
+const DocumentContent = lib.documents.DocumentContent;
 
 fn DocumentPayload(comptime documentType: DocumentTag) type {
     return std.meta.TagPayload(DocumentContent, documentType);

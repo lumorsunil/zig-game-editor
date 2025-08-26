@@ -2,18 +2,18 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const rl = @import("raylib");
 const z = @import("zgui");
-const c = @import("c");
+const c = @import("c").c;
 const lib = @import("lib");
 const config = @import("lib").config;
 const Context = lib.Context;
 const Editor = lib.Editor;
 const SceneDocument = lib.documents.SceneDocument;
-const SceneEntity = lib.documents.scene.SceneEntity;
-const SceneEntityType = lib.documents.scene.SceneEntityType;
+const SceneEntity = lib.scene.SceneEntity;
+const SceneEntityType = lib.scene.SceneEntityType;
 const TilemapDocument = lib.documents.TilemapDocument;
-const DocumentTag = lib.DocumentTag;
+const DocumentTag = lib.documents.DocumentTag;
 const UUID = lib.UUIDSerializable;
-const Node = lib.Node;
+const Node = lib.assetsLibrary.Node;
 const Vector = lib.Vector;
 
 fn getDefaultEntitySize(context: *Context) rl.Vector2 {

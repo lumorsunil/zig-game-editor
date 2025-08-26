@@ -5,16 +5,20 @@
     .minimum_zig_version = "0.14.1",
     .dependencies = .{
         .zxg = .{
-            .url = "git+https://github.com/lumorsunil/zxg#c177848215c20721ae0c8a5b45cc43cd0523827e",
-            .hash = "zxg-0.0.0-NJhRFnFfAAChSNyVnOe5wYzeOkV-1uP5F88TVJ7cBaf7",
-        },
-        .@"nfd-zig" = .{
-            .url = "git+https://github.com/fabioarnold/nfd-zig#ad81729d33da30d5f4fd23718debec48245121ca",
-            .hash = "N-V-__8AAPOHBgCmeTgIR1EyYsjFxHTUpBX57MSSHIxq7729",
+            .url = "git+https://github.com/lumorsunil/zxg#f0e53e32d657e2703649410cfb0a8dba58354c70",
+            .hash = "zxg-0.0.0-NJhRFnNfAAC1K2X48f_dqSaYaEw9Ru9qnAg_ec_VmjX4",
         },
         .uuid = .{
             .url = "git+https://github.com/r4gus/uuid-zig#9d66e23e32cd7208d1becb4fd9352f8a27f89551",
             .hash = "uuid-0.3.0-oOieIYF1AAA_BtE7FvVqqTn5uEYTvvz7ycuVnalCOf8C",
+        },
+        .raylib_zig = .{
+            .url = "git+https://github.com/raylib-zig/raylib-zig#178530d5f5e654d9eb1d7a79e3fbfbd931e26163",
+            .hash = "raylib_zig-5.6.0-dev-KE8REKo6BQDt6jBeo3ODV5g9kzo2IRfJARkaN0kXtC2T",
+        },
+        .nfd_zig = .{
+            .url = "git+https://github.com/lumorsunil/nfd-zig#82417ed3f02bb866a334f0bbd3cdf9c1ab9f49cd",
+            .hash = "nfd_zig-0.0.1-gJDtD52IBgBjCYNt6Zd5luUTsfIPcZNLkKVYBAZcgdsF",
         },
     },
     .paths = .{

@@ -7,7 +7,7 @@ const DocumentGeneric = lib.documents.DocumentGeneric;
 const UUID = lib.UUIDSerializable;
 const StringZ = lib.StringZ;
 const Vector = lib.Vector;
-const PropertyObject = lib.PropertyObject;
+const PropertyObject = lib.properties.PropertyObject;
 
 pub const EntityTypeDocument = struct {
     document: DocumentType,
