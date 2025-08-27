@@ -81,6 +81,10 @@ pub fn writeObject(object: anytype, jw: anytype) !void {
 }
 
 pub fn reportJsonErrorToWriter(reader: anytype, err: anyerror, writer: anytype) !void {
+    defer writer.flush() catch |err_| {
+        std.log.err("Could not flush: {}", .{err_});
+    };
+
     const input = reader.scanner.input;
     const cursor = reader.scanner.cursor;
 
@@ -96,6 +100,7 @@ pub fn reportJsonErrorToWriter(reader: anytype, err: anyerror, writer: anytype) 
 pub fn reportJsonError(reader: anytype, err: anyerror) void {
     var stdoutBuffer: [1024]u8 = undefined;
     var stdout = std.fs.File.stdout().writer(&stdoutBuffer);
+    defer stdout.interface.flush() catch |err_| std.log.err("Could not flush: {}", .{err_});
 
     const input = reader.scanner.input;
     const cursor = reader.scanner.cursor;

@@ -163,6 +163,7 @@ pub const Context = struct {
         defer file.close();
         var buffer: [1024 * 4]u8 = undefined;
         var writer = file.writer(&buffer);
+        defer writer.interface.flush() catch |err| std.log.err("Could not flush: {}", .{err});
         var session = self.createEditorSession();
         try writer.interface.print("{f}", .{std.json.fmt(session, .{})});
         session.deinit(self.allocator);

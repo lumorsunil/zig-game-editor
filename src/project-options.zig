@@ -57,5 +57,9 @@ pub const ProjectOptions = struct {
             std.log.err("Could not save project options {s}: {}", .{ filePath, err });
             return err;
         };
+        writer.interface.flush() catch |err| {
+            std.log.err("Could not flushn project options {s}: {}", .{ filePath, err });
+            return err;
+        };
     }
 };

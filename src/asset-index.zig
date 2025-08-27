@@ -125,6 +125,7 @@ pub const AssetIndex = struct {
         defer file.close();
         var buffer: [1024 * 4]u8 = undefined;
         var writer = file.writer(&buffer);
+        defer writer.interface.flush() catch |err| std.log.err("Could not flush: {}", .{err});
         try writer.interface.print("{f}", .{std.json.fmt(self.hashMap, .{})});
     }
 
