@@ -21,7 +21,7 @@
             .hash = "nfd_zig-0.0.1-gJDtD52IBgBjCYNt6Zd5luUTsfIPcZNLkKVYBAZcgdsF",
         },
         .zig_io = .{
-            .path = "../zig-io",
+            .path = "git+https://github.com/lumorsunil/zig-io#230a040d4e85bfab6b262d9aad4523a1c797a37d",
         },
     },
     .paths = .{
