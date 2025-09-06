@@ -70,8 +70,8 @@ pub const SceneDocument = struct {
                     std.log.debug("entity {} not found while drawing", .{c});
                     return;
                 };
-                const textureId = entityType.getTextureId().* orelse return;
-                const texture = context.requestTextureById(textureId) catch return orelse return;
+                const scaleV = @Vector(2, f32){ scale, scale };
+                const position: @Vector(2, f32) = @floatFromInt(entity.position);
                 const gridPosition = entityType.getGridPosition().*;
                 const cellSize = entityType.getCellSize().*;
                 const rectPos: @Vector(2, f32) = @floatFromInt(gridPosition * cellSize);
@@ -82,17 +82,25 @@ pub const SceneDocument = struct {
                     rectSize[0],
                     rectSize[1],
                 );
+                const sourceSize: @Vector(2, f32) = .{ source.width, source.height };
+                const destSize = sourceSize * scaleV * entity.scale;
 
-                const position: @Vector(2, f32) = @floatFromInt(entity.position);
-                const destWidth = source.width * scale * entity.scale[0];
-                const destHeight = source.height * scale * entity.scale[1];
+                const scaledPosition = position * @Vector(2, f32){ scale, scale };
+
+                const textureId = entityType.getTextureId().* orelse {
+                    return context.drawDefaultTexture(scaledPosition, sourceSize * entity.scale);
+                };
+                const texture = (context.requestTextureById(textureId) catch null) orelse {
+                    return context.drawDefaultTexture(scaledPosition, sourceSize * entity.scale);
+                };
+
                 const dest = rl.Rectangle.init(
-                    position[0] * scale,
-                    position[1] * scale,
-                    destWidth,
-                    destHeight,
+                    scaledPosition[0],
+                    scaledPosition[1],
+                    destSize[0],
+                    destSize[1],
                 );
-                const origin = rl.Vector2.init(destWidth / 2, destHeight / 2);
+                const origin = rl.Vector2.init(destSize[0] / 2, destSize[1] / 2);
 
                 rl.drawTexturePro(texture.*, source, dest, origin, 0, rl.Color.white);
             },

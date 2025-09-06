@@ -3,6 +3,7 @@ const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayListUnmanaged;
 
 pub const JsonArrayList = @import("json-array-list.zig").JsonArrayList;
+pub const reportJsonError = @import("zig-io").reportJsonError;
 
 fn writeValue(value: anytype, jw: anytype) !void {
     const writeFn = comptime brk: {
@@ -78,59 +79,6 @@ pub fn writeObject(object: anytype, jw: anytype) !void {
         try writeValue(@field(object, field.name), jw);
     }
     try jw.endObject();
-}
-
-pub fn reportJsonErrorToWriter(reader: anytype, err: anyerror, writer: anytype) !void {
-    defer writer.flush() catch |err_| {
-        std.log.err("Could not flush: {}", .{err_});
-    };
-
-    const input = reader.scanner.input;
-    const cursor = reader.scanner.cursor;
-
-    try writer.print("Error parsing json at {}: {}", .{ cursor, err });
-    const line, const startIdx = getReportSlice(input, cursor, 40);
-    try writer.print("Input: {s}", .{line});
-    for (0..cursor - startIdx + "error: Input: ".len) |_| {
-        try writer.writeAll(" ");
-    }
-    try writer.writeAll("^\n");
-}
-
-pub fn reportJsonError(reader: anytype, err: anyerror) void {
-    var stdoutBuffer: [1024]u8 = undefined;
-    var stdout = std.fs.File.stdout().writer(&stdoutBuffer);
-    defer stdout.interface.flush() catch |err_| std.log.err("Could not flush: {}", .{err_});
-
-    const input = reader.scanner.input;
-    const cursor = reader.scanner.cursor;
-
-    std.log.err("Error parsing json at {}: {}", .{ cursor, err });
-    const line, const startIdx = getReportSlice(input, cursor, 40);
-    std.log.err("Input: {s}", .{line});
-    for (0..cursor - startIdx + "error: Input: ".len) |_| {
-        stdout.interface.writeAll(" ") catch unreachable;
-    }
-    stdout.interface.writeAll("^\n") catch unreachable;
-}
-
-fn getReportSlice(
-    slice: []const u8,
-    offset: usize,
-    padding: usize,
-) struct { []const u8, usize } {
-    const endOfLineIdx = std.mem.indexOfScalarPos(u8, slice, offset, '\n') orelse slice.len;
-    const startOfLineIdx = for (0..offset) |i| {
-        if (slice[offset - i - 1] == '\n') break (offset - i - 1) + 1;
-    } else 0;
-
-    const endOfPaddingIdx = @min(slice.len, offset + padding);
-    const startOfPaddingIdx = if (padding > offset) 0 else offset - padding;
-
-    const startOfSlice = @max(startOfLineIdx, startOfPaddingIdx);
-    const endOfSlice = @min(endOfLineIdx, endOfPaddingIdx);
-
-    return .{ slice[startOfSlice..endOfSlice], startOfSlice };
 }
 
 pub fn parseFromSliceWithErrorReporting(

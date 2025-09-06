@@ -116,8 +116,12 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
             .buf = &idAsString,
         });
         if (selectedEntity.type == .custom) {
-            const entityType = context.requestDocumentTypeById(.entityType, selectedEntity.type.custom.entityTypeId) catch unreachable orelse unreachable;
-            z.text("Custom: {f}", .{entityType.getName()});
+            const entityType = context.requestDocumentTypeById(.entityType, selectedEntity.type.custom.entityTypeId) catch unreachable;
+            if (entityType) |et| {
+                z.text("Custom: {f}", .{et.getName()});
+            } else {
+                z.text("Custom: Not found", .{});
+            }
         }
 
         switch (selectedEntity.type) {
@@ -303,6 +307,7 @@ fn entityListMenu(
             const entityTypeDocument: *lib.documents.EntityTypeDocument = (context.requestDocumentTypeById(
                 .entityType,
                 entity.type.custom.entityTypeId,
+                // TODO: Bug: says loading even though there was an error while requesting the document
             ) catch break :brk "Error!") orelse break :brk "Loading...";
             break :brk entityTypeDocument.getName().slice();
         } else @tagName(entity.type);

@@ -55,8 +55,8 @@ pub const Project = struct {
         self.options = try ProjectOptions.load(self, allocator);
     }
 
-    pub fn saveOptions(self: *Project, allocator: Allocator) !void {
-        try self.options.save(allocator, self.*);
+    pub fn saveOptions(self: *Project) !void {
+        try self.options.save(self.*);
     }
 
     pub fn loadIndex(self: *Project, allocator: Allocator) !void {

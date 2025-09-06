@@ -40,8 +40,8 @@ pub fn generateThumbnail(self: *Context, document: *Document) !?rl.Image {
             return image;
         },
         .entityType => |*entityTypeDocument| {
-            const textureId = entityTypeDocument.getTextureId().* orelse return null;
-            const texture = (self.requestTextureById(textureId) catch return null) orelse return null;
+            const textureId = entityTypeDocument.getTextureId().* orelse return self.getDefaultTextureAsImage();
+            const texture = (self.requestTextureById(textureId) catch null) orelse return self.getDefaultTextureAsImage();
 
             const gridPosition = entityTypeDocument.getGridPosition().*;
             const cellSize = entityTypeDocument.getCellSize().*;

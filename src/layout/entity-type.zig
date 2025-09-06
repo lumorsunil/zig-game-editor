@@ -66,8 +66,14 @@ fn menu(context: *Context, editor: *Editor, entityTypeDocument: *EntityTypeDocum
 }
 
 pub fn drawIconMenu(context: *Context, entityTypeDocument: *EntityTypeDocument) void {
-    const textureId = entityTypeDocument.getTextureId().* orelse return;
-    const texture = context.requestTextureById(textureId) catch return orelse return;
+    const textureId = entityTypeDocument.getTextureId().* orelse {
+        return context.drawDefaultTextureUI(entityTypeDocument.getCellSize().*);
+    };
+    const maybeTexture = context.requestTextureById(textureId) catch null orelse null;
+    const texture = maybeTexture orelse {
+        return context.drawDefaultTextureUI(entityTypeDocument.getCellSize().*);
+    };
+
     const cellSize = entityTypeDocument.getCellSize().*;
     const sourcePosition: @Vector(2, f32) = @floatFromInt(entityTypeDocument.getGridPosition().* * cellSize);
     const source = rl.Rectangle.init(
@@ -77,6 +83,7 @@ pub fn drawIconMenu(context: *Context, entityTypeDocument: *EntityTypeDocument) 
         @floatFromInt(cellSize[1]),
     );
     const scaledSize: Vector = cellSize * context.scaleV;
+
     c.rlImGuiImageRect(@ptrCast(texture), scaledSize[0], scaledSize[1], @bitCast(source));
 }
 

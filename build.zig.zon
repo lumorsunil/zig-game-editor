@@ -20,6 +20,9 @@
             .url = "git+https://github.com/lumorsunil/nfd-zig#82417ed3f02bb866a334f0bbd3cdf9c1ab9f49cd",
             .hash = "nfd_zig-0.0.1-gJDtD52IBgBjCYNt6Zd5luUTsfIPcZNLkKVYBAZcgdsF",
         },
+        .zig_io = .{
+            .path = "../zig-io",
+        },
     },
     .paths = .{
         "build.zig",

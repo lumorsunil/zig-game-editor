@@ -5,6 +5,7 @@ const UUID = lib.UUIDSerializable;
 const Project = lib.Project;
 const optionsRelativePath = lib.project.optionsRelativePath;
 const Vector = lib.Vector;
+const io = @import("zig-io");
 
 pub const ProjectOptions = struct {
     entryScene: ?UUID = null,
@@ -15,51 +16,26 @@ pub const ProjectOptions = struct {
     pub const empty: ProjectOptions = .{};
 
     pub fn load(project: *Project, allocator: Allocator) !ProjectOptions {
-        const filePath = std.fs.path.join(allocator, &.{
+        var filePathBuffer: [std.posix.PATH_MAX]u8 = undefined;
+        var bufferAllocator = std.heap.FixedBufferAllocator.init(&filePathBuffer);
+
+        const filePath = std.fs.path.join(bufferAllocator.allocator(), &.{
             project.getRootDirPath(),
             optionsRelativePath,
         }) catch unreachable;
-        defer allocator.free(filePath);
-        const file = std.fs.openFileAbsolute(filePath, .{}) catch |err| {
-            std.log.err("Could not open {s}: {}", .{ filePath, err });
-            return err;
-        };
-        defer file.close();
-        var buffer: [1024]u8 = undefined;
-        const len = file.readAll(&buffer) catch |err| {
-            std.log.err("Could not read {s}: {}", .{ filePath, err });
-            return err;
-        };
-        if (len == buffer.len) {
-            std.log.warn("Length of {s} is exactly matching the buffer size. Probably need to bump it up or change the algorithm.", .{filePath});
-        }
-        const fileContent = buffer[0..len];
-        return std.json.parseFromSliceLeaky(ProjectOptions, allocator, fileContent, .{}) catch |err| {
-            std.log.err("Could not parse project options json: {}", .{err});
-            return err;
-        };
+
+        return try io.readJsonFileLeaky(ProjectOptions, allocator, filePath, .{});
     }
 
-    pub fn save(self: ProjectOptions, allocator: Allocator, project: Project) !void {
-        const filePath = std.fs.path.join(allocator, &.{
+    pub fn save(self: ProjectOptions, project: Project) !void {
+        var filePathBuffer: [std.posix.PATH_MAX]u8 = undefined;
+        var bufferAllocator = std.heap.FixedBufferAllocator.init(&filePathBuffer);
+
+        const filePath = std.fs.path.join(bufferAllocator.allocator(), &.{
             project.getRootDirPath(),
             optionsRelativePath,
         }) catch unreachable;
-        defer allocator.free(filePath);
-        const file = std.fs.createFileAbsolute(filePath, .{}) catch |err| {
-            std.log.err("Could not open {s}: {}", .{ filePath, err });
-            return err;
-        };
-        defer file.close();
-        var buffer: [1024 * 4]u8 = undefined;
-        var writer = file.writer(&buffer);
-        writer.interface.print("{f}", .{std.json.fmt(self, .{})}) catch |err| {
-            std.log.err("Could not save project options {s}: {}", .{ filePath, err });
-            return err;
-        };
-        writer.interface.flush() catch |err| {
-            std.log.err("Could not flushn project options {s}: {}", .{ filePath, err });
-            return err;
-        };
+
+        try io.writeJsonFile(filePath, self, .{});
     }
 };

@@ -47,10 +47,12 @@ pub fn build(b: *Build) void {
     context.addC(libMod);
     context.addNfd(libMod);
     context.addUuid(libMod);
+    context.addZigIo(libMod);
 
     context.addC(exe.root_module);
     context.addNfd(exe.root_module);
     context.addUuid(exe.root_module);
+    context.addZigIo(exe.root_module);
 
     utils.addRunExe(b, exe, "run", "Run the app");
 
@@ -65,6 +67,7 @@ pub fn build(b: *Build) void {
     context.addC(checkExe.root_module);
     context.addNfd(checkExe.root_module);
     context.addUuid(checkExe.root_module);
+    context.addZigIo(checkExe.root_module);
 
     const step = b.step("check", "Check step made for zls");
     step.dependOn(&checkExe.step);

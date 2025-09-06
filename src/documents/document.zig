@@ -16,13 +16,11 @@ pub const DocumentError = error{ FileExtensionInvalid, IndexNotFound };
 const DocumentStateTag = enum {
     loaded,
     unloaded,
-    err,
 };
 
 pub const DocumentState = union(DocumentStateTag) {
     loaded,
     unloaded,
-    err: struct { err: anyerror },
 };
 
 pub const Document = struct {
@@ -37,7 +35,7 @@ pub const Document = struct {
 
     pub fn initWithError(err: anyerror) Document {
         return Document{
-            .state = .{ .err = .{ .err = err } },
+            .state = err,
         };
     }
 
@@ -75,7 +73,7 @@ pub const Document = struct {
         std.debug.assert(state == .unloaded);
         errdefer |err| {
             std.log.err("Could not load document content for {s}: {}", .{ filePath, err });
-            self.state = .{ .err = .{ .err = err } };
+            self.state = err;
         }
         const documentType = try getTagByFilePath(filePath);
         switch (documentType) {

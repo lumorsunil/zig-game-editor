@@ -7,6 +7,7 @@ const Vector = lib.Vector;
 const rl = @import("raylib");
 
 pub const thumbnailSize = 64;
+const iconSize = 128;
 
 pub const ThumbnailResult = union(enum) {
     success: rl.Texture2D,
@@ -73,22 +74,65 @@ pub const Thumbnails = struct {
         image: rl.Image,
     ) !void {
         // Create scaled version of texture
-        var thumbnailImage = rl.genImageColor(thumbnailSize, thumbnailSize, rl.Color.white);
-        const srcRect = rl.Rectangle.init(0, 0, @floatFromInt(image.width), @floatFromInt(image.height));
-        const dstRect = rl.Rectangle.init(0, 0, thumbnailSize, thumbnailSize);
-        rl.imageDraw(&thumbnailImage, image, srcRect, dstRect, rl.Color.white);
+        const imageSize: @Vector(2, f32) = .{
+            @as(f32, @floatFromInt(image.width)),
+            @as(f32, @floatFromInt(image.height)),
+        };
+        const thumbnailSizeV = @Vector(2, f32){ thumbnailSize, thumbnailSize };
+        const destSize = @min(imageSize, thumbnailSizeV);
+        const srcRect = rl.Rectangle.init(0, 0, imageSize[0], imageSize[1]);
+        const dstRect = rl.Rectangle.init(0, 0, destSize[0], destSize[1]);
+
+        var thumbnailImage = rl.genImageColor(
+            @intFromFloat(destSize[0]),
+            @intFromFloat(destSize[1]),
+            rl.Color.white,
+        );
         defer rl.unloadImage(thumbnailImage);
+
+        rl.imageDraw(&thumbnailImage, image, srcRect, dstRect, rl.Color.white);
 
         // Persist thumbnail to file system
         const filePath = getFilePath(allocator, cacheDirectory, id);
         defer allocator.free(filePath);
         if (!rl.exportImage(thumbnailImage, filePath)) return UpdateError.ExportImageFailed;
 
+        const renderTexture = rl.loadRenderTexture(iconSize, iconSize) catch unreachable;
+        defer rl.unloadRenderTexture(renderTexture);
+
+        const tempThumbnailTexture = rl.loadTextureFromImage(thumbnailImage) catch unreachable;
+        rl.setTextureFilter(tempThumbnailTexture, .point);
+        defer rl.unloadTexture(tempThumbnailTexture);
+
+        // var scaledImage = rl.genImageColor(iconSize, iconSize, rl.Color.white);
+        // defer rl.unloadImage(scaledImage);
+
+        //rl.imageResizeNN(&thumbnailImage, iconSize, iconSize);
+        const iconDestRect = rl.Rectangle.init(0, 0, iconSize, iconSize);
+        // rl.imageDraw(&scaledImage, image, srcRect, iconDestRect, rl.Color.white);
+        rl.beginTextureMode(renderTexture);
+        rl.drawTexturePro(
+            tempThumbnailTexture,
+            dstRect,
+            iconDestRect,
+            rl.Vector2.init(0, 0),
+            0,
+            rl.Color.white,
+        );
+        rl.endTextureMode();
+
         // Store thumbnail in cache
-        const thumbnailTexture = rl.loadTextureFromImage(thumbnailImage) catch |err| {
-            self.put(allocator, id, .{ .err = err });
-            return;
-        };
+        // const thumbnailTexture = rl.loadTextureFromImage(scaledImage) catch |err| {
+        //     self.put(allocator, id, .{ .err = err });
+        //     return;
+        // };
+
+        var actualThumbnailImage = rl.loadImageFromTexture(renderTexture.texture) catch unreachable;
+        rl.imageFlipVertical(&actualThumbnailImage);
+        defer rl.unloadImage(actualThumbnailImage);
+        const thumbnailTexture = rl.loadTextureFromImage(actualThumbnailImage) catch unreachable;
+
+        rl.setTextureFilter(thumbnailTexture, .point);
 
         self.put(allocator, id, .{ .success = thumbnailTexture });
     }

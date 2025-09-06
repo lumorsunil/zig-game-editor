@@ -122,6 +122,8 @@ fn endOfFrame(context: *Context) void {
         context.updateThumbnailForCurrentDocument = false;
     }
 
+    context.handleEditorsToBeClosed();
+
     if (context.editorToBeOpened) |id| {
         context.openEditorById(id);
         context.editorToBeOpened = null;
@@ -189,7 +191,7 @@ fn documentTabs(context: *Context) void {
         if (idToOpen) |id| {
             context.openEditorById(id);
         }
-        context.closeEditorsByIds(idsToClose.slice());
+        context.setEditorsToBeClosedByIds(idsToClose.slice());
     }
 }
 

@@ -13,11 +13,13 @@ pub const Context = struct {
     deps: struct {
         nfd: *Dependency,
         uuid: *Dependency,
+        zig_io: *Dependency,
     },
     modules: struct {
         c: *Module,
         nfd: *Module,
         uuid: *Module,
+        @"zig-io": *Module,
     },
 
     pub fn init(b: *Build, options: anytype) Context {
@@ -45,15 +47,22 @@ pub const Context = struct {
             .optimize = optimize,
         });
 
+        const zigIoDep = b.dependency("zig_io", .{
+            .target = target,
+            .optimize = optimize,
+        });
+
         return Context{
             .deps = .{
                 .nfd = nfdDep,
                 .uuid = uuidDep,
+                .zig_io = zigIoDep,
             },
             .modules = .{
                 .nfd = nfdDep.module("nfd"),
                 .c = cModule,
                 .uuid = uuidDep.module("uuid"),
+                .@"zig-io" = zigIoDep.module("zig_io"),
             },
         };
     }
@@ -73,5 +82,9 @@ pub const Context = struct {
 
     pub fn addUuid(self: Context, target: *Module) void {
         self.add("uuid", target);
+    }
+
+    pub fn addZigIo(self: Context, target: *Module) void {
+        self.add("zig-io", target);
     }
 };

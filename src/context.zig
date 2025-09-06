@@ -1,3 +1,4 @@
+// Imports {{{
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const rl = @import("raylib");
@@ -25,7 +26,12 @@ const SceneEntity = lib.scene.SceneEntity;
 const SceneEntityTilemap = lib.scene.SceneEntityTilemap;
 const generateThumbnail = lib.thumbnail.generateThumbnail;
 const nfd = @import("nfd");
+const io = @import("zig-io");
+const c = @import("c").c;
+const z = @import("zgui");
+// }}}
 
+// Supporting Types {{{
 pub const PlayState = enum {
     notRunning,
     startNextFrame,
@@ -41,8 +47,10 @@ pub const ContextError = error{
     NoProject,
     NoCurrentDirectory,
 };
+// }}}
 
 pub const Context = struct {
+    // Struct {{{
     isRunning: bool = true,
 
     allocator: Allocator,
@@ -50,6 +58,7 @@ pub const Context = struct {
     openedEditors: IdArrayHashMap(Editor),
     currentEditor: ?UUID = null,
     editorToBeOpened: ?UUID = null,
+    editorsToBeClosed: IdArrayHashMap(bool) = .empty,
     documents: IdArrayHashMap(Document),
 
     backgroundColor: rl.Color = rl.Color.init(125, 125, 155, 255),
@@ -100,9 +109,16 @@ pub const Context = struct {
         .rotation = 0,
     },
 
+    defaultTexture: rl.Texture2D = undefined,
+
     pub fn init(allocator: Allocator) Context {
         const rootDir = std.fs.cwd().realpathAlloc(allocator, ".") catch unreachable;
         defer allocator.free(rootDir);
+
+        const defaultTextureImage = rl.genImageChecked(2, 2, 1, 1, rl.Color.black, rl.Color.magenta);
+        const defaultTexture = rl.loadTextureFromImage(defaultTextureImage) catch unreachable;
+        rl.setTextureFilter(defaultTexture, .point);
+        rl.unloadImage(defaultTextureImage);
 
         return Context{
             .allocator = allocator,
@@ -116,6 +132,7 @@ pub const Context = struct {
                 break :brk null;
             },
             .sceneMapWindowRenderTexture = rl.loadRenderTexture(800, 600) catch unreachable,
+            .defaultTexture = defaultTexture,
         };
     }
 
@@ -125,7 +142,11 @@ pub const Context = struct {
         if (self.iconsTexture) |iconsTexture| rl.unloadTexture(iconsTexture);
         self.iconsTexture = null;
         self.sceneMap.deinit(self.allocator);
+        rl.unloadTexture(self.defaultTexture);
+        self.editorsToBeClosed.deinit(self.allocator);
     }
+
+    // }}}
 
     // Session {{{
 
@@ -159,20 +180,19 @@ pub const Context = struct {
     }
 
     pub fn storeSession(self: *Context) !void {
-        const file = try std.fs.cwd().createFile(sessionFileName, .{});
-        defer file.close();
-        var buffer: [1024 * 4]u8 = undefined;
-        var writer = file.writer(&buffer);
-        defer writer.interface.flush() catch |err| std.log.err("Could not flush: {}", .{err});
         var session = self.createEditorSession();
-        try writer.interface.print("{f}", .{std.json.fmt(session, .{})});
+        try io.writeJsonFile(sessionFileName, session, .{});
         session.deinit(self.allocator);
         _ = self.saveIndex();
     }
 
     pub fn restoreSession(self: *Context) !void {
-        // Read session file
-        const file = std.fs.cwd().openFile(sessionFileName, .{}) catch |err| {
+        const parsed = io.readJsonFileArena(
+            EditorSession,
+            self.allocator,
+            sessionFileName,
+            .{ .parseOptions = .{ .ignore_unknown_fields = true } },
+        ) catch |err| {
             switch (err) {
                 error.FileNotFound => {
                     return;
@@ -180,35 +200,25 @@ pub const Context = struct {
                 else => return err,
             }
         };
-        defer file.close();
-        var fileReaderBuffer: [1024 * 4]u8 = undefined;
-        var reader = file.reader(&fileReaderBuffer);
-        var jsonReader = std.json.Reader.init(self.allocator, &reader.interface);
-        defer jsonReader.deinit();
-        const parsed = std.json.parseFromTokenSource(EditorSession, self.allocator, &jsonReader, .{
-            .ignore_unknown_fields = true,
-        }) catch |err| {
-            std.log.err("Could not read session: {}", .{err});
-            return err;
-        };
         defer parsed.deinit();
+        const editorSession = parsed.value;
 
-        if (parsed.value.currentProject) |p| {
+        if (editorSession.currentProject) |p| {
             self.setProject(Project.init(self.allocator, p));
         }
 
-        for (parsed.value.openedDocuments) |document| {
+        for (editorSession.openedDocuments) |document| {
             self.openEditorById(document.id);
             const editor = self.openedEditors.map.getPtr(document.id);
             if (editor) |e| e.camera = document.camera;
         }
 
-        if (parsed.value.openedEditor) |id| {
+        if (editorSession.openedEditor) |id| {
             self.openEditorById(id);
         }
 
-        rl.setWindowSize(parsed.value.windowSize[0], parsed.value.windowSize[1]);
-        rl.setWindowPosition(parsed.value.windowPos[0], parsed.value.windowPos[1]);
+        rl.setWindowSize(editorSession.windowSize[0], editorSession.windowSize[1]);
+        rl.setWindowPosition(editorSession.windowPos[0], editorSession.windowPos[1]);
 
         const exitImage = rl.genImageColor(1, 1, rl.Color.white);
         const entranceImage = rl.genImageColor(1, 1, rl.Color.yellow);
@@ -234,7 +244,7 @@ pub const Context = struct {
 
     pub fn saveProject(self: *Context) !void {
         const p = &(self.currentProject orelse return ContextError.NoProject);
-        try p.saveOptions(self.allocator);
+        try p.saveOptions();
     }
 
     pub fn closeProject(self: *Context) void {
@@ -353,6 +363,25 @@ pub const Context = struct {
 
     pub fn closeEditorsByIds(self: *Context, ids: []const UUID) void {
         for (ids) |id| self.closeEditorById(id);
+    }
+
+    pub fn setEditorsToBeClosedByIds(self: *Context, ids: []const UUID) void {
+        for (ids) |id| {
+            const entry = self.editorsToBeClosed.map.getOrPut(self.allocator, id) catch unreachable;
+            entry.value_ptr.* = true;
+        }
+    }
+
+    pub fn handleEditorsToBeClosed(self: *Context) void {
+        var it = self.editorsToBeClosed.map.iterator();
+
+        while (it.next()) |entry| {
+            if (entry.value_ptr.*) {
+                self.closeEditorById(entry.key_ptr.*);
+            }
+
+            entry.value_ptr.* = false;
+        }
     }
 
     pub fn closeEditors(self: *Context) void {
@@ -660,7 +689,7 @@ pub const Context = struct {
             const path = self.getFilePathById(id) orelse {
                 entry.value_ptr.* = .initWithError(DocumentError.IndexNotFound);
                 self.showError("Could not find document in index with id {f}", .{id});
-                return null;
+                return entry.value_ptr;
             };
             entry.value_ptr.* = Document.open(self.allocator, &self.currentProject.?, path) catch |err| {
                 self.showError("Could not open document {s}: {}", .{ path, err });
@@ -685,12 +714,21 @@ pub const Context = struct {
         self: *Context,
         comptime tag: DocumentTag,
         id: UUID,
-    ) !?*std.meta.TagPayload(DocumentContent, tag) {
+    ) anyerror!?*std.meta.TagPayload(DocumentContent, tag) {
         const document = self.requestDocumentById(id) orelse return null;
 
-        switch (document.content.?) {
-            tag => |*content| return content,
-            else => return ContextError.DocumentTagNotMatching,
+        if (document.state) |state| {
+            switch (state) {
+                .loaded => {
+                    switch (document.content.?) {
+                        tag => |*content| return content,
+                        else => return ContextError.DocumentTagNotMatching,
+                    }
+                },
+                .unloaded => return null,
+            }
+        } else |err| {
+            return err;
         }
     }
 
@@ -755,6 +793,38 @@ pub const Context = struct {
         p.updateThumbnailById(self.allocator, id, image) catch |err| {
             self.showError("Could not update thumbnail for document {s}: {}", .{ path, err });
         };
+    }
+
+    // }}}
+
+    // Default Texture {{{
+
+    pub fn drawDefaultTexture(
+        context: *Context,
+        position: @Vector(2, f32),
+        size: @Vector(2, f32),
+    ) void {
+        const texture = context.defaultTexture;
+
+        const source = rl.Rectangle.init(0, 0, 2, 2);
+        const scaledSize = size * @as(@Vector(2, f32), @floatFromInt(context.scaleV));
+        const dest = rl.Rectangle.init(position[0], position[1], scaledSize[0], scaledSize[1]);
+        const origin = rl.Vector2.init(scaledSize[0] / 2, scaledSize[1] / 2);
+
+        rl.drawTexturePro(texture, source, dest, origin, 0, rl.Color.white);
+    }
+
+    pub fn drawDefaultTextureUI(context: *Context, size: Vector) void {
+        const texture = &context.defaultTexture;
+
+        const source = rl.Rectangle.init(0, 0, 2, 2);
+        const scaledSize = size * context.scaleV;
+
+        c.rlImGuiImageRect(@ptrCast(texture), scaledSize[0], scaledSize[1], @bitCast(source));
+    }
+
+    pub fn getDefaultTextureAsImage(_: *Context) rl.Image {
+        return rl.genImageChecked(2, 2, 1, 1, rl.Color.black, rl.Color.magenta);
     }
 
     // }}}

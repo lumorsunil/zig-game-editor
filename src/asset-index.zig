@@ -7,6 +7,7 @@ const DocumentTag = lib.documents.DocumentTag;
 const Document = lib.documents.Document;
 const cacheDirectoryName = lib.project.cacheDirectoryName;
 const projectJsonFileName = lib.project.optionsRelativePath;
+const io = @import("zig-io");
 
 const indexJsonFileName = "index.json";
 
@@ -48,23 +49,19 @@ pub const AssetIndex = struct {
         var dir = try std.fs.openDirAbsolute(cacheDirectory, .{});
         defer dir.close();
 
-        const file = dir.openFile(indexJsonFileName, .{}) catch |err| {
+        self.hashMap = io.readJsonFileLeaky(
+            IdArrayHashMap([:0]const u8),
+            allocator,
+            indexJsonFileName,
+            .{ .dir = dir, .ignore_unknown_fields = true },
+        ) catch |err| {
             switch (err) {
                 std.fs.File.OpenError.FileNotFound => return false,
                 else => return err,
             }
         };
-        defer file.close();
-        const reader = file.reader();
-        var jsonReader = std.json.reader(allocator, reader);
-        defer jsonReader.deinit();
-        const jsonData = std.json.parseFromTokenSourceLeaky(IdArrayHashMap([:0]const u8), allocator, &jsonReader, .{ .ignore_unknown_fields = true }) catch |err| {
-            std.log.err("Could not read {s}: {}", .{ indexJsonFileName, err });
-            return false;
-        };
-        self.hashMap = jsonData;
 
-        if (jsonData.map.count() == 0) {
+        if (self.hashMap.map.count() == 0) {
             return false;
         }
 
@@ -92,20 +89,17 @@ pub const AssetIndex = struct {
                     if (std.fs.path.dirname(entry.path)) |dirname| if (std.mem.eql(u8, dirname, cacheDirectoryName)) continue;
                     if (!std.mem.endsWith(u8, entry.path, ".json")) continue;
 
-                    const file = try dir.openFile(entry.path, .{});
-                    defer file.close();
-                    var buffer: [1024 * 4]u8 = undefined;
-                    var reader = file.reader(&buffer);
-                    var jsonReader = std.json.Reader.init(allocator, &reader.interface);
-                    defer jsonReader.deinit();
-                    const parsed = std.json.parseFromTokenSource(AssetId, allocator, &jsonReader, .{ .ignore_unknown_fields = true }) catch |err| {
-                        std.log.err("Could not parse json {s}, {}", .{ entry.path, err });
-                        return err;
-                    };
-                    defer parsed.deinit();
-                    const id = parsed.value.id;
+                    const assetId = try io.readJsonFileLeaky(
+                        AssetId,
+                        allocator,
+                        entry.path,
+                        .{
+                            .dir = dir,
+                            .parseOptions = .{ .ignore_unknown_fields = true },
+                        },
+                    );
                     const filePath = allocator.dupeZ(u8, entry.path) catch unreachable;
-                    try self.hashMap.map.put(allocator, id, filePath);
+                    try self.hashMap.map.put(allocator, assetId.id, filePath);
                 },
                 else => continue,
             }
@@ -121,12 +115,7 @@ pub const AssetIndex = struct {
         };
         var dir = try std.fs.openDirAbsolute(cacheDirectory, .{});
         defer dir.close();
-        const file = try dir.createFile(indexJsonFileName, .{});
-        defer file.close();
-        var buffer: [1024 * 4]u8 = undefined;
-        var writer = file.writer(&buffer);
-        defer writer.interface.flush() catch |err| std.log.err("Could not flush: {}", .{err});
-        try writer.interface.print("{f}", .{std.json.fmt(self.hashMap, .{})});
+        try io.writeJsonFile(indexJsonFileName, self.hashMap, .{ .dir = dir });
     }
 
     pub fn addIndex(

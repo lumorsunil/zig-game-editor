@@ -20,7 +20,7 @@ pub const EntityTypeIcon = struct {
     pub const empty = EntityTypeIcon{
         .textureId = null,
         .gridPosition = .{ 0, 0 },
-        .cellSize = .{ 0, 0 },
+        .cellSize = .{ 16, 16 },
     };
 
     pub fn init(
