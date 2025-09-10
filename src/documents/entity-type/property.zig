@@ -27,6 +27,16 @@ pub const PropertyType = union(PropertyTypeTag) {
     boolean: PropertyBoolean,
     entityReference: PropertyEntityReference,
     assetReference: PropertyAssetReference,
+
+    pub fn findEntityReferences(
+        self: PropertyType,
+        allocator: Allocator,
+    ) []PropertyEntityReference {
+        return switch (self) {
+            .string, .integer, .float, .boolean, .assetReference => &.{},
+            inline else => |s| s.findEntityReferences(allocator),
+        };
+    }
 };
 
 pub const Property = struct {
@@ -65,6 +75,13 @@ pub const Property = struct {
         self.property = switch (newType) {
             inline else => |t| @unionInit(PropertyType, @tagName(t), .init(allocator)),
         };
+    }
+
+    pub fn findEntityReferences(
+        self: Property,
+        allocator: Allocator,
+    ) []PropertyEntityReference {
+        return self.property.findEntityReferences(allocator);
     }
 };
 
@@ -148,6 +165,15 @@ pub const PropertyEntityReference = struct {
 
     pub fn clone(self: PropertyEntityReference, _: Allocator) PropertyEntityReference {
         return self;
+    }
+
+    pub fn findEntityReferences(
+        self: PropertyEntityReference,
+        allocator: Allocator,
+    ) []PropertyEntityReference {
+        const references = allocator.alloc(PropertyEntityReference, 1) catch unreachable;
+        references[0] = self;
+        return references;
     }
 };
 
@@ -246,11 +272,27 @@ pub const PropertyObject = struct {
     pub fn getByKey(self: *PropertyObject, allocator: Allocator, key: [:0]const u8) ?*Property {
         return self.fields.getPtr(allocator, key);
     }
+
+    pub fn findEntityReferences(
+        self: PropertyObject,
+        allocator: Allocator,
+    ) []PropertyEntityReference {
+        var references = std.ArrayList(PropertyEntityReference).empty;
+
+        for (self.fields.map.values()) |property| {
+            const subReferences = property.findEntityReferences(allocator);
+            defer allocator.free(subReferences);
+
+            references.appendSlice(allocator, subReferences) catch unreachable;
+        }
+
+        return references.toOwnedSlice(allocator) catch unreachable;
+    }
 };
 
 pub const PropertyArray = struct {
     subType: PropertyTypeTag = .float,
-    items: std.ArrayListUnmanaged(Property) = .empty,
+    items: std.ArrayList(Property) = .empty,
 
     pub const empty: PropertyArray = .{};
 
@@ -292,6 +334,22 @@ pub const PropertyArray = struct {
     ) void {
         self.subType = newSubType;
         self.deinit(allocator);
+    }
+
+    pub fn findEntityReferences(
+        self: PropertyArray,
+        allocator: Allocator,
+    ) []PropertyEntityReference {
+        var references = std.ArrayList(PropertyEntityReference).empty;
+
+        for (self.items.items) |property| {
+            const subReferences = property.findEntityReferences(allocator);
+            defer allocator.free(subReferences);
+
+            references.appendSlice(allocator, subReferences) catch unreachable;
+        }
+
+        return references.toOwnedSlice(allocator) catch unreachable;
     }
 
     pub fn jsonStringify(self: *const @This(), jw: anytype) !void {

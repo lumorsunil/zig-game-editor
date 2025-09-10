@@ -21,14 +21,18 @@ fn getDefaultEntitySize(context: *Context) rl.Vector2 {
     return rl.Vector2.init(@floatFromInt(tileSize[0]), @floatFromInt(tileSize[1]));
 }
 
+pub fn getEntitySizeNotScaled(context: *Context, entity: SceneEntity) rl.Vector2 {
+    const defaultEntitySize = getDefaultEntitySize(context);
+    return SceneDocument.getSizeFromEntityType(context, entity.type) catch defaultEntitySize orelse defaultEntitySize;
+}
+
 pub fn getEntityRect(context: *Context, entity: SceneEntity) rl.Rectangle {
     const entityPosition: @Vector(2, f32) = @floatFromInt(entity.position);
     const scaleVx, const scaleVy = switch (entity.type) {
         inline .exit, .entrance => |e| e.scale.?,
         else => entity.scale,
     };
-    const defaultEntitySize = getDefaultEntitySize(context);
-    var size = SceneDocument.getSizeFromEntityType(context, entity.type) catch defaultEntitySize orelse defaultEntitySize;
+    var size = getEntitySizeNotScaled(context, entity);
     size.x *= scaleVx;
     size.y *= scaleVy;
     var rect = rl.Rectangle.init(entityPosition[0], entityPosition[1], size.x, size.y);
@@ -59,15 +63,18 @@ pub fn getMouseGridPositionSafe(context: *Context, tilemapDocument: *TilemapDocu
 }
 
 pub fn getMousePosition(context: *Context, camera: rl.Camera2D) Vector {
-    const mp = rl.getMousePosition();
-    const mtrx = rl.getCameraMatrix2D(camera);
-    const inv = mtrx.invert();
-    const tr = mp.transform(inv);
-    const ftr = @Vector(2, f32){ tr.x, tr.y };
+    const mp = rl.getScreenToWorld2D(rl.getMousePosition(), camera);
+    const ftr = @Vector(2, f32){ mp.x, mp.y };
     const scale: @Vector(2, f32) = @floatFromInt(context.scaleV);
 
     const fp = ftr / scale;
 
+    return @intFromFloat(fp);
+}
+
+pub fn getMousePositionNotScaled(camera: rl.Camera2D) Vector {
+    const mp = rl.getScreenToWorld2D(rl.getMousePosition(), camera);
+    const fp = @Vector(2, f32){ mp.x, mp.y };
     return @intFromFloat(fp);
 }
 
@@ -98,6 +105,26 @@ pub fn getMouseGridPositionWithSize(context: *Context, cellSize: Vector) Vector 
     return @intFromFloat(fp);
 }
 
+pub fn positionToGridPosition(
+    cellSize: Vector,
+    position: Vector,
+) Vector {
+    const ftr: @Vector(2, f32) = @floatFromInt(position);
+    const fDivisor: @Vector(2, f32) = @floatFromInt(cellSize);
+
+    const fp = (ftr + fDivisor / @Vector(2, f32){ -2, 2 }) / fDivisor;
+
+    return @intFromFloat(fp);
+}
+
+pub fn snapPositionToGridPosition(
+    cellSize: Vector,
+    position: Vector,
+) Vector {
+    const gridPosition = positionToGridPosition(cellSize, position);
+    return gridPosition * cellSize;
+}
+
 pub fn gridPositionToEntityPosition(
     context: *Context,
     gridPosition: Vector,
@@ -117,6 +144,14 @@ pub fn gridPositionToCenterOfTile(context: *Context, gridPosition: Vector) Vecto
     const fTileSize: @Vector(2, f32) = @floatFromInt(tileSize);
     const half = @Vector(2, f32){ 0.5, 0.5 };
     return @intFromFloat(fTileSize * @as(@Vector(2, f32), @floatFromInt(gridPosition)) + fTileSize * half);
+}
+
+pub fn isMousePositionInsideRect(
+    camera: rl.Camera2D,
+    rect: rl.Rectangle,
+) bool {
+    const point = rl.getScreenToWorld2D(rl.getMousePosition(), camera);
+    return rl.checkCollisionPointRec(point, rect);
 }
 
 pub fn isMousePositionInsideEntityRect(

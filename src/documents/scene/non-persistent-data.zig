@@ -37,11 +37,40 @@ const SetEntityWindow = struct {
     pub const setEntityReferenceWindowWidth = 800;
 };
 
+pub const DragState = union(enum) {
+    payload: SceneEntityType,
+    entityTarget: DragEntityState,
+};
+
+pub const DragEntityState = struct {
+    dragStartPoint: Vector,
+    entity: *SceneEntity,
+    startPosition: Vector,
+    startScale: @Vector(2, f32),
+    entitySize: Vector,
+};
+
+pub const DragAction = union(enum) {
+    move,
+    resize: ResizeAction,
+};
+
+pub const ResizeAction = enum {
+    right,
+    topright,
+    top,
+    topleft,
+    left,
+    bottomleft,
+    bottom,
+    bottomright,
+};
+
 pub const SceneNonPersistentData = struct {
-    dragPayload: ?SceneEntityType = null,
     selectedEntities: ArrayList(*SceneEntity),
     hiddenEntities: IdArrayHashMap(bool),
-    dragStartPoint: ?Vector = null,
+    dragState: ?DragState = null,
+    dragAction: ?DragAction = null,
     isDragging: bool = false,
     setEntityWindow: SetEntityWindow = .{},
     currentTool: SceneTool = .select,

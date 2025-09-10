@@ -13,6 +13,9 @@ const SceneTool = @import("non-persistent-data.zig").SceneTool;
 const DocumentGeneric = lib.documents.DocumentGeneric;
 const SceneEntity = @import("persistent-data.zig").SceneEntity;
 const SceneEntityType = @import("persistent-data.zig").SceneEntityType;
+const DragState = @import("non-persistent-data.zig").DragState;
+const DragEntityState = @import("non-persistent-data.zig").DragEntityState;
+const DragAction = @import("non-persistent-data.zig").DragAction;
 const UUID = lib.UUIDSerializable;
 
 pub const SceneDocument = struct {
@@ -266,8 +269,22 @@ pub const SceneDocument = struct {
         }
     }
 
-    pub fn getDragPayload(self: *SceneDocument) *?SceneEntityType {
-        return &self.document.nonPersistentData.dragPayload;
+    pub fn getDragPayload(self: *SceneDocument) ?SceneEntityType {
+        const dragState = self.getDragState() orelse return null;
+        return switch (dragState) {
+            .payload => |payload| payload,
+            .entityTarget => null,
+        };
+    }
+
+    pub fn setDragPayload(self: *SceneDocument, payload: ?SceneEntityType) void {
+        if (payload) |p| {
+            self.setDragState(.{
+                .payload = p,
+            });
+        } else {
+            self.setDragState(null);
+        }
     }
 
     pub fn getIsDragging(self: *SceneDocument) bool {
@@ -278,12 +295,36 @@ pub const SceneDocument = struct {
         self.document.nonPersistentData.isDragging = isDragging;
     }
 
-    pub fn getDragStartPoint(self: *SceneDocument) ?Vector {
-        return self.document.nonPersistentData.dragStartPoint;
+    pub fn getDragState(self: *SceneDocument) ?DragState {
+        return self.document.nonPersistentData.dragState;
     }
 
-    pub fn setDragStartPoint(self: *SceneDocument, dragStartPoint: ?Vector) void {
-        self.document.nonPersistentData.dragStartPoint = dragStartPoint;
+    pub fn setDragState(self: *SceneDocument, dragState: ?DragState) void {
+        self.document.nonPersistentData.dragState = dragState;
+    }
+
+    pub fn getDragEntityState(self: *SceneDocument) ?DragEntityState {
+        const dragState = self.getDragState() orelse return null;
+        return switch (dragState) {
+            .entityTarget => |entity| entity,
+            .payload => null,
+        };
+    }
+
+    pub fn setDragEntityState(self: *SceneDocument, state: ?DragEntityState) void {
+        const dragEntityState = state orelse {
+            self.setDragState(null);
+            return;
+        };
+        self.setDragState(.{ .entityTarget = dragEntityState });
+    }
+
+    pub fn getDragAction(self: *SceneDocument) ?DragAction {
+        return self.document.nonPersistentData.dragAction;
+    }
+
+    pub fn setDragAction(self: *SceneDocument, action: ?DragAction) void {
+        self.document.nonPersistentData.dragAction = action;
     }
 
     pub fn openSetEntityWindow(
@@ -371,5 +412,30 @@ pub const SceneDocument = struct {
 
     pub fn getTool(self: SceneDocument) SceneTool {
         return self.document.nonPersistentData.currentTool;
+    }
+
+    /// Caller owns result
+    pub fn getReferencedEntities(
+        self: *SceneDocument,
+        allocator: Allocator,
+        entity: *SceneEntity,
+    ) []*SceneEntity {
+        if (entity.type != .custom) return &.{};
+
+        const references = entity.type.custom.properties.findEntityReferences(allocator);
+        defer allocator.free(references);
+
+        var list = ArrayList(*SceneEntity).empty;
+
+        for (references) |reference| {
+            const sceneId = reference.sceneId orelse continue;
+            const entityId = reference.entityId orelse continue;
+            if (sceneId.uuid != self.getId().uuid) continue;
+            const sceneEntity = self.getEntityByInstanceId(entityId) orelse continue;
+
+            list.append(allocator, sceneEntity) catch unreachable;
+        }
+
+        return list.toOwnedSlice(allocator) catch unreachable;
     }
 };
