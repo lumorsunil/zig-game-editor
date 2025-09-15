@@ -20,10 +20,11 @@ pub const SoundNonPersistentData = struct {
         _: [:0]const u8,
         persistentData: *PersistentData,
     ) void {
-        const soundFilePath = persistentData.soundFilePath.slice();
-        if (soundFilePath.len == 0) return;
-        self.sound = rl.loadSound(soundFilePath) catch |err| brk: {
-            std.log.err("Could not load sound {s}: {}", .{ soundFilePath, err });
+        const soundFilePath = persistentData.soundFilePath.getPath();
+        defer soundFilePath.deinit();
+        if (soundFilePath.path.len == 0) return;
+        self.sound = rl.loadSound(soundFilePath.path) catch |err| brk: {
+            std.log.err("Could not load sound {s}: {}", .{ soundFilePath.path, err });
             break :brk null;
         };
     }

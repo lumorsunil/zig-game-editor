@@ -78,6 +78,42 @@ pub const StringZ = struct {
         try writer.writeAll(self.slice());
     }
 
+    const PathFormatter = struct {
+        value: StringZ,
+
+        pub fn format(
+            self: @This(),
+            writer: anytype,
+        ) !void {
+            const allocator = std.heap.page_allocator;
+            const normalizePathZ = @import("path.zig").normalizePathZ;
+            const normalized = normalizePathZ(allocator, self.value.slice()) catch unreachable;
+            defer allocator.free(normalized);
+            try writer.writeAll(normalized);
+        }
+    };
+
+    pub fn fmtPath(self: @This()) PathFormatter {
+        return .{ .value = self };
+    }
+
+    pub const Path = struct {
+        path: [:0]const u8,
+
+        pub fn deinit(self: Path) void {
+            const allocator = std.heap.page_allocator;
+            allocator.free(self.path);
+        }
+    };
+
+    /// Caller needs to call deinit
+    pub fn getPath(self: @This()) Path {
+        const allocator = std.heap.page_allocator;
+        return .{
+            .path = @import("path.zig").normalizePathZ(allocator, self.slice()) catch unreachable,
+        };
+    }
+
     pub fn jsonStringify(self: *const Self, jw: anytype) !void {
         try jw.write(self.slice());
     }

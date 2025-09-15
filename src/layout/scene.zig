@@ -35,6 +35,7 @@ fn draw(context: *Context, sceneDocument: *SceneDocument) void {
     drawHighlights(context, sceneDocument);
     drawSelectionBoxes(context, sceneDocument);
     drawDragPayload(context, sceneDocument);
+    drawDragAction(context, sceneDocument);
 }
 
 fn drawEntities(context: *Context, sceneDocument: *SceneDocument) void {
@@ -57,7 +58,7 @@ fn drawMouseoverHighlight(
     offset: rl.Vector2,
 ) void {
     if (getHoveredEntity(context, camera, sceneDocument, offset)) |entity| {
-        drawEntityBox(context, camera, entity, rl.Color.yellow);
+        drawEntityBox(context, camera, entity.*, rl.Color.yellow);
         z.setMouseCursor(.hand);
     }
 }
@@ -90,10 +91,13 @@ fn drawEntityBox(
 const ResizeAnchorPoint = struct {
     point: rl.Vector2,
     cursor: z.Cursor,
-    resize: ResizeAction,
+    resize: ResizeAction.Direction,
 
-    pub fn toDragAction(self: ResizeAnchorPoint) DragAction {
-        return .{ .resize = self.resize };
+    pub fn toDragAction(self: ResizeAnchorPoint, entityId: UUID) DragAction {
+        return .{ .resize = .{
+            .entityId = entityId,
+            .direction = self.resize,
+        } };
     }
 };
 
@@ -125,15 +129,14 @@ fn getResizeAnchorMouseCollisionRect(
 fn drawEntityAnchorPoints(
     context: *Context,
     editor: *Editor,
-    sceneDocument: *SceneDocument,
+    _: *SceneDocument,
     entity: SceneEntity,
+    dragAction: *?DragAction,
 ) void {
     const rect = utils.getEntityRectScaled(context, entity);
     const rectPos = rl.Vector2.init(rect.x, rect.y);
     const rectSize = rl.Vector2.init(rect.width, rect.height);
     const size = 6 / editor.camera.zoom;
-
-    var dragAction: ?DragAction = null;
 
     for (resizeAnchorPoints) |s| {
         const pointRectCenter = s.point.multiply(rectSize).add(rectPos);
@@ -146,27 +149,29 @@ fn drawEntityAnchorPoints(
         if (utils.isMousePositionInsideRect(editor.camera, mouseCollisionRect)) {
             z.setMouseCursor(s.cursor);
 
-            dragAction = s.toDragAction();
+            dragAction.* = s.toDragAction(entity.id);
         }
-    }
-
-    if (sceneDocument.getDragEntityState() == null) {
-        sceneDocument.setDragAction(dragAction);
     }
 }
 
 fn drawSelectionBoxes(context: *Context, sceneDocument: *SceneDocument) void {
+    var dragAction: ?DragAction = null;
+
     for (sceneDocument.getSelectedEntities().items) |selectedEntity| {
         const editor = context.getCurrentEditor().?;
         drawEntityBox(context, editor.camera, selectedEntity.*, rl.Color.white);
-        drawEntityAnchorPoints(context, editor, sceneDocument, selectedEntity.*);
+        drawEntityAnchorPoints(context, editor, sceneDocument, selectedEntity.*, &dragAction);
+    }
+
+    if (sceneDocument.getDragAction() == null and sceneDocument.getDragEntityState() == null) {
+        sceneDocument.setDragAction(dragAction);
     }
 }
 
 fn drawDragPayload(context: *Context, sceneDocument: *SceneDocument) void {
     if (sceneDocument.getDragPayload()) |payload| {
         const editor = context.getCurrentEditor().?;
-        const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(
+        const position = if (isShiftDown()) utils.getMousePosition(
             context,
             editor.camera,
         ) else utils.gridPositionToEntityPosition(
@@ -225,66 +230,7 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
     entityListMenu(context, editor, sceneDocument);
     z.separator();
 
-    if (sceneDocument.getSelectedEntities().items.len > 0) {
-        const selectedEntity = sceneDocument.getSelectedEntities().items[0];
-
-        // Entity details menu
-        z.text("Entity: {s}", .{@tagName(selectedEntity.type)});
-        var idAsString = selectedEntity.id.serializeZ();
-        _ = z.inputText("Entity Id:", .{
-            .buf = &idAsString,
-        });
-        if (selectedEntity.type == .custom) {
-            const entityType = context.requestDocumentTypeById(.entityType, selectedEntity.type.custom.entityTypeId) catch unreachable;
-            if (entityType) |et| {
-                z.text("Custom: {f}", .{et.getName()});
-            } else {
-                z.text("Custom: Not found", .{});
-            }
-        }
-
-        switch (selectedEntity.type) {
-            .exit => |*exit| utils.scaleInput(&exit.scale.?),
-            .entrance => |*entrance| utils.scaleInput(&entrance.scale.?),
-            else => utils.scaleInput(&selectedEntity.scale),
-        }
-
-        switch (selectedEntity.type) {
-            .exit => |*exit| {
-                _ = utils.assetInput(.scene, context, &exit.sceneId);
-
-                if (exit.sceneId) |sId| {
-                    if (z.button("Open Target Scene", .{})) {
-                        // const targetEntranceKey = getTargetEntranceKey(exit);
-                        context.openEditorById(sId);
-                        // const targetEntrance = getEntranceByKey(context, targetEntranceKey);
-                        // moveCameraToEntity(context, targetEntrance.*);
-                        utils.resetCamera(context);
-                        return;
-                    }
-                }
-                _ = z.inputText("Entrance Key", .{
-                    .buf = exit.entranceKey.buffer,
-                });
-                _ = z.checkbox("Vertical", .{ .v = &exit.isVertical });
-            },
-            .entrance => |*entrance| {
-                _ = z.inputText("Key", .{
-                    .buf = entrance.key.buffer,
-                });
-            },
-            .point => |*p| {
-                _ = z.inputText("Key", .{
-                    .buf = p.key.buffer,
-                });
-            },
-            else => {},
-        }
-        switch (selectedEntity.type) {
-            .custom => |*custom| propertyEditor(context, .{ .entityInstance = custom }),
-            else => {},
-        }
-    }
+    entityDetailsMenu(context, editor, sceneDocument);
 
     const entities: []const std.meta.FieldEnum(SceneEntityType) = &.{
         .exit,
@@ -369,6 +315,70 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
     setEntityReferenceWindow(context, sceneDocument);
 }
 
+fn entityDetailsMenu(context: *Context, _: *Editor, sceneDocument: *SceneDocument) void {
+    // TODO: Add support for editing properties of multiple entities
+    if (sceneDocument.getSelectedEntities().items.len == 1) {
+        const selectedEntity = sceneDocument.getSelectedEntities().items[0];
+
+        // Entity details menu
+        z.text("Entity: {s}", .{@tagName(selectedEntity.type)});
+        var idAsString = selectedEntity.id.serializeZ();
+        _ = z.inputText("Entity Id:", .{
+            .buf = &idAsString,
+        });
+        if (selectedEntity.type == .custom) {
+            const entityType = context.requestDocumentTypeById(.entityType, selectedEntity.type.custom.entityTypeId) catch unreachable;
+            if (entityType) |et| {
+                z.text("Custom: {f}", .{et.getName()});
+            } else {
+                z.text("Custom: Not found", .{});
+            }
+        }
+
+        switch (selectedEntity.type) {
+            .exit => |*exit| utils.scaleInput(&exit.scale.?),
+            .entrance => |*entrance| utils.scaleInput(&entrance.scale.?),
+            else => utils.scaleInput(&selectedEntity.scale),
+        }
+
+        switch (selectedEntity.type) {
+            .exit => |*exit| {
+                _ = utils.assetInput(.scene, context, &exit.sceneId);
+
+                if (exit.sceneId) |sId| {
+                    if (z.button("Open Target Scene", .{})) {
+                        // const targetEntranceKey = getTargetEntranceKey(exit);
+                        context.openEditorById(sId);
+                        // const targetEntrance = getEntranceByKey(context, targetEntranceKey);
+                        // moveCameraToEntity(context, targetEntrance.*);
+                        utils.resetCamera(context);
+                        return;
+                    }
+                }
+                _ = z.inputText("Entrance Key", .{
+                    .buf = exit.entranceKey.buffer,
+                });
+                _ = z.checkbox("Vertical", .{ .v = &exit.isVertical });
+            },
+            .entrance => |*entrance| {
+                _ = z.inputText("Key", .{
+                    .buf = entrance.key.buffer,
+                });
+            },
+            .point => |*p| {
+                _ = z.inputText("Key", .{
+                    .buf = p.key.buffer,
+                });
+            },
+            else => {},
+        }
+        switch (selectedEntity.type) {
+            .custom => |*custom| propertyEditor(context, .{ .entityInstance = custom }),
+            else => {},
+        }
+    }
+}
+
 fn save(context: *Context, editor: *Editor) void {
     context.saveEditorFile(editor);
     context.updateThumbnailForCurrentDocument = true;
@@ -433,7 +443,11 @@ fn entityListMenu(
         if (z.selectable(entityLabel, .{
             .selected = isSelected,
         })) {
-            sceneDocument.selectEntity(entity, context.allocator);
+            if (isShiftDown()) {
+                sceneDocument.toggleSelectEntity(entity, context.allocator);
+            } else {
+                sceneDocument.selectOnlyEntity(entity, context.allocator);
+            }
         }
         z.popId();
     }
@@ -585,6 +599,75 @@ fn drawSetEntityReferenceHoverHighlights(
     drawMouseoverHighlight(context, camera, sceneDocument, offset);
 }
 
+fn getEntitiesUnderDragSelectionBox(
+    context: *Context,
+    camera: rl.Camera2D,
+    sceneDocument: *SceneDocument,
+    select: DragAction.Select,
+) []const *SceneEntity {
+    const rect = getDragSelectionBoxRect(context, camera, select);
+
+    var entities = std.ArrayList(*SceneEntity).initCapacity(context.allocator, sceneDocument.getEntities().items.len) catch unreachable;
+
+    for (sceneDocument.getEntities().items) |entity| {
+        if (!canSelectEntity(sceneDocument, entity)) continue;
+        const entityRect = utils.getEntityRectScaled(context, entity.*);
+        if (entityRect.checkCollision(rect)) {
+            entities.appendAssumeCapacity(entity);
+        }
+    }
+
+    return entities.toOwnedSlice(context.allocator) catch unreachable;
+}
+
+fn getDragSelectionBoxRect(
+    context: *Context,
+    camera: rl.Camera2D,
+    select: DragAction.Select,
+) rl.Rectangle {
+    const mp = utils.getMousePosition(context, camera);
+    const min: @Vector(2, f32) = @floatFromInt(@min(select.dragStartPoint, mp) * context.scaleV);
+    const max: @Vector(2, f32) = @floatFromInt(@max(select.dragStartPoint, mp) * context.scaleV);
+    const size = max - min;
+    const rect = rl.Rectangle.init(min[0], min[1], size[0], size[1]);
+
+    return rect;
+}
+
+fn drawDragAction(
+    context: *Context,
+    sceneDocument: *SceneDocument,
+) void {
+    const editor = context.getCurrentEditor().?;
+    const camera = editor.camera;
+
+    if (sceneDocument.getDragAction()) |dragAction| {
+        switch (dragAction) {
+            .select => |select| {
+                const rect = getDragSelectionBoxRect(context, camera, select);
+
+                rl.drawRectangleLinesEx(rect, 1 / camera.zoom, rl.Color.white);
+
+                const entities = getEntitiesUnderDragSelectionBox(
+                    context,
+                    camera,
+                    sceneDocument,
+                    select,
+                );
+                defer context.allocator.free(entities);
+
+                for (entities) |entity| drawEntityBox(
+                    context,
+                    camera,
+                    entity.*,
+                    rl.Color.yellow,
+                );
+            },
+            .move, .resize => {},
+        }
+    }
+}
+
 fn handleInput(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void {
     utils.cameraControls(&editor.camera);
 
@@ -598,7 +681,7 @@ fn handleInput(context: *Context, editor: *Editor, sceneDocument: *SceneDocument
 
     if (rl.isKeyPressed(.f5)) {
         context.playState = .startNextFrame;
-    } else if (rl.isKeyDown(.left_control) or rl.isKeyDown(.right_control)) {
+    } else if (isControlDown()) {
         if (rl.isKeyPressed(.s)) {
             save(context, editor);
         }
@@ -641,7 +724,7 @@ fn sceneDocumentHandleInputCreateEntity(
     const payload = sceneDocument.getDragPayload() orelse return;
 
     if (rl.isMouseButtonReleased(.left)) {
-        const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(
+        const position = if (isShiftDown()) utils.getMousePosition(
             context,
             editor.camera,
         ) else utils.gridPositionToEntityPosition(
@@ -652,7 +735,7 @@ fn sceneDocumentHandleInputCreateEntity(
         const entity = sceneDocument.addEntity(context.allocator, position, payload);
         sceneDocument.setDragPayload(null);
         sceneDocument.setTool(.select);
-        sceneDocument.selectEntity(entity, context.allocator);
+        sceneDocument.selectOnlyEntity(entity, context.allocator);
     }
 }
 
@@ -672,7 +755,7 @@ fn sceneDocumentHandleInputCreateEntityFromAssetsManager(
 
     if (rl.isMouseButtonReleased(.left)) {
         const entityTypeTag = SceneEntityType{ .custom = .init(context, id) };
-        const position = if (rl.isKeyDown(.left_shift)) utils.getMousePosition(
+        const position = if (isShiftDown()) utils.getMousePosition(
             context,
             editor.camera,
         ) else utils.gridPositionToEntityPosition(
@@ -682,7 +765,7 @@ fn sceneDocumentHandleInputCreateEntityFromAssetsManager(
         );
         const entity = sceneDocument.addEntity(context.allocator, position, entityTypeTag);
         sceneDocument.setTool(.select);
-        sceneDocument.selectEntity(entity, context.allocator);
+        sceneDocument.selectOnlyEntity(entity, context.allocator);
     }
 }
 
@@ -694,36 +777,76 @@ fn sceneDocumentHandleInputSelectEntity(
     if (sceneDocument.getDragPayload() != null) return;
 
     if (rl.isMouseButtonPressed(.left)) {
-        if (sceneDocument.getDragAction() != null) {
-            const selectedEntity = sceneDocument.getSelectedEntities().items[0];
-            setDragEntityState(context, editor, sceneDocument, selectedEntity);
+        if (sceneDocument.getDragAction()) |dragAction| {
+            const draggedEntities = switch (dragAction) {
+                .move => sceneDocument.getSelectedEntities().items,
+                .resize => |resize| &.{sceneDocument.getEntityByInstanceId(resize.entityId).?},
+                .select => return,
+            };
+            setDragEntityState(context, editor, sceneDocument, draggedEntities);
         } else for (sceneDocument.getEntities().items) |entity| {
-            if (entity.type == .tilemap) continue;
-            if (sceneDocument.isEntityHidden(entity.id)) continue;
+            if (!canSelectEntity(sceneDocument, entity)) continue;
 
             if (utils.isMousePositionInsideEntityRect(context, editor.camera, entity.*)) {
-                sceneDocument.selectEntity(entity, context.allocator);
-                setDragEntityState(context, editor, sceneDocument, entity);
+                if (isShiftDown()) {
+                    sceneDocument.toggleSelectEntity(entity, context.allocator);
+                } else if (!sceneDocument.isEntitySelected(entity)) {
+                    sceneDocument.selectOnlyEntity(entity, context.allocator);
+                }
+                if (sceneDocument.getSelectedEntities().items.len > 0) {
+                    setDragEntityState(
+                        context,
+                        editor,
+                        sceneDocument,
+                        sceneDocument.getSelectedEntities().items,
+                    );
+                }
                 break;
             }
         } else {
-            sceneDocument.deselectEntities();
+            if (!isShiftDown()) {
+                sceneDocument.deselectAllEntities();
+            }
+
+            sceneDocument.setDragAction(.{ .select = .{
+                .dragStartPoint = utils.getMousePosition(context, editor.camera),
+            } });
         }
     }
+}
+
+fn isControlDown() bool {
+    return rl.isKeyDown(.left_control) or rl.isKeyDown(.right_control);
+}
+
+fn isShiftDown() bool {
+    return rl.isKeyDown(.left_shift) or rl.isKeyDown(.right_shift);
+}
+
+fn canSelectEntity(sceneDocument: *SceneDocument, entity: *SceneEntity) bool {
+    if (entity.type == .tilemap) return false;
+    if (sceneDocument.isEntityHidden(entity.id)) return false;
+
+    return true;
 }
 
 fn setDragEntityState(
     context: *Context,
     editor: *Editor,
     sceneDocument: *SceneDocument,
-    entity: *SceneEntity,
+    entities: []const *SceneEntity,
 ) void {
-    const entitySize = utils.getEntitySizeNotScaled(context, entity.*);
-    sceneDocument.setDragEntityState(.{
-        .dragStartPoint = utils.getMousePosition(context, editor.camera),
+    const firstEntity = entities[0];
+    const entitySize = utils.getEntitySizeNotScaled(context, firstEntity.*);
+    const snapshot = context.allocator.alloc(DragEntityState.Snapshot, entities.len) catch unreachable;
+    for (entities, 0..) |entity, i| snapshot[i] = .{
         .entity = entity,
         .startPosition = entity.position,
-        .startScale = entity.scale,
+    };
+    sceneDocument.setDragEntityState(.{
+        .dragStartPoint = utils.getMousePosition(context, editor.camera),
+        .snapshot = snapshot,
+        .startScale = firstEntity.scale,
         .entitySize = .{ @intFromFloat(entitySize.x), @intFromFloat(entitySize.y) },
     });
 }
@@ -733,27 +856,58 @@ fn getDragAction(sceneDocument: *SceneDocument) DragAction {
     return .move;
 }
 
+fn handleDragActionEnd(
+    context: *Context,
+    camera: rl.Camera2D,
+    sceneDocument: *SceneDocument,
+) void {
+    if (sceneDocument.getDragAction()) |dragAction| {
+        if (!rl.isMouseButtonDown(.left)) {
+            switch (dragAction) {
+                .select => |select| {
+                    const entities = getEntitiesUnderDragSelectionBox(
+                        context,
+                        camera,
+                        sceneDocument,
+                        select,
+                    );
+                    defer context.allocator.free(entities);
+
+                    if (isShiftDown()) {
+                        sceneDocument.selectAppendEntities(entities, context.allocator);
+                    } else {
+                        sceneDocument.selectOnlyEntities(entities, context.allocator);
+                    }
+                },
+                .resize, .move => {},
+            }
+
+            sceneDocument.setDragAction(null);
+        }
+    }
+}
+
 fn sceneDocumentHandleInputDragging(
     context: *Context,
     editor: *Editor,
     sceneDocument: *SceneDocument,
 ) void {
     if (sceneDocument.getDragPayload() != null) return;
+
+    handleDragActionEnd(context, editor.camera, sceneDocument);
+
     if (sceneDocument.getSelectedEntities().items.len == 0) return;
+
+    if (!rl.isMouseButtonDown(.left)) {
+        sceneDocument.setIsDragging(false);
+        sceneDocument.setDragEntityState(null);
+    }
 
     if (sceneDocument.getDragEntityState()) |dragEntityState| {
         if (sceneDocument.getIsDragging()) {
-            if (rl.isMouseButtonDown(.left)) {
-                const entity = sceneDocument.getSelectedEntities().items[0];
-                // const entityRect = utils.getEntityRectScaled(context, entity.*);
-                const mousePosition = utils.getMousePosition(context, editor.camera);
-                //const dragAction = getDragAction(entityRect, dragEntityState.dragStartPoint);
-                const dragAction = getDragAction(sceneDocument);
-                applyDragAction(context, entity, dragEntityState, mousePosition, dragAction);
-            } else {
-                sceneDocument.setIsDragging(false);
-                sceneDocument.setDragEntityState(null);
-            }
+            const mousePosition = utils.getMousePosition(context, editor.camera);
+            const dragAction = getDragAction(sceneDocument);
+            applyDragAction(context, sceneDocument, dragEntityState, mousePosition, dragAction);
         } else {
             const dsp = rl.Vector2.init(
                 @floatFromInt(dragEntityState.dragStartPoint[0]),
@@ -774,35 +928,38 @@ fn sceneDocumentHandleInputDragging(
 
 fn applyDragAction(
     context: *Context,
-    entity: *SceneEntity,
+    sceneDocument: *SceneDocument,
     dragEntityState: DragEntityState,
     mousePosition: Vector,
     dragAction: DragAction,
 ) void {
     switch (dragAction) {
-        .move => applyMoveEntity(context, entity, dragEntityState, mousePosition),
+        .move => applyMoveEntity(context, dragEntityState, mousePosition),
         .resize => |resize| applyResizeEntity(
             context,
-            entity,
+            sceneDocument,
             dragEntityState,
             mousePosition,
             resize,
         ),
+        .select => {},
     }
 }
 
 fn applyMoveEntity(
     context: *Context,
-    entity: *SceneEntity,
     dragEntityState: DragEntityState,
     mousePosition: Vector,
 ) void {
     const deltaPosition = mousePosition - dragEntityState.dragStartPoint;
-    const precisionPosition = deltaPosition + dragEntityState.startPosition;
-    const gridSnapPosition = snapPositionToGridPosition(context, precisionPosition);
 
-    const newPosition = if (rl.isKeyDown(.left_shift)) gridSnapPosition else precisionPosition;
-    entity.position = newPosition;
+    for (dragEntityState.snapshot) |s| {
+        const precisionPosition = deltaPosition + s.startPosition;
+        const gridSnapPosition = snapPositionToGridPosition(context, precisionPosition);
+
+        const newPosition = if (isShiftDown()) gridSnapPosition else precisionPosition;
+        s.entity.position = newPosition;
+    }
 }
 
 fn snapPositionToGridPosition(
@@ -815,19 +972,19 @@ fn snapPositionToGridPosition(
 
 fn applyResizeEntity(
     context: *Context,
-    entity: *SceneEntity,
+    sceneDocument: *SceneDocument,
     dragEntityState: DragEntityState,
     mousePosition: Vector,
     resizeAction: ResizeAction,
 ) void {
     const gridSnapStartPosition = snapPositionToGridPosition(context, dragEntityState.dragStartPoint);
     const gridSnapPosition = snapPositionToGridPosition(context, mousePosition);
-    const dragStartPoint = if (rl.isKeyDown(.left_shift)) gridSnapStartPosition else dragEntityState.dragStartPoint;
-    const inputPosition = if (rl.isKeyDown(.left_shift)) gridSnapPosition else mousePosition;
+    const dragStartPoint = if (isShiftDown()) gridSnapStartPosition else dragEntityState.dragStartPoint;
+    const inputPosition = if (isShiftDown()) gridSnapPosition else mousePosition;
 
     var unit: @Vector(2, f32) = .{ 0, 0 };
 
-    switch (resizeAction) {
+    switch (resizeAction.direction) {
         .right => unit = .{ 1, 0 },
         .topright => unit = .{ 1, -1 },
         .top => unit = .{ 0, -1 },
@@ -848,16 +1005,20 @@ fn applyResizeEntity(
     const deltaScale = actualDelta / size;
     const deltaPos: Vector = @intFromFloat(actualDelta * unit / @Vector(2, f32){ 2, 2 });
 
+    const entity = sceneDocument.getEntityByInstanceId(resizeAction.entityId).?;
+
     entity.scale = dragEntityState.startScale + deltaScale;
-    entity.position = dragEntityState.startPosition + deltaPos;
+    entity.position = dragEntityState.getSnapshotById(entity.id).startPosition + deltaPos;
 }
 
 fn sceneDocumentHandleInputDeleteEntity(context: *Context, sceneDocument: *SceneDocument) void {
     if (sceneDocument.getSelectedEntities().items.len == 0) return;
 
-    const selectedEntity = sceneDocument.getSelectedEntities().items[0];
     if (rl.isKeyPressed(.delete)) {
-        sceneDocument.deleteEntity(context.allocator, selectedEntity);
+        sceneDocument.deleteEntities(
+            context.allocator,
+            sceneDocument.getSelectedEntities().items,
+        );
     }
 }
 
@@ -866,7 +1027,7 @@ fn getHoveredEntity(
     camera: rl.Camera2D,
     sceneDocument: *SceneDocument,
     offset: rl.Vector2,
-) ?SceneEntity {
+) ?*SceneEntity {
     for (sceneDocument.getEntities().items) |entity| {
         if (entity.type == .tilemap) continue;
         if (sceneDocument.isEntityHidden(entity.id)) continue;
@@ -878,7 +1039,7 @@ fn getHoveredEntity(
         );
 
         if (rl.checkCollisionPointRec(worldMousePosition, entityRect) or entity.isPointInEntityRect(.{ worldMousePosition.x, worldMousePosition.y })) {
-            return entity.*;
+            return entity;
         }
     }
 

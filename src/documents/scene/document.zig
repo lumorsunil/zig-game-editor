@@ -191,6 +191,11 @@ pub const SceneDocument = struct {
         return &self.document.nonPersistentData.selectedEntities;
     }
 
+    pub fn isEntitySelected(self: SceneDocument, entity: *SceneEntity) bool {
+        for (self.getSelectedEntities().items) |e| if (e.id.uuid == entity.id.uuid) return true;
+        return false;
+    }
+
     pub fn addEntity(
         self: *SceneDocument,
         allocator: Allocator,
@@ -203,12 +208,74 @@ pub const SceneDocument = struct {
         return entity;
     }
 
-    pub fn selectEntity(self: *SceneDocument, entity: *SceneEntity, allocator: Allocator) void {
-        self.deselectEntities();
-        self.getSelectedEntities().append(allocator, entity) catch unreachable;
+    pub fn selectOnlyEntity(
+        self: *SceneDocument,
+        entity: *SceneEntity,
+        allocator: Allocator,
+    ) void {
+        self.selectOnlyEntities(&.{entity}, allocator);
     }
 
-    pub fn deselectEntities(self: *SceneDocument) void {
+    pub fn selectOnlyEntities(
+        self: *SceneDocument,
+        entities: []const *SceneEntity,
+        allocator: Allocator,
+    ) void {
+        self.deselectAllEntities();
+        self.selectAppendEntities(entities, allocator);
+    }
+
+    pub fn selectAppendEntity(
+        self: *SceneDocument,
+        entity: *SceneEntity,
+        allocator: Allocator,
+    ) void {
+        self.selectAppendEntities(&.{entity}, allocator);
+    }
+
+    pub fn toggleSelectEntity(
+        self: *SceneDocument,
+        entity: *SceneEntity,
+        allocator: Allocator,
+    ) void {
+        if (self.isEntitySelected(entity)) {
+            self.deselectEntity(entity);
+        } else {
+            self.selectAppendEntities(&.{entity}, allocator);
+        }
+    }
+
+    pub fn selectAppendEntities(
+        self: *SceneDocument,
+        entities: []const *SceneEntity,
+        allocator: Allocator,
+    ) void {
+        const selectedEntities = self.getSelectedEntities();
+        selectedEntities.ensureUnusedCapacity(allocator, entities.len) catch unreachable;
+
+        for (entities) |entity| {
+            if (self.isEntitySelected(entity)) continue;
+            selectedEntities.appendAssumeCapacity(entity);
+        }
+    }
+
+    pub fn deselectEntity(self: *SceneDocument, entity: *SceneEntity) void {
+        self.deselectEntities(&.{entity});
+    }
+
+    pub fn deselectEntities(self: *SceneDocument, entities: []const *SceneEntity) void {
+        for (entities) |entity| {
+            const selectedEntities = self.getSelectedEntities();
+            const i = std.mem.indexOfScalar(
+                *SceneEntity,
+                selectedEntities.items,
+                entity,
+            ) orelse continue;
+            _ = selectedEntities.swapRemove(i);
+        }
+    }
+
+    pub fn deselectAllEntities(self: *SceneDocument) void {
         self.getSelectedEntities().clearRetainingCapacity();
     }
 
@@ -219,6 +286,19 @@ pub const SceneDocument = struct {
         allocator.destroy(entity);
         const selectedEntitiesIndex = std.mem.indexOfScalar(*SceneEntity, self.getSelectedEntities().items, entity) orelse unreachable;
         _ = self.getSelectedEntities().swapRemove(selectedEntitiesIndex);
+    }
+
+    pub fn deleteEntities(
+        self: *SceneDocument,
+        allocator: Allocator,
+        entities: []const *SceneEntity,
+    ) void {
+        const duped = allocator.dupe(*SceneEntity, entities) catch unreachable;
+        defer allocator.free(duped);
+
+        for (duped) |entity| {
+            self.deleteEntity(allocator, entity);
+        }
     }
 
     pub fn hideEntity(
@@ -406,7 +486,7 @@ pub const SceneDocument = struct {
     }
 
     pub fn setTool(self: *SceneDocument, newTool: SceneTool) void {
-        self.deselectEntities();
+        self.deselectAllEntities();
         self.document.nonPersistentData.currentTool = newTool;
     }
 

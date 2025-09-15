@@ -20,10 +20,11 @@ pub const FontNonPersistentData = struct {
         _: [:0]const u8,
         persistentData: *PersistentData,
     ) void {
-        const fontFilePath = persistentData.fontFilePath.slice();
-        if (fontFilePath.len == 0) return;
-        self.font = rl.loadFont(fontFilePath) catch |err| brk: {
-            std.log.err("Could not load font {s}: {}", .{ fontFilePath, err });
+        const fontFilePath = persistentData.fontFilePath.getPath();
+        defer fontFilePath.deinit();
+        if (fontFilePath.path.len == 0) return;
+        self.font = rl.loadFont(fontFilePath.path) catch |err| brk: {
+            std.log.err("Could not load font {s}: {}", .{ fontFilePath.path, err });
             break :brk null;
         };
     }

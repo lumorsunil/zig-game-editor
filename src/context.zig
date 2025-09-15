@@ -495,16 +495,18 @@ pub const Context = struct {
 
         const currentSceneFileName = self.getFilePathById(editor.document.getId()) orelse return error.MissingDocumentFilePath;
 
-        const zigCommand = try std.fmt.allocPrint(self.allocator, "zig build run -- --scene {s}", .{currentSceneFileName});
-        defer self.allocator.free(zigCommand);
-        const command = &.{
-            "cmd.exe",
-            "/C",
-            zigCommand,
-        };
+        // const zigCommand = try std.fmt.allocPrint(self.allocator, "zig build run -- --scene {s}", .{currentSceneFileName});
+        // defer self.allocator.free(zigCommand);
+        // const command = &.{
+        //     "cmd.exe",
+        //     "/C",
+        //     zigCommand,
+        // };
+        const command = &.{ "zig-out/bin/kottefolket.exe", "--scene", currentSceneFileName };
         var child = std.process.Child.init(command, self.allocator);
-        child.cwd = try std.fs.cwd().realpathAlloc(self.allocator, "../kottefolket");
-        defer self.allocator.free(child.cwd.?);
+        // child.cwd = try std.fs.cwd().realpathAlloc(self.allocator, "../kottefolket");
+        child.cwd = "\\\\wsl.localhost/Ubuntu-22.04/home/lumorsunil/repos/kottefolket";
+        // defer self.allocator.free(child.cwd.?);
 
         const term = try child.spawnAndWait();
 

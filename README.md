@@ -12,6 +12,8 @@ This is the editor I'm using when developing my game.
 
 ## Installation
 
+Note: Works on windows. Use at your own risk.
+
 ### Build source
 
 1. Clone the repo

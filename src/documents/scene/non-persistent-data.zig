@@ -44,26 +44,50 @@ pub const DragState = union(enum) {
 
 pub const DragEntityState = struct {
     dragStartPoint: Vector,
-    entity: *SceneEntity,
-    startPosition: Vector,
+    snapshot: []const Snapshot,
     startScale: @Vector(2, f32),
     entitySize: Vector,
+
+    pub const Snapshot = struct {
+        entity: *SceneEntity,
+        startPosition: Vector,
+    };
+
+    pub fn deinit(self: DragEntityState, allocator: Allocator) void {
+        allocator.free(self.snapshot);
+    }
+
+    pub fn getSnapshotById(self: DragEntityState, entityId: UUID) Snapshot {
+        for (self.snapshot) |s| if (s.entity.id.uuid == entityId.uuid) return s;
+
+        unreachable;
+    }
 };
 
 pub const DragAction = union(enum) {
     move,
     resize: ResizeAction,
+    select: Select,
+
+    pub const Select = struct {
+        dragStartPoint: Vector,
+    };
 };
 
-pub const ResizeAction = enum {
-    right,
-    topright,
-    top,
-    topleft,
-    left,
-    bottomleft,
-    bottom,
-    bottomright,
+pub const ResizeAction = struct {
+    entityId: UUID,
+    direction: Direction,
+
+    pub const Direction = enum {
+        right,
+        topright,
+        top,
+        topleft,
+        left,
+        bottomleft,
+        bottom,
+        bottomright,
+    };
 };
 
 pub const SceneNonPersistentData = struct {

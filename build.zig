@@ -18,30 +18,20 @@ pub fn build(b: *Build) void {
         .optimize = optimize,
     });
 
-    const generateUvTool = b.addExecutable(.{
-        .name = "generate-uv",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("tools/generate-uv.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
-    context.addC(generateUvTool.root_module);
-    context.addNfd(generateUvTool.root_module);
-
-    utils.addRunExe(b, generateUvTool, "generate-uv", "Run generate-uv tool");
-
-    const exe = b.addExecutable(.{
-        .name = "zig-game-editor",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/main.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
+    // const generateUvTool = b.addExecutable(.{
+    //     .name = "generate-uv",
+    //     .root_module = b.createModule(.{
+    //         .root_source_file = b.path("tools/generate-uv.zig"),
+    //         .target = target,
+    //         .optimize = optimize,
+    //     }),
+    // });
+    // context.addC(generateUvTool.root_module);
+    // context.addNfd(generateUvTool.root_module);
+    //
+    // utils.addRunExe(b, generateUvTool, "generate-uv", "Run generate-uv tool");
 
     const libMod = b.createModule(.{ .root_source_file = b.path("src/lib.zig") });
-    exe.root_module.addImport("lib", libMod);
     libMod.addImport("lib", libMod);
 
     context.addC(libMod);
@@ -49,12 +39,27 @@ pub fn build(b: *Build) void {
     context.addUuid(libMod);
     context.addZigIo(libMod);
 
+    const exe = b.addExecutable(.{
+        .name = "zig-game-editor",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                Build.Module.Import{
+                    .name = "lib",
+                    .module = libMod,
+                },
+            },
+        }),
+    });
+
+    exe.root_module.addImport("lib", libMod);
+
     context.addC(exe.root_module);
     context.addNfd(exe.root_module);
     context.addUuid(exe.root_module);
     context.addZigIo(exe.root_module);
-
-    utils.addRunExe(b, exe, "run", "Run the app");
 
     const checkExe = b.addExecutable(.{
         .name = exe.name,
@@ -64,10 +69,14 @@ pub fn build(b: *Build) void {
         }),
     });
 
+    checkExe.root_module.addImport("lib", libMod);
+
     context.addC(checkExe.root_module);
     context.addNfd(checkExe.root_module);
     context.addUuid(checkExe.root_module);
     context.addZigIo(checkExe.root_module);
+
+    utils.addRunExe(b, exe, "run", "Run the app");
 
     const step = b.step("check", "Check step made for zls");
     step.dependOn(&checkExe.step);
