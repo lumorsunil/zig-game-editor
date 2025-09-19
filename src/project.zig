@@ -15,20 +15,18 @@ pub const optionsRelativePath = "project.json";
 
 pub const Project = struct {
     assetsLibrary: AssetsLibrary,
-    assetIndex: AssetIndex,
-    thumbnails: Thumbnails,
+    assetIndex: AssetIndex = .empty,
+    thumbnails: Thumbnails = .empty,
     cacheDirectory: []const u8,
     options: ProjectOptions,
-    isProjectOptionsOpen: bool,
+    isProjectOptionsOpen: bool = false,
+    focusSetProjectCommand: bool = false,
 
     pub fn init(allocator: Allocator, root: []const u8) Project {
         return Project{
             .assetsLibrary = AssetsLibrary.init(allocator, root),
-            .assetIndex = .empty,
-            .thumbnails = .empty,
             .cacheDirectory = std.fs.path.join(allocator, &.{ root, cacheDirectoryName }) catch unreachable,
-            .options = .empty,
-            .isProjectOptionsOpen = false,
+            .options = .init(allocator),
         };
     }
 
@@ -36,6 +34,7 @@ pub const Project = struct {
         self.assetsLibrary.deinit(allocator);
         self.assetIndex.deinit(allocator);
         self.thumbnails.deinit(allocator);
+        self.options.deinit(allocator);
         allocator.free(self.cacheDirectory);
     }
 
@@ -52,7 +51,7 @@ pub const Project = struct {
     }
 
     pub fn loadOptions(self: *Project, allocator: Allocator) !void {
-        self.options = try ProjectOptions.load(self, allocator);
+        self.options = try ProjectOptions.load(allocator, self);
     }
 
     pub fn saveOptions(self: *Project) !void {

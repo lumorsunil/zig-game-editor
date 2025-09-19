@@ -473,6 +473,7 @@ pub const Context = struct {
     }
 
     fn playInner(self: *Context) !void {
+        const project = &(self.currentProject orelse return);
         const editor = self.getCurrentEditor() orelse return;
         var focusedEditor = editor;
 
@@ -480,35 +481,40 @@ pub const Context = struct {
 
         self.playState = .starting;
 
-        errdefer |err| {
-            const filePath = self.getFilePathById(focusedEditor.document.getId());
-            self.showError("Error starting scene {?s}: {}", .{ filePath, err });
+        errdefer {
+            // const filePath = self.getFilePathById(focusedEditor.document.getId());
+            // self.showError("Error starting scene {?s}: {}", .{ filePath, err });
             self.playState = .errorStarting;
         }
 
         for (self.openedEditors.map.values()) |*openedEditor| {
             focusedEditor = openedEditor;
-            try openedEditor.saveFile(&self.currentProject.?);
+            openedEditor.saveFile(&self.currentProject.?) catch |err| {
+                const filePath = self.getFilePathById(openedEditor.document.getId());
+                self.showError("Could not save file \"{?s}\": {}", .{ filePath, err });
+                return err;
+            };
         }
 
         focusedEditor = editor;
 
-        const currentSceneFileName = self.getFilePathById(editor.document.getId()) orelse return error.MissingDocumentFilePath;
-
-        // const zigCommand = try std.fmt.allocPrint(self.allocator, "zig build run -- --scene {s}", .{currentSceneFileName});
-        // defer self.allocator.free(zigCommand);
-        // const command = &.{
-        //     "cmd.exe",
-        //     "/C",
-        //     zigCommand,
-        // };
-        const command = &.{ "zig-out/bin/kottefolket.exe", "--scene", currentSceneFileName };
+        const command = self.getPlayCommand(project) catch |err| {
+            self.showError("Could not get play command: {}", .{err});
+            return err;
+        };
+        defer {
+            for (command) |c_| self.allocator.free(c_);
+            self.allocator.free(command);
+        }
         var child = std.process.Child.init(command, self.allocator);
-        // child.cwd = try std.fs.cwd().realpathAlloc(self.allocator, "../kottefolket");
-        child.cwd = "\\\\wsl.localhost/Ubuntu-22.04/home/lumorsunil/repos/kottefolket";
-        // defer self.allocator.free(child.cwd.?);
+        child.cwd = project.options.getPlayCommandCwd();
 
-        const term = try child.spawnAndWait();
+        const term = child.spawnAndWait() catch |err| {
+            const concatedCommand = std.mem.concat(self.allocator, u8, command) catch unreachable;
+            defer self.allocator.free(concatedCommand);
+            self.showError("Could not spawn child process \"{s}\": {}", .{ concatedCommand, err });
+            return err;
+        };
 
         switch (term) {
             .Exited => |exitCode| {
@@ -520,6 +526,78 @@ pub const Context = struct {
             },
             else => self.playState = .crash,
         }
+    }
+
+    pub fn getPlayCommandInfo(_: *Context) [:0]const u8 {
+        return "You can put in special variable names that will be replaced when the command is run. Valid names are: " ++ PlayCommandReplacersUtils.validReplacements;
+    }
+
+    const PlayCommandReplacers = struct {
+        pub fn scene(self: *Context, writer: *std.Io.Writer) !void {
+            const editor = self.getCurrentEditor() orelse return;
+            const currentSceneFileName = self.getFilePathById(editor.document.getId()) orelse return error.MissingDocumentFilePath;
+            try writer.writeAll(currentSceneFileName);
+        }
+    };
+
+    const PlayCommandReplacersUtils = struct {
+        pub fn replace(self: *Context, writer: *std.Io.Writer, tag: []const u8) !void {
+            try inline for (comptime std.meta.declarations(PlayCommandReplacers)) |decl| {
+                if (std.mem.eql(u8, decl.name, tag)) {
+                    break @field(PlayCommandReplacers, decl.name)(self, writer);
+                }
+            } else {
+                self.showError("Error parsing play command: Invalid replacement tag \"{s}\". Valid ones are: {s}", .{ tag, validReplacements });
+            };
+        }
+
+        pub const validReplacements: []const u8 = brk: {
+            var s: []const u8 = "";
+
+            for (std.meta.declarations(PlayCommandReplacers), 0..) |decl, i| {
+                if (i > 0) s = s ++ ", ";
+                s = s ++ "%" ++ decl.name;
+            }
+
+            break :brk s;
+        };
+    };
+
+    fn getPlayCommand(self: *Context, project: *Project) ![]const []const u8 {
+        const commandString = project.options.playCommand.slice();
+
+        var commandIt = std.mem.splitAny(u8, commandString, " \t");
+        var command = std.ArrayList([]const u8).empty;
+
+        while (commandIt.next()) |piece| {
+            var pieceBuffer: [1024]u8 = undefined;
+            var pieceWriter = std.Io.Writer.fixed(&pieceBuffer);
+
+            var replaceIt = std.mem.splitScalar(u8, piece, '%');
+            var replaceMode: enum { normal, replace } = .normal;
+            while (replaceIt.next()) |rPiece| {
+                switch (replaceMode) {
+                    .normal => try pieceWriter.writeAll(rPiece),
+                    .replace => try PlayCommandReplacersUtils.replace(
+                        self,
+                        &pieceWriter,
+                        rPiece,
+                    ),
+                }
+
+                replaceMode = if (replaceMode == .normal) .replace else .normal;
+            }
+
+            const written = pieceWriter.buffered();
+            if (written.len == 0) continue;
+
+            std.log.debug("written: {s}", .{written});
+
+            command.append(self.allocator, self.allocator.dupe(u8, written) catch unreachable) catch unreachable;
+            try pieceWriter.flush();
+        }
+
+        return command.toOwnedSlice(self.allocator) catch unreachable;
     }
 
     // }}}

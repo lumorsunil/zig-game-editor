@@ -22,7 +22,7 @@ pub fn upgrader(
         .version = 1,
         .id = prev.id,
         .tilemap = upgrade.upgradeValue(
-            std.meta.FieldType(DocumentNext, .tilemap),
+            @FieldType(DocumentNext, "tilemap"),
             allocator,
             prev.tilemap,
             upgradeContainer,

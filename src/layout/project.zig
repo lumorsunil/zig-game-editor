@@ -79,6 +79,21 @@ fn projectOptionsUI(context: *Context, project: *Project) void {
         _ = z.begin("Project Options", .{ .popen = &project.isProjectOptionsOpen });
         defer z.end();
 
+        z.separatorText("Play");
+        _ = z.inputTextWithHint("Command", .{
+            .buf = project.options.playCommand.buffer,
+            .hint = "my-game.exe --scene %scene",
+        });
+        project.options.playCommand.setEmptyIfOnlyWhitespace();
+        if (project.focusSetProjectCommand) {
+            z.setItemDefaultFocus();
+            project.focusSetProjectCommand = false;
+        }
+        _ = z.inputText("Cwd", .{ .buf = project.options.playCommandCwd.buffer });
+        project.options.playCommand.setEmptyIfOnlyWhitespace();
+
+        z.separator();
+
         z.text("Entry Scene:", .{});
         z.sameLine(.{ .spacing = 8 });
         _ = utils.assetInput(.scene, context, &project.options.entryScene);

@@ -114,6 +114,12 @@ pub const StringZ = struct {
         };
     }
 
+    pub fn setEmptyIfOnlyWhitespace(self: @This()) void {
+        if (std.mem.trim(u8, self.slice(), " \t\n\r").len == 0) {
+            self.buffer[0] = 0;
+        }
+    }
+
     pub fn jsonStringify(self: *const Self, jw: anytype) !void {
         try jw.write(self.slice());
     }

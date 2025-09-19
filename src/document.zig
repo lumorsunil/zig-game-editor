@@ -9,6 +9,7 @@ pub const DocumentError = document.DocumentError;
 pub const DocumentGeneric = generic.DocumentGeneric;
 pub const DocumentGenericConfig = generic.DocumentGenericConfig;
 pub const DocumentVersion = generic.DocumentVersion;
+pub const DocumentVersionHeader = generic.DocumentVersionHeader;
 pub const firstDocumentVersion = generic.firstDocumentVersion;
 
 pub const SceneDocument = @import("documents/scene/document.zig").SceneDocument;

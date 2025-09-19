@@ -74,6 +74,7 @@ const IntermediateUpgradeContainer = struct {
                 from: []const FromElem,
                 container: Container,
             ) []ToElem {
+                if (FromElem == ToElem) return from;
                 const toElems = allocator.alloc(ToElem, from.len) catch unreachable;
                 defer allocator.free(from);
                 for (0..from.len) |i| {
@@ -110,6 +111,23 @@ const IntermediateUpgradeContainer = struct {
         }.upgradeArrayHashMap;
     }
 
+    fn makeUpgradeObjectWithVersionFieldFn(
+        comptime From: type,
+        comptime To: type,
+    ) fn (Allocator, From, Container) To {
+        return struct {
+            pub fn upgradeObjectWithVersionField(
+                allocator: Allocator,
+                from: From,
+                container: Container,
+            ) To {
+                var to = upgradeObject(To, allocator, from, container);
+                to.version = std.meta.fieldInfo(To, .version).defaultValue().?;
+                return to;
+            }
+        }.upgradeObjectWithVersionField;
+    }
+
     pub fn match(
         comptime From: type,
         comptime To: type,
@@ -117,6 +135,10 @@ const IntermediateUpgradeContainer = struct {
         brk: switch (@typeInfo(From)) {
             .pointer => |p| return makeUpgradeSliceFn(p.child, std.meta.Elem(To)),
             .@"struct" => {
+                if (@hasField(From, "version") and @hasField(To, "version")) {
+                    return makeUpgradeObjectWithVersionFieldFn(From, To);
+                }
+
                 const FromElem = getArrayHashMapElem(From) orelse break :brk;
                 const ToElem = getArrayHashMapElem(To) orelse break :brk;
 
@@ -279,12 +301,15 @@ fn upgradeObject(
             var result: T = undefined;
 
             inline for (s.fields) |field| {
-                @field(result, field.name) = upgradeValue(
-                    field.type,
-                    allocator,
-                    @field(object, field.name),
-                    container,
-                );
+                @field(result, field.name) = if (@hasField(@TypeOf(object), field.name))
+                    upgradeValue(
+                        field.type,
+                        allocator,
+                        @field(object, field.name),
+                        container,
+                    )
+                else
+                    field.defaultValue() orelse @compileError(@typeName(T) ++ " requires field \"" ++ field.name ++ "\": No such field on source type " ++ @typeName(@TypeOf(object)) ++ " and no default value is set on result type.");
             }
 
             return result;
@@ -338,4 +363,28 @@ fn upgradeOptional(
 ) T {
     if (source) |s| return upgradeValue(@typeInfo(T).optional.child, allocator, s, container);
     return null;
+}
+
+pub fn readDocumentVersionHeader(
+    allocator: Allocator,
+    jsonReader: *std.json.Reader,
+) !lib.documents.DocumentVersionHeader {
+    const header = std.json.parseFromTokenSourceLeaky(
+        lib.documents.DocumentVersionHeader,
+        allocator,
+        jsonReader,
+        .{ .ignore_unknown_fields = true },
+    ) catch |err| {
+        switch (err) {
+            std.json.ParseError(@TypeOf(jsonReader.*)).MissingField => {
+                return .empty;
+            },
+            else => {
+                lib.json.reportJsonError(jsonReader.*, err);
+                return err;
+            },
+        }
+    };
+
+    return header;
 }

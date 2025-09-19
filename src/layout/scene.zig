@@ -211,7 +211,7 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
     if (sceneDocument.getTilemapId()) |tilemapId| _ = utils.assetInput(.tilemap, context, tilemapId);
 
     if (z.button("Play", .{})) {
-        context.playState = .startNextFrame;
+        startPlayCommand(context);
     }
 
     if (context.playState != .notRunning) {
@@ -313,6 +313,17 @@ fn menu(context: *Context, editor: *Editor, sceneDocument: *SceneDocument) void 
     z.endDisabled();
 
     setEntityReferenceWindow(context, sceneDocument);
+}
+
+fn startPlayCommand(context: *Context) void {
+    if (context.currentProject) |*project| {
+        if (project.options.hasPlayCommand()) {
+            context.playState = .startNextFrame;
+        } else {
+            project.isProjectOptionsOpen = true;
+            project.focusSetProjectCommand = true;
+        }
+    }
 }
 
 fn entityDetailsMenu(context: *Context, _: *Editor, sceneDocument: *SceneDocument) void {
@@ -680,7 +691,7 @@ fn handleInput(context: *Context, editor: *Editor, sceneDocument: *SceneDocument
     }
 
     if (rl.isKeyPressed(.f5)) {
-        context.playState = .startNextFrame;
+        startPlayCommand(context);
     } else if (isControlDown()) {
         if (rl.isKeyPressed(.s)) {
             save(context, editor);

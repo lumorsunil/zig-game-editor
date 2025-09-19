@@ -1,5 +1,7 @@
 pub const config = @import("config.zig");
 
+pub const typeUtils = @import("type-utils.zig");
+
 pub const context = @import("context.zig");
 pub const Context = context.Context;
 pub const project = @import("project.zig");

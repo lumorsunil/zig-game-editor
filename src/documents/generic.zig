@@ -13,6 +13,15 @@ pub const firstDocumentVersion: DocumentVersion = 0;
 
 pub const DocumentVersionHeader = struct {
     version: DocumentVersion,
+
+    pub const empty = DocumentVersionHeader{
+        .version = firstDocumentVersion,
+    };
+};
+
+const DocumentUpgradeContext = struct {
+    data: *anyopaque,
+    version: DocumentVersion,
 };
 
 pub const DocumentGenericConfig = struct {};
@@ -48,6 +57,10 @@ pub fn DocumentGeneric(
             allocator.destroy(self.nonPersistentData);
         }
 
+        fn log(comptime fmt: []const u8, args: anytype) void {
+            std.log.info("Document " ++ @typeName(PersistentData) ++ ": " ++ fmt, args);
+        }
+
         fn initPersistentData(allocator: Allocator) *PersistentData {
             const persistentData = allocator.create(PersistentData) catch unreachable;
             persistentData.* = PersistentData.init(allocator);
@@ -74,7 +87,7 @@ pub fn DocumentGeneric(
             return document;
         }
 
-        fn parseFileAndHandleUpgrades(
+        pub fn parseFileAndHandleUpgrades(
             allocator: Allocator,
             dir: std.fs.Dir,
             path: []const u8,
@@ -107,9 +120,6 @@ pub fn DocumentGeneric(
                     upgrade.finalUpgraderVersion(PersistentData),
                     fileContents,
                 );
-                if (PersistentData == Scene) {
-                    std.log.debug("FINALSCENE: {any}", .{final});
-                }
                 persistentData.* = upgradeFinal(allocator, final);
             }
 
@@ -150,9 +160,10 @@ pub fn DocumentGeneric(
             fromVersion: DocumentVersion,
             fileContents: []u8,
         ) !PersistentData {
-            std.log.info("Upgrading document from version {} to {}", .{ fromVersion, PersistentData.currentVersion });
+            log("Upgrading document from version {} to {}", .{ fromVersion, PersistentData.currentVersion });
 
             validateCurrentVersionEqualsFinalUpgrader();
+            std.debug.assert(fromVersion != PersistentData.currentVersion);
             std.debug.assert(fromVersion < PersistentData.currentVersion);
             std.debug.assert(fromVersion >= firstDocumentVersion);
 
@@ -176,14 +187,12 @@ pub fn DocumentGeneric(
             }
         }
 
-        const endVersion = @max(PersistentData.currentVersion, firstDocumentVersion + 1) - 1;
-
         fn readAsVersion(
             allocator: Allocator,
             version: DocumentVersion,
             fileContents: []const u8,
-        ) !*anyopaque {
-            std.log.info("Reading document as version {}", .{version});
+        ) !DocumentUpgradeContext {
+            log("Reading document as version {}", .{version});
 
             switch (version) {
                 inline firstDocumentVersion...PersistentData.currentVersion => |v| {
@@ -197,7 +206,7 @@ pub fn DocumentGeneric(
                         fileContents,
                         .{ .ignore_unknown_fields = true },
                     );
-                    return prev;
+                    return .{ .data = prev, .version = v };
                 },
                 else => unreachable,
             }
@@ -205,41 +214,50 @@ pub fn DocumentGeneric(
 
         fn upgradeIntermediates(
             allocator: Allocator,
-            current: **anyopaque,
+            current: *DocumentUpgradeContext,
             fromVersion: DocumentVersion,
         ) !void {
-            if (endVersion == firstDocumentVersion) {
-                // try upgradeIntermediate(allocator, current, firstDocumentVersion);
+            std.debug.assert(PersistentData.currentVersion > firstDocumentVersion);
+
+            if (PersistentData.currentVersion == firstDocumentVersion) {
                 return;
             }
 
-            _ = upgrade: switch (fromVersion) {
-                inline firstDocumentVersion...endVersion => |v| {
+            const lastFromVersion = PersistentData.currentVersion -| 1;
+
+            const lastVersion = upgrade: switch (fromVersion) {
+                inline firstDocumentVersion...lastFromVersion => |v| {
+                    log("Calling upgradeIntermediate {}. {} ... {}", .{ v, firstDocumentVersion, lastFromVersion });
                     try upgradeIntermediate(allocator, current, v);
-                    break :upgrade v + 1;
+                    continue :upgrade v + 1;
                 },
-                PersistentData.currentVersion => return,
+                PersistentData.currentVersion => break :upgrade PersistentData.currentVersion,
                 else => unreachable,
             };
+
+            log("Completed upgrade into version {}", .{lastVersion});
         }
 
         fn upgradeIntermediate(
             allocator: Allocator,
-            current: **anyopaque,
-            comptime version: DocumentVersion,
+            current: *DocumentUpgradeContext,
+            comptime fromVersion: DocumentVersion,
         ) !void {
-            const upgrader = PersistentData.upgraders[version];
-            const prev: *upgrader.DocumentPrev = @ptrCast(@alignCast(current.*));
+            log("Upgrading document from intermediate version {} to {}", .{ fromVersion, fromVersion + 1 });
+            const upgrader = PersistentData.upgraders[fromVersion];
+            const prev: *upgrader.DocumentPrev = @ptrCast(@alignCast(current.data));
             const next = try allocator.create(upgrader.DocumentNext);
             next.* = upgrader.upgrader(allocator, prev.*, upgrade.Container.Intermediate);
             allocator.destroy(prev);
-            if (next.version != version + 1) return DocumentError.UpgraderVersionMismatch;
-            current.* = next;
+            if (next.version != fromVersion + 1) return DocumentError.UpgraderVersionMismatch;
+            current.data = next;
+            current.version = next.version;
         }
 
-        fn upgradeFinal(allocator: Allocator, current: *anyopaque) PersistentData {
+        fn upgradeFinal(allocator: Allocator, current: DocumentUpgradeContext) PersistentData {
+            log("Upgrading final step to version {}", .{upgrade.finalUpgraderVersion(PersistentData)});
             const DocumentFinal = upgrade.DocumentFinal(PersistentData);
-            const finalPtr: *DocumentFinal = @ptrCast(@alignCast(current));
+            const finalPtr: *DocumentFinal = @ptrCast(@alignCast(current.data));
             const final: DocumentFinal = finalPtr.*;
             allocator.destroy(finalPtr);
             return upgrade.upgradeValue(
