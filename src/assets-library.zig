@@ -17,6 +17,8 @@ pub const Node = union(enum) {
         name: [:0]const u8,
         documentType: lib.documents.DocumentTag,
 
+        pub const kindLabel = "File";
+
         pub fn deinit(self: File, allocator: Allocator) void {
             allocator.free(self.path);
             allocator.free(self.name);
@@ -26,6 +28,8 @@ pub const Node = union(enum) {
     pub const Directory = struct {
         path: [:0]const u8,
         name: [:0]const u8,
+
+        pub const kindLabel = "Directory";
 
         pub fn deinit(self: Directory, allocator: Allocator) void {
             allocator.free(self.path);
@@ -42,6 +46,23 @@ pub const Node = union(enum) {
     pub fn getPath(self: Node) [:0]const u8 {
         return switch (self) {
             inline else => |n| n.path,
+        };
+    }
+
+    pub fn setPath(self: *Node, allocator: Allocator, newPath: [:0]const u8) void {
+        return switch (self.*) {
+            inline else => |*n| {
+                allocator.free(n.path);
+                allocator.free(n.name);
+                n.path = allocator.dupeZ(u8, newPath) catch unreachable;
+                n.name = allocator.dupeZ(u8, std.mem.sliceTo(std.fs.path.basename(n.path), '.')) catch unreachable;
+            },
+        };
+    }
+
+    pub fn getKindLabel(self: Node) [:0]const u8 {
+        return switch (self) {
+            inline else => |n| @TypeOf(n).kindLabel,
         };
     }
 };

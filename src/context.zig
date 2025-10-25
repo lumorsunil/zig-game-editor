@@ -92,6 +92,8 @@ pub const Context = struct {
     // TODO: Whenever we close a document, check if we need to set this to null
     newAssetInputTarget: ?struct { documentId: UUID, assetInput: *?UUID } = null,
 
+    renameNodeTarget: ?*Node = null,
+
     deleteNodeTarget: ?*Node = null,
     isDeleteNodeDialogOpen: bool = false,
 

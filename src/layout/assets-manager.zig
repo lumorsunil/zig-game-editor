@@ -75,6 +75,7 @@ pub fn assetsManager(context: *Context) void {
 
     newAssetUI(context);
     if (deleteAssetDialog(context)) return;
+    if (renameAssetDialog(context)) return;
 }
 
 // Returns true if nodes were invalidated
@@ -122,6 +123,10 @@ fn nodeMenu(context: *Context, node: *Node) bool {
         context.deleteNodeTarget = node;
         context.isDeleteNodeDialogOpen = true;
     }
+    if (z.beginPopupContextItem()) {
+        defer z.endPopup();
+        if (nodeContextMenu(context, node)) return true;
+    }
     z.setCursorPos(labelPos);
     if (z.beginChild(name, .{ .w = iconSize, .h = labelHeight * 2 })) {
         z.textWrapped("{s}", .{name});
@@ -137,6 +142,14 @@ fn nodeMenu(context: *Context, node: *Node) bool {
     }
     z.endChild();
     z.setCursorPos(nextPos);
+
+    return false;
+}
+
+fn nodeContextMenu(context: *Context, node: *Node) bool {
+    if (z.selectable("Rename", .{})) {
+        context.renameNodeTarget = node;
+    }
 
     return false;
 }
@@ -236,6 +249,36 @@ fn deleteNode(context: *Context, node: Node) bool {
 
     // Update the asset library to match the file system
     p.assetsLibrary.removeNode(context.allocator, node.getPath());
+
+    return true;
+}
+
+// Returns true if nodes are invalidated
+fn renameNode(context: *Context, node: *Node, newName: [:0]const u8) bool {
+    const p = &(context.currentProject orelse return false);
+    var rootDir = p.assetsLibrary.openRoot();
+    defer rootDir.close();
+
+    const oldPath = node.getPath();
+    const dirname = std.fs.path.dirname(oldPath) orelse "";
+    const extensionStart = std.mem.indexOfScalarPos(u8, oldPath, dirname.len, '.');
+    const extension = if (extensionStart) |i| oldPath[i..] else "";
+    const newNameWithExtension = std.mem.concat(context.allocator, u8, &.{ newName, extension }) catch unreachable;
+    defer context.allocator.free(newNameWithExtension);
+    const newPath = std.fs.path.joinZ(context.allocator, &.{ dirname, newNameWithExtension }) catch unreachable;
+    defer context.allocator.free(newPath);
+
+    rootDir.rename(oldPath, newPath) catch |err| {
+        context.showError("Could not rename the file/directory {s} to {s}: {}", .{ oldPath, newPath, err });
+        return false;
+    };
+
+    p.rebuildIndex(context.allocator) catch |err| {
+        context.showError("Could not rebuild index: {}", .{err});
+        return false;
+    };
+
+    node.setPath(context.allocator, newPath);
 
     return true;
 }
@@ -460,6 +503,45 @@ fn deleteAssetDialog(context: *Context) bool {
             context.isDeleteNodeDialogOpen = false;
             context.deleteNodeTarget = null;
             if (deleteNode(context, target.*)) return true;
+        }
+    }
+
+    return false;
+}
+
+// Returns true if nodes are invalidated
+fn renameAssetDialog(context: *Context) bool {
+    if (context.renameNodeTarget) |target| {
+        const allocator = context.allocator;
+        const windowTitle = std.fmt.allocPrintSentinel(
+            allocator,
+            "Rename {s}",
+            .{target.getKindLabel()},
+            0,
+        ) catch unreachable;
+        defer context.allocator.free(windowTitle);
+        _ = z.begin(windowTitle, .{ .flags = .{ .no_collapse = true } });
+        defer z.end();
+        const basename = std.fs.path.basename(target.getPath());
+        const name = std.mem.sliceTo(basename, '.');
+        z.textWrapped(
+            "{s}\n\nEnter new name:",
+            .{name},
+        );
+        z.pushStrId("name-input");
+        _ = z.inputText("", .{
+            .buf = &context.reusableTextBuffer,
+        });
+        z.popId();
+        _ = utils.removeCharacters("/\\.", &context.reusableTextBuffer);
+        if (z.button("Cancel", .{})) {
+            context.renameNodeTarget = null;
+        }
+        z.sameLine(.{ .spacing = 16 });
+        if (z.button("Rename", .{})) {
+            context.renameNodeTarget = null;
+            const newName = std.mem.sliceTo(&context.reusableTextBuffer, 0);
+            if (renameNode(context, target, newName)) return true;
         }
     }
 

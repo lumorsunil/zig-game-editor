@@ -398,3 +398,26 @@ fn getAssetIconGridPosition(documentType: DocumentTag) Vector {
         .font => .{ 4, 3 },
     };
 }
+
+pub fn removeCharacters(chars: []const u8, source: [:0]u8) [:0]u8 {
+    var it = std.mem.splitAny(u8, source, chars);
+    var len: usize = 0;
+    var insertIndex: ?usize = null;
+
+    while (it.next()) |part| {
+        if (insertIndex) |ii| {
+            const start = ii;
+            const end = ii + part.len;
+            for (start..end) |j| {
+                source[j] = part[j - start];
+            }
+        }
+
+        insertIndex = len + part.len;
+        len += part.len;
+    }
+
+    for (len..source.len) |i| source[i] = 0;
+
+    return @ptrCast(source[0..len]);
+}
