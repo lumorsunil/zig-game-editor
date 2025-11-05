@@ -16,14 +16,14 @@ const UUID = lib.UUIDSerializable;
 const Node = lib.assetsLibrary.Node;
 const Vector = lib.Vector;
 
-fn getDefaultEntitySize(context: *Context) rl.Vector2 {
-    const tileSize = context.getTileSize();
-    return rl.Vector2.init(@floatFromInt(tileSize[0]), @floatFromInt(tileSize[1]));
+fn getDefaultEntityHitbox(context: *Context) struct { rl.Vector2, rl.Vector2 } {
+    const tileSize: @Vector(2, f32) = @floatFromInt(context.getTileSize());
+    return .{ .zero(), .init(tileSize[0], tileSize[1]) };
 }
 
-pub fn getEntitySizeNotScaled(context: *Context, entity: SceneEntity) rl.Vector2 {
-    const defaultEntitySize = getDefaultEntitySize(context);
-    return SceneDocument.getSizeFromEntityType(context, entity.type) catch defaultEntitySize orelse defaultEntitySize;
+pub fn getEntityHitboxNotScaled(context: *Context, entity: SceneEntity) struct { rl.Vector2, rl.Vector2 } {
+    const defaultEntityHitbox = getDefaultEntityHitbox(context);
+    return SceneDocument.getHitboxFromEntityType(context, entity.type) catch defaultEntityHitbox orelse defaultEntityHitbox;
 }
 
 pub fn getEntityRect(context: *Context, entity: SceneEntity) rl.Rectangle {
@@ -32,10 +32,15 @@ pub fn getEntityRect(context: *Context, entity: SceneEntity) rl.Rectangle {
         inline .exit, .entrance => |e| e.scale.?,
         else => entity.scale,
     };
-    var size = getEntitySizeNotScaled(context, entity);
+    const origin, var size = getEntityHitboxNotScaled(context, entity);
     size.x *= scaleVx;
     size.y *= scaleVy;
-    var rect = rl.Rectangle.init(entityPosition[0], entityPosition[1], size.x, size.y);
+    var rect = rl.Rectangle.init(
+        entityPosition[0] + origin.x,
+        entityPosition[1] + origin.y,
+        size.x,
+        size.y,
+    );
     rect.x -= rect.width / 2;
     rect.y -= rect.height / 2;
 
@@ -131,12 +136,15 @@ pub fn gridPositionToEntityPosition(
     entityType: SceneEntityType,
 ) Vector {
     const tileSize = context.getTileSize();
-    const defaultEntitySize = getDefaultEntitySize(context);
+    const defaultEntityHitbox = getDefaultEntityHitbox(context);
     const fTileSize: @Vector(2, f32) = @floatFromInt(tileSize);
-    const rlEntitySize = SceneDocument.getSizeFromEntityType(context, entityType) catch defaultEntitySize orelse defaultEntitySize;
+    const rlEntityOrigin, const rlEntitySize = SceneDocument.getHitboxFromEntityType(context, entityType) catch defaultEntityHitbox orelse defaultEntityHitbox;
     const entitySize = @Vector(2, f32){ rlEntitySize.x, rlEntitySize.y };
     const half = @Vector(2, f32){ 0.5, 0.5 };
-    return @intFromFloat(fTileSize * @as(@Vector(2, f32), @floatFromInt(gridPosition)) - fTileSize * half + entitySize * half);
+    const fGridPosition: @Vector(2, f32) = @floatFromInt(gridPosition);
+    const fOrigin = @Vector(2, f32){ rlEntityOrigin.x, rlEntityOrigin.y };
+
+    return @intFromFloat(fTileSize * fGridPosition - fTileSize * half + entitySize * half + fOrigin);
 }
 
 pub fn gridPositionToCenterOfTile(context: *Context, gridPosition: Vector) Vector {
@@ -395,6 +403,7 @@ fn getAssetIconGridPosition(documentType: DocumentTag) Vector {
         .entityType => .{ 3, 1 },
         .texture => .{ 4, 1 },
         .sound => .{ 4, 2 },
+        .music => .{ 4, 2 },
         .font => .{ 4, 3 },
     };
 }

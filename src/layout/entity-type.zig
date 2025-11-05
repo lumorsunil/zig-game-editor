@@ -60,6 +60,8 @@ fn menu(context: *Context, editor: *Editor, entityTypeDocument: *EntityTypeDocum
     _ = z.inputInt2("Cell Size", .{ .v = entityTypeDocument.getCellSize() });
     const gridPosition = entityTypeDocument.getGridPosition().*;
     z.text("Cell: {d:0.0},{d:0.0}", .{ gridPosition[0], gridPosition[1] });
+    _ = z.inputInt2("Hitbox Origin", .{ .v = entityTypeDocument.getHitboxOrigin() });
+    _ = z.inputInt2("Hitbox Size", .{ .v = entityTypeDocument.getHitboxSize() });
     _ = utils.assetInput(.texture, context, entityTypeDocument.getTextureId());
     drawIconMenu(context, entityTypeDocument);
     propertyEditor(context, .{ .entityType = entityTypeDocument });
@@ -84,7 +86,25 @@ pub fn drawIconMenu(context: *Context, entityTypeDocument: *EntityTypeDocument) 
     );
     const scaledSize: Vector = cellSize * context.scaleV;
 
+    const cursorPos = z.getCursorPos();
+
     c.rlImGuiImageRect(@ptrCast(texture), scaledSize[0], scaledSize[1], @bitCast(source));
+
+    const hitboxOrigin: @Vector(2, f32) = @floatFromInt(entityTypeDocument.getHitboxOrigin().* * context.scaleV);
+    const hitboxSize: @Vector(2, f32) = @floatFromInt(entityTypeDocument.getHitboxSize().* * context.scaleV);
+    const fScaledSize: @Vector(2, f32) = @floatFromInt(scaledSize);
+    const cx = cursorPos[0] + z.getWindowPos()[0] - 2 + fScaledSize[0] / 2;
+    const cy = cursorPos[1] + z.getWindowPos()[1] - 2 + fScaledSize[1] / 2;
+    const w = hitboxSize[0];
+    const h = hitboxSize[1];
+    const x = cx - w / 2 + hitboxOrigin[0];
+    const y = cy - h / 2 + hitboxOrigin[1];
+    z.getWindowDrawList().addRect(.{
+        .pmin = .{ x, y },
+        .pmax = .{ x + w, y + h },
+        .col = @bitCast(c.ColorToInt(c.WHITE)),
+        .thickness = 1.0,
+    });
 }
 
 fn handleInput(

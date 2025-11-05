@@ -36,6 +36,10 @@ pub const SoundDocument = @import("documents/sound/document.zig").SoundDocument;
 pub const SoundPersistentData = SoundDocument.DocumentType._PersistentData;
 pub const SoundNonPersistentData = SoundDocument.DocumentType._NonPersistentData;
 
+pub const MusicDocument = @import("documents/music/document.zig").MusicDocument;
+pub const MusicPersistentData = MusicDocument.DocumentType._PersistentData;
+pub const MusicNonPersistentData = MusicDocument.DocumentType._NonPersistentData;
+
 pub const FontDocument = @import("documents/font/document.zig").FontDocument;
 pub const FontPersistentData = FontDocument.DocumentType._PersistentData;
 pub const FontNonPersistentData = FontDocument.DocumentType._NonPersistentData;

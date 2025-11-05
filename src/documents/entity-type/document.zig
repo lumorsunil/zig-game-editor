@@ -40,6 +40,14 @@ pub const EntityTypeDocument = struct {
         return &self.document.persistentData.icon.cellSize;
     }
 
+    pub fn getHitboxOrigin(self: *EntityTypeDocument) *Vector {
+        return &self.document.persistentData.hitboxOrigin;
+    }
+
+    pub fn getHitboxSize(self: *EntityTypeDocument) *Vector {
+        return &self.document.persistentData.hitboxSize;
+    }
+
     pub fn getGridPosition(self: *EntityTypeDocument) *Vector {
         return &self.document.persistentData.icon.gridPosition;
     }

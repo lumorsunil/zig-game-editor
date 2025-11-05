@@ -11,7 +11,7 @@ pub fn generateThumbnail(self: *Context, document: *Document) !?rl.Image {
         .texture => |texture| {
             return try rl.loadImageFromTexture(texture.getTexture().?.*);
         },
-        .sound, .font => return null,
+        .sound, .music, .font => return null,
         .animation => |*animationDocument| {
             const animations = animationDocument.getAnimations();
             if (animations.items.len == 0) return null;

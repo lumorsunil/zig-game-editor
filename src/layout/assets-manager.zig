@@ -298,7 +298,7 @@ fn nodeDrawThumbnail(context: *Context, node: *Node) void {
                     return;
                 },
                 .animation, .entityType, .tilemap, .scene => context.requestThumbnailById(id) catch return,
-                .sound, .font => return,
+                .sound, .music, .font => return,
             };
             c.rlImGuiImageSize(@ptrCast(thumbnail), iconSize, iconSize);
         },
@@ -321,6 +321,10 @@ fn newAssetUI(context: *Context) void {
         }
         if (z.button("Sound", .{ .w = newAssetItemWidth, .h = 24 })) {
             createNewSoundAsset(context);
+            z.closeCurrentPopup();
+        }
+        if (z.button("Music", .{ .w = newAssetItemWidth, .h = 24 })) {
+            createNewMusicAsset(context);
             z.closeCurrentPopup();
         }
         if (z.button("Font", .{ .w = newAssetItemWidth, .h = 24 })) {
@@ -432,6 +436,26 @@ fn createNewSoundAsset(context: *Context) void {
         document.save(&context.currentProject.?) catch |err| {
             context.showError(
                 "Could not update sound document {?s} with sound file path {s}: {}",
+                .{ context.getFilePathById(document.getId()), filePath, err },
+            );
+            const node = context.getNodeById(document.getId()) orelse return;
+            _ = deleteNode(context, node);
+            return;
+        };
+    }
+}
+
+fn createNewMusicAsset(context: *Context) void {
+    if (context.getFileNameWithDialog("wav,mp3")) |filePath| {
+        defer context.allocator.free(filePath);
+        const basename = context.allocator.dupeZ(u8, std.fs.path.basename(filePath)) catch unreachable;
+        defer context.allocator.free(basename);
+        const document, const musicDocument = context.newAsset(basename, .music) catch return;
+        musicDocument.setMusicFilePath(filePath);
+        musicDocument.document.nonPersistentData.load("", musicDocument.document.persistentData);
+        document.save(&context.currentProject.?) catch |err| {
+            context.showError(
+                "Could not update music document {?s} with music file path {s}: {}",
                 .{ context.getFilePathById(document.getId()), filePath, err },
             );
             const node = context.getNodeById(document.getId()) orelse return;

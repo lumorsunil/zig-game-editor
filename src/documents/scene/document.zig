@@ -44,22 +44,37 @@ pub const SceneDocument = struct {
         return self.document.persistentData.id;
     }
 
+    pub fn getHitboxFromEntityType(
+        context: *Context,
+        entityType: SceneEntityType,
+    ) !?struct { rl.Vector2, rl.Vector2 } {
+        const tileSize = context.getTileSize();
+        return switch (entityType) {
+            .exit => .{
+                .zero(),
+                .init(@floatFromInt(tileSize[0]), @floatFromInt(tileSize[1])),
+            },
+            .entrance => .{
+                .zero(),
+                .init(@floatFromInt(tileSize[0]), @floatFromInt(tileSize[1])),
+            },
+            .point => .{ .zero(), .init(1, 1) },
+            .tilemap => unreachable,
+            .custom => |c| {
+                const document = try context.requestDocumentTypeById(.entityType, c.entityTypeId) orelse return null;
+                const origin: @Vector(2, f32) = @floatFromInt(document.getHitboxOrigin().*);
+                const size: @Vector(2, f32) = @floatFromInt(document.getHitboxSize().*);
+                return .{ .init(origin[0], origin[1]), .init(size[0], size[1]) };
+            },
+        };
+    }
+
     pub fn getSizeFromEntityType(
         context: *Context,
         entityType: SceneEntityType,
     ) !?rl.Vector2 {
-        const tileSize = context.getTileSize();
-        return switch (entityType) {
-            .exit => rl.Vector2.init(@floatFromInt(tileSize[0]), @floatFromInt(tileSize[1])),
-            .entrance => rl.Vector2.init(@floatFromInt(tileSize[0]), @floatFromInt(tileSize[1])),
-            .point => rl.Vector2.init(1, 1),
-            .tilemap => unreachable,
-            .custom => |c| {
-                const document = try context.requestDocumentTypeById(.entityType, c.entityTypeId) orelse return null;
-                const cellSize: @Vector(2, f32) = @floatFromInt(document.getCellSize().*);
-                return rl.Vector2.init(cellSize[0], cellSize[1]);
-            },
-        };
+        const hitbox = try getHitboxFromEntityType(context, entityType) orelse return null;
+        return hitbox.@"1";
     }
 
     pub fn drawEntity(self: *SceneDocument, context: *Context, entity: *SceneEntity) void {

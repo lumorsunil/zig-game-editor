@@ -66,12 +66,15 @@ pub const EntityType = struct {
     id: UUID,
     name: StringZ,
     icon: EntityTypeIcon,
+    hitboxOrigin: Vector,
+    hitboxSize: Vector,
     properties: PropertyObject,
 
-    pub const currentVersion: DocumentVersion = firstDocumentVersion + 1;
+    pub const currentVersion: DocumentVersion = firstDocumentVersion + 2;
 
     pub const upgraders = .{
         @import("upgrades/0-1.zig"),
+        @import("upgrades/1-2.zig"),
     };
 
     pub const UpgradeContainer = upgrade.Container.init(&.{});
@@ -82,6 +85,8 @@ pub const EntityType = struct {
             .id = UUID.init(),
             .name = .init(allocator, "new-entity-type"),
             .icon = .empty,
+            .hitboxOrigin = .{ 0, 0 },
+            .hitboxSize = EntityTypeIcon.empty.cellSize,
             .properties = .empty,
         };
     }
@@ -96,6 +101,8 @@ pub const EntityType = struct {
         cloned.id = self.id;
         cloned.name = .init(allocator, self.name.buffer);
         cloned.icon = self.icon;
+        cloned.hitboxOrigin = self.hitboxOrigin;
+        cloned.hitboxSize = self.hitboxSize;
         cloned.properties = self.properties.clone(allocator);
         return cloned;
     }

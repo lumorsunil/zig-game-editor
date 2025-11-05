@@ -111,6 +111,12 @@ pub const Context = struct {
         .rotation = 0,
     },
 
+    isFindAssetsMenuOpen: bool = false,
+    hasFocusedFindAssetsInput: bool = false,
+    findAssetsHighlightedIndex: ?usize = null,
+    findAssetsInputBuffer: [256:0]u8 = undefined,
+    findAssetsResults: std.ArrayList(UUID) = .empty,
+
     defaultTexture: rl.Texture2D = undefined,
 
     pub fn init(allocator: Allocator) Context {
@@ -144,6 +150,7 @@ pub const Context = struct {
         if (self.iconsTexture) |iconsTexture| rl.unloadTexture(iconsTexture);
         self.iconsTexture = null;
         self.sceneMap.deinit(self.allocator);
+        self.findAssetsResults.deinit(self.allocator);
         rl.unloadTexture(self.defaultTexture);
         self.editorsToBeClosed.deinit(self.allocator);
     }
@@ -415,7 +422,7 @@ pub const Context = struct {
             .scene, .tilemap, .animation, .entityType => {
                 if (file.id) |id| self.openEditorById(id);
             },
-            .texture, .sound, .font => {},
+            .texture, .sound, .music, .font => {},
         }
     }
 

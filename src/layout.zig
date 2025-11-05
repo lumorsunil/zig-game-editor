@@ -14,6 +14,8 @@ const utils = lib.layouts.utils;
 const projectLayout = lib.layouts.project;
 const sceneMapUI = lib.layouts.sceneMap.sceneMapUI;
 const sceneMapUIHandleInput = lib.layouts.sceneMap.sceneMapUIHandleInput;
+const findAssetsUI = lib.layouts.findAssets.findAssetsUI;
+const findAssetsUIHandleInput = lib.layouts.findAssets.findAssetsUIHandleInput;
 const BoundedArray = lib.BoundedArray;
 
 pub fn layout(context: *Context) !void {
@@ -45,6 +47,7 @@ pub fn layout(context: *Context) !void {
         }
     }
 
+    findAssetsUIHandleInput(context);
     sceneMapUIHandleInput(context);
 
     endOfFrame(context);
@@ -65,6 +68,7 @@ fn imguiUI(context: *Context) bool {
 
         assetsManager(context);
 
+        findAssetsUI(context);
         sceneMapUI(context);
     } else {
         projectLayout.noProjectOpenedMenu(context);

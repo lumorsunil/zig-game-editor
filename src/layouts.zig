@@ -3,6 +3,7 @@ pub const LayoutGeneric = @import("layout/layout-generic.zig").LayoutGeneric;
 
 pub const assetsManager = @import("layout/assets-manager.zig");
 pub const sceneMap = @import("layout/scene-map.zig");
+pub const findAssets = @import("layout/find-assets.zig");
 pub const project = @import("layout/project.zig");
 pub const utils = @import("layout/utils.zig");
 

@@ -848,7 +848,7 @@ fn setDragEntityState(
     entities: []const *SceneEntity,
 ) void {
     const firstEntity = entities[0];
-    const entitySize = utils.getEntitySizeNotScaled(context, firstEntity.*);
+    _, const entitySize = utils.getEntityHitboxNotScaled(context, firstEntity.*);
     const snapshot = context.allocator.alloc(DragEntityState.Snapshot, entities.len) catch unreachable;
     for (entities, 0..) |entity, i| snapshot[i] = .{
         .entity = entity,

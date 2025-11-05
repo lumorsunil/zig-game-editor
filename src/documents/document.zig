@@ -6,6 +6,7 @@ const TilemapDocument = lib.documents.TilemapDocument;
 const AnimationsDocument = lib.documents.AnimationsDocument;
 const TextureDocument = lib.documents.TextureDocument;
 const SoundDocument = lib.documents.SoundDocument;
+const MusicDocument = lib.documents.MusicDocument;
 const FontDocument = lib.documents.FontDocument;
 const EntityTypeDocument = lib.documents.EntityTypeDocument;
 const Project = lib.project.Project;
@@ -128,6 +129,7 @@ pub const Document = struct {
             .animation => "animations.json",
             .texture => "texture.json",
             .sound => "sound.json",
+            .music => "music.json",
             .font => "font.json",
             .entityType => "entity-type.json",
         };
@@ -146,6 +148,7 @@ pub const Document = struct {
             .animation => "Animation",
             .texture => "Texture",
             .sound => "Sound",
+            .music => "Music",
             .font => "Font",
             .entityType => "Entity Type",
         };
@@ -167,6 +170,7 @@ pub const DocumentTag = enum {
     animation,
     texture,
     sound,
+    music,
     font,
     entityType,
 };
@@ -177,6 +181,7 @@ pub const DocumentContent = union(DocumentTag) {
     animation: AnimationsDocument,
     texture: TextureDocument,
     sound: SoundDocument,
+    music: MusicDocument,
     font: FontDocument,
     entityType: EntityTypeDocument,
 
